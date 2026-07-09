@@ -18,11 +18,13 @@
 `src/main/resources/application-local.properties` 파일 생성 후 아래 값 입력:
 
 ```properties
-DB_URL=jdbc:postgresql://localhost:5432/cwww_db
-DB_USERNAME=cwww
-DB_PASSWORD=cwww1234
-JWT_SECRET=개발용_임시값_주원님_JWT_구현_시_교체
+DB_URL=
+DB_USERNAME=
+DB_PASSWORD=
+JWT_SECRET=
 ```
+
+> 실제 값은 Notion 팀 페이지를 참고하세요.
 
 ### 2. Docker 실행 (PostgreSQL + Redis)
 
