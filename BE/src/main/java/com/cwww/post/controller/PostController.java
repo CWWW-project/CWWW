@@ -26,4 +26,12 @@ public class PostController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response));
     }
+
+    @GetMapping("/{postId}")
+    public ResponseEntity<ApiResponse<PostResponse>> getPost(
+            @RequestHeader("X-User-Id") Long userId,
+            @PathVariable Long postId) {
+        PostResponse response = postService.getPost(userId, postId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 }

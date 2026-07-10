@@ -1,5 +1,8 @@
 package com.cwww.post.service;
 
+import com.cwww.friend.mapper.FriendMapper;
+import com.cwww.global.exception.BusinessException;
+import com.cwww.global.exception.ErrorCode;
 import com.cwww.post.domain.Hashtag;
 import com.cwww.post.domain.Media;
 import com.cwww.post.domain.Post;
@@ -21,6 +24,7 @@ public class PostServiceImpl implements PostService {
     private final PostMapper postMapper;
     private final MediaMapper mediaMapper;
     private final HashtagMapper hashtagMapper;
+    private final FriendMapper friendMapper;
 
     @Override
     @Transactional
@@ -34,11 +38,40 @@ public class PostServiceImpl implements PostService {
                 .build();
 
         postMapper.insert(post);
-
         saveHashtags(post.getPostId(), request.getHashtags());
         saveMediaUrls(post.getPostId(), request.getMediaUrls());
 
         return PostResponse.from(post, request.getHashtags(), request.getMediaUrls());
+    }
+
+    @Override
+    @Transactional
+    public PostResponse getPost(Long viewerId, Long postId) {
+        Post post = postMapper.findById(postId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
+
+        checkVisibility(viewerId, post);
+        postMapper.incrementViewCount(postId);
+
+        List<String> hashtags = hashtagMapper.findNamesByPostId(postId);
+        List<String> mediaUrls = mediaMapper.findUrlsByTarget("POST", postId);
+
+        return PostResponse.from(post, hashtags, mediaUrls);
+    }
+
+    private void checkVisibility(Long viewerId, Post post) {
+        switch (post.getVisibility()) {
+            case "PRIVATE" -> {
+                if (!post.getUserId().equals(viewerId)) {
+                    throw new BusinessException(ErrorCode.POST_FORBIDDEN);
+                }
+            }
+            case "FRIEND" -> {
+                if (!post.getUserId().equals(viewerId) && !friendMapper.isFriend(post.getUserId(), viewerId)) {
+                    throw new BusinessException(ErrorCode.POST_FORBIDDEN);
+                }
+            }
+        }
     }
 
     private void saveHashtags(Long postId, List<String> hashtags) {

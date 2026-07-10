@@ -6,4 +6,6 @@ import com.cwww.post.dto.PostResponse;
 public interface PostService {
 
     PostResponse createPost(Long userId, PostCreateRequest request);
+
+    PostResponse getPost(Long viewerId, Long postId);
 }
