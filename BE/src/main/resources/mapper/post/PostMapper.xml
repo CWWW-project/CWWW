@@ -5,8 +5,8 @@
 <mapper namespace="com.cwww.post.mapper.PostMapper">
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="postId">
-        INSERT INTO post (user_id, title, content, visibility, created_at, updated_at)
-        VALUES (#{userId}, #{title}, #{content}, #{visibility}, NOW(), NOW())
+        INSERT INTO post (user_id, minihompy_id, title, content, visibility, created_at, updated_at)
+        VALUES (#{userId}, #{minihompyId}, #{title}, #{content}, #{visibility}, NOW(), NOW())
     </insert>
 
 </mapper>

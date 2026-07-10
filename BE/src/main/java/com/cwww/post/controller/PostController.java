@@ -17,6 +17,7 @@ public class PostController {
 
     private final PostService postService;
 
+    // TODO: JWT 인증 구현 후 SecurityContext에서 userId 추출하도록 교체
     @PostMapping
     public ResponseEntity<ApiResponse<PostResponse>> createPost(
             @RequestHeader("X-User-Id") Long userId,

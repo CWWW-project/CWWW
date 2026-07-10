@@ -27,6 +27,7 @@ public class PostServiceImpl implements PostService {
     public PostResponse createPost(Long userId, PostCreateRequest request) {
         Post post = Post.builder()
                 .userId(userId)
+                .minihompyId(request.getMinihompyId())
                 .title(request.getTitle())
                 .content(request.getContent())
                 .visibility(request.getVisibility())
