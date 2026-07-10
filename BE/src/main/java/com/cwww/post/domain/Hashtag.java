@@ -1,8 +1,12 @@
 package com.cwww.post.domain;
 
-import lombok.Getter;
+import lombok.*;
 
 @Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Hashtag {
 
     private Long hashtagId;

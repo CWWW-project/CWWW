@@ -4,6 +4,22 @@
 
 <mapper namespace="com.cwww.post.mapper.HashtagMapper">
 
-    <!-- TODO: 쿼리 작성 -->
+    <insert id="upsertHashtag">
+        INSERT INTO hashtag (name)
+        VALUES (#{name})
+        ON CONFLICT (name) DO NOTHING
+    </insert>
+
+    <select id="findByName" resultType="com.cwww.post.domain.Hashtag">
+        SELECT hashtag_id, name
+        FROM hashtag
+        WHERE name = #{name}
+    </select>
+
+    <insert id="linkToPost">
+        INSERT INTO post_hashtag (post_id, hashtag_id)
+        VALUES (#{postId}, #{hashtagId})
+        ON CONFLICT DO NOTHING
+    </insert>
 
 </mapper>

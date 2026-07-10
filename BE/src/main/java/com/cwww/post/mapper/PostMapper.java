@@ -6,5 +6,5 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface PostMapper {
 
-    // TODO: 쿼리 메서드 추가
+    void insert(Post post);
 }

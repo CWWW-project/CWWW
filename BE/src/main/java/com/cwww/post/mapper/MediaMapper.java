@@ -2,9 +2,14 @@ package com.cwww.post.mapper;
 
 import com.cwww.post.domain.Media;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
 
 @Mapper
 public interface MediaMapper {
 
-    // TODO: 쿼리 메서드 추가
+    void insert(Media media);
+
+    List<String> findUrlsByTarget(@Param("targetType") String targetType, @Param("targetId") Long targetId);
 }
