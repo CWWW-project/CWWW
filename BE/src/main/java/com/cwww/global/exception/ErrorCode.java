@@ -21,7 +21,12 @@ public enum ErrorCode {
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "A003", "유효하지 않은 토큰입니다."),
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "A004", "만료된 토큰입니다."),
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "A005", "이미 사용 중인 이메일입니다."),
-    REREGISTRATION_BLOCKED(HttpStatus.FORBIDDEN, "A006", "탈퇴 후 15일간 재가입이 불가합니다.");
+    REREGISTRATION_BLOCKED(HttpStatus.FORBIDDEN, "A006", "탈퇴 후 15일간 재가입이 불가합니다."),
+
+    // Media
+    INVALID_FILE_EXTENSION(HttpStatus.BAD_REQUEST, "M001", "허용되지 않는 파일 확장자입니다."),
+    FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "M002", "파일 크기가 10MB를 초과합니다."),
+    FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "M003", "파일 업로드에 실패했습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
