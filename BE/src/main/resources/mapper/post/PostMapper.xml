@@ -4,6 +4,9 @@
 
 <mapper namespace="com.cwww.post.mapper.PostMapper">
 
-    <!-- TODO: 쿼리 작성 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="postId">
+        INSERT INTO post (user_id, minihompy_id, title, content, visibility, created_at, updated_at)
+        VALUES (#{userId}, #{minihompyId}, #{title}, #{content}, #{visibility}, NOW(), NOW())
+    </insert>
 
 </mapper>

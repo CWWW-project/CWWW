@@ -4,6 +4,17 @@
 
 <mapper namespace="com.cwww.post.mapper.MediaMapper">
 
-    <!-- TODO: 쿼리 작성 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="mediaId">
+        INSERT INTO media (target_type, target_id, media_url, created_at)
+        VALUES (#{targetType}, #{targetId}, #{mediaUrl}, NOW())
+    </insert>
+
+    <select id="findUrlsByTarget" resultType="String">
+        SELECT media_url
+        FROM media
+        WHERE target_type = #{targetType}
+          AND target_id = #{targetId}
+        ORDER BY media_id
+    </select>
 
 </mapper>
