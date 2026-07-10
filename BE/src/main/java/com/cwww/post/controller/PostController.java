@@ -32,6 +32,7 @@ public class PostController {
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long postId) {
         PostResponse response = postService.getPost(userId, postId);
+        postService.incrementViewCount(postId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

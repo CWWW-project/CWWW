@@ -21,6 +21,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -49,7 +50,6 @@ class PostGetServiceTest {
 
         // Assert
         assertThat(response.getPostId()).isEqualTo(1L);
-        verify(postMapper).incrementViewCount(1L);
     }
 
     @Test
@@ -91,6 +91,24 @@ class PostGetServiceTest {
 
         // Act
         PostResponse response = postService.getPost(ownerId, 1L);
+
+        // Assert
+        assertThat(response.getPostId()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("일촌 공개 글 - 일촌인 경우 조회 성공")
+    void getPost_friendOnly_success() {
+        // Arrange
+        Long viewerId = 2L;
+        Post post = Post.builder().postId(1L).userId(1L).title("일촌글").content("내용").visibility("FRIEND").build();
+        given(postMapper.findById(1L)).willReturn(Optional.of(post));
+        given(friendMapper.isFriend(1L, viewerId)).willReturn(true);
+        given(mediaMapper.findUrlsByTarget("POST", 1L)).willReturn(List.of());
+        given(hashtagMapper.findNamesByPostId(1L)).willReturn(List.of());
+
+        // Act
+        PostResponse response = postService.getPost(viewerId, 1L);
 
         // Assert
         assertThat(response.getPostId()).isEqualTo(1L);

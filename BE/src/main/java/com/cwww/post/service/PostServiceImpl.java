@@ -45,18 +45,23 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public PostResponse getPost(Long viewerId, Long postId) {
         Post post = postMapper.findById(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
 
         checkVisibility(viewerId, post);
-        postMapper.incrementViewCount(postId);
 
         List<String> hashtags = hashtagMapper.findNamesByPostId(postId);
         List<String> mediaUrls = mediaMapper.findUrlsByTarget("POST", postId);
 
         return PostResponse.from(post, hashtags, mediaUrls);
+    }
+
+    @Override
+    @Transactional
+    public void incrementViewCount(Long postId) {
+        postMapper.incrementViewCount(postId);
     }
 
     private void checkVisibility(Long viewerId, Post post) {
