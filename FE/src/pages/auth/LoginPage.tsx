@@ -1,10 +1,174 @@
-// TODO: AUTH 도메인 - 윤주원
+import { useState } from 'react'
+
+type Tab = 'login' | 'signup'
+
 export default function LoginPage() {
+  const [tab, setTab] = useState<Tab>('login')
+  const [showPw, setShowPw] = useState(false)
+  const [timer] = useState('04:32')
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#89d0ed]">
-      <div className="bg-white p-8 border-2 border-gray-400 text-center">
-        <h1 className="text-xl font-bold mb-2">AUTH 도메인 - 윤주원</h1>
-        <p className="text-gray-500">로그인 페이지 개발 예정</p>
+    <div className="min-h-screen flex flex-col items-center justify-center py-12 gap-6">
+      {/* 브랜드 */}
+      <div className="text-center">
+        <h1 style={{ fontFamily: 'Bricolage Grotesque', fontSize: 36, fontWeight: 800, color: '#7c2e00', letterSpacing: -1 }}>
+          싸이월드
+        </h1>
+        <p style={{ fontFamily: 'Be Vietnam Pro', fontSize: 14, color: '#360f00', marginTop: 4 }}>
+          나만의 공간으로 돌아오세요 🌸
+        </p>
+      </div>
+
+      {/* Auth Card */}
+      <div className="window-frame w-full max-w-sm">
+        {/* Title Bar */}
+        <div className="retro-title-bar">
+          <span className="material-symbols-outlined" style={{ fontSize: 15 }}>lock</span>
+          <span>회원 인증</span>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', borderBottom: '2px solid #8e7164', padding: '8px 8px 0', gap: 4 }}>
+          {(['login', 'signup'] as Tab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              style={{
+                borderTop: '1px solid #a0a0a0',
+                borderLeft: '1px solid #a0a0a0',
+                borderRight: '1px solid #a0a0a0',
+                borderBottom: 'none',
+                background: tab === t ? '#f9f9f9' : '#d0d0d0',
+                color: tab === t ? '#a33e00' : '#1a1c1c',
+                fontWeight: tab === t ? 700 : 400,
+                fontFamily: 'Geist, monospace',
+                fontSize: 12,
+                padding: '4px 16px',
+                cursor: 'pointer',
+              }}
+            >
+              {t === 'login' ? '로그인' : '회원가입'}
+            </button>
+          ))}
+        </div>
+
+        {/* Login Form */}
+        {tab === 'login' && (
+          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>이메일</label>
+              <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>mail</span>
+                <input type="email" placeholder="example@email.com"
+                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>비밀번호</label>
+              <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>lock</span>
+                <input type={showPw ? 'text' : 'password'} placeholder="비밀번호 입력"
+                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }} />
+                <button onClick={() => setShowPw(!showPw)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>
+                    {showPw ? 'visibility_off' : 'visibility'}
+                  </span>
+                </button>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" className="window-inset" style={{ width: 14, height: 14 }} />
+                <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136' }}>로그인 유지</span>
+              </label>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Geist, monospace', fontSize: 12, color: '#0c6780', textDecoration: 'none' }}>
+                비밀번호 찾기
+              </button>
+            </div>
+            <button className="retro-btn retro-btn-primary" style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>login</span> 로그인
+            </button>
+
+            {/* Divider */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ flex: 1, borderTop: '1px solid #e3bfb1' }} />
+              <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136' }}>또는</span>
+              <div style={{ flex: 1, borderTop: '1px solid #e3bfb1' }} />
+            </div>
+
+            {/* 카카오 */}
+            <button className="retro-btn" style={{ width: '100%', padding: '8px 0', background: '#FEE500', borderColor: '#FEE500', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <circle cx="9" cy="9" r="9" fill="#3C1E1E"/>
+                <path d="M9 5.5C6.515 5.5 4.5 7.015 4.5 8.875c0 1.19.79 2.235 1.98 2.835l-.49 1.83c-.04.15.13.27.26.19L8.38 12.5c.205.025.415.04.62.04 2.485 0 4.5-1.515 4.5-3.375S11.485 5.5 9 5.5z" fill="#FEE500"/>
+              </svg>
+              카카오로 시작하기
+            </button>
+            {/* 구글 */}
+            <button className="retro-btn" style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <svg width="18" height="18" viewBox="0 0 18 18">
+                <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+                <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+                <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+                <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+              </svg>
+              구글로 시작하기
+            </button>
+          </div>
+        )}
+
+        {/* Signup Form */}
+        {tab === 'signup' && (
+          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>이메일</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <div className="window-inset" style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '6px 8px' }}>
+                  <input type="email" placeholder="이메일 주소"
+                    style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }} />
+                </div>
+                <button className="retro-btn" style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>인증 전송</button>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>인증 코드</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <div className="window-inset" style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '6px 8px' }}>
+                  <input type="text" placeholder="6자리 코드"
+                    style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }} />
+                </div>
+                <button className="retro-btn retro-btn-primary" style={{ padding: '6px 10px' }}>확인</button>
+              </div>
+              <p style={{ fontFamily: 'Geist, monospace', fontSize: 12, color: '#0c6780' }}>
+                유효시간 <span style={{ color: '#ba1a1a', fontWeight: 700 }}>{timer}</span>
+              </p>
+            </div>
+            {[
+              { label: '닉네임', icon: 'badge', type: 'text', placeholder: '사용할 닉네임 (2~10자)' },
+              { label: '비밀번호', icon: 'lock', type: 'password', placeholder: '8자 이상, 영문+숫자+특수문자' },
+              { label: '비밀번호 확인', icon: 'lock_reset', type: 'password', placeholder: '비밀번호 재입력' },
+            ].map(({ label, icon, type, placeholder }) => (
+              <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>{label}</label>
+                <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>{icon}</span>
+                  <input type={type} placeholder={placeholder}
+                    style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }} />
+                </div>
+              </div>
+            ))}
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 6, cursor: 'pointer' }}>
+              <input type="checkbox" style={{ marginTop: 2 }} />
+              <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136', lineHeight: 1.6 }}>
+                <span style={{ color: '#0c6780', cursor: 'pointer' }}>이용약관</span> 및{' '}
+                <span style={{ color: '#0c6780', cursor: 'pointer' }}>개인정보처리방침</span>에 동의합니다
+              </span>
+            </label>
+            <button className="retro-btn retro-btn-primary" style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>person_add</span> 회원가입
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

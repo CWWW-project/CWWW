@@ -1,1 +1,296 @@
 @import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Geist:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-family: 'Material Symbols Outlined';
+}
+
+body {
+  background-color: #89d0ed;
+  background-image: radial-gradient(#baeaff 2px, transparent 2px);
+  background-size: 16px 16px;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  color: #1a1c1c;
+}
+
+.window-frame {
+  border-top: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #a0a0a0;
+  border-right: 2px solid #a0a0a0;
+  background-color: #f9f9f9;
+}
+
+.window-inset {
+  border-top: 2px solid #a0a0a0;
+  border-left: 2px solid #a0a0a0;
+  border-bottom: 2px solid #ffffff;
+  border-right: 2px solid #ffffff;
+  background-color: #ffffff;
+}
+
+.retro-btn {
+  border-top: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #a0a0a0;
+  border-right: 2px solid #a0a0a0;
+  background-color: #e2e2e2;
+  cursor: pointer;
+  transition: all 0.1s;
+  font-family: 'Geist', monospace;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.retro-btn:active {
+  border-top: 2px solid #a0a0a0;
+  border-left: 2px solid #a0a0a0;
+  border-bottom: 2px solid #ffffff;
+  border-right: 2px solid #ffffff;
+  padding-top: 2px;
+  padding-left: 2px;
+}
+
+.retro-btn-primary {
+  background-color: #ff6600;
+  color: #ffffff;
+}
+
+.retro-btn-gray {
+  background-color: #e2e2e2;
+  color: #1a1c1c;
+  border-top: 1px solid #ffffff;
+  border-left: 1px solid #ffffff;
+  border-bottom: 1px solid #a0a0a0;
+  border-right: 1px solid #a0a0a0;
+  outline: 1px solid #ccc;
+  cursor: pointer;
+  font-family: 'Geist', monospace;
+  font-size: 12px;
+}
+
+.retro-title-bar {
+  background-color: #87CEEB;
+  border-bottom: 2px solid #000000;
+  padding: 3px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Geist', monospace;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.retro-window {
+  background-color: #f9f9f9;
+  border-top: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+  border-right: 2px solid #a0a0a0;
+  border-bottom: 2px solid #a0a0a0;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,0.1);
+}
+
+.retro-inner-box {
+  background-color: #ffffff;
+  border: 1px solid #a0a0a0;
+  box-shadow: inset 1px 1px 3px rgba(0,0,0,0.1);
+}
+
+.tab-item {
+  border-top: 1px solid #8e7164;
+  border-right: 1px solid #8e7164;
+  border-bottom: 1px solid #8e7164;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+}
+
+.tab-active {
+  background-color: #a33e00;
+  color: #ffffff;
+  border-color: #ffffff;
+  margin-left: -2px;
+  z-index: 10;
+}
+
+/* Chat typing animation */
+@keyframes typing-bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50% { transform: translateY(-4px); opacity: 1; }
+}
+.typing-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  background: #8e7164;
+  border-radius: 50%;
+}
+.typing-dot:nth-child(1) { animation: typing-bounce 1.2s ease infinite 0ms; }
+.typing-dot:nth-child(2) { animation: typing-bounce 1.2s ease infinite 200ms; }
+.typing-dot:nth-child(3) { animation: typing-bounce 1.2s ease infinite 400ms; }
+
+/* Retro scrollbar */
+.retro-scrollbar::-webkit-scrollbar { width: 12px; }
+.retro-scrollbar::-webkit-scrollbar-track { background: #e2e2e2; border-left: 1px solid #a0a0a0; }
+.retro-scrollbar::-webkit-scrollbar-thumb { background: #a0a0a0; border: 1px solid #f9f9f9; }
+
+/* Miniroom placed items */
+.placed-item {
+  position: absolute;
+  cursor: move;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.placed-item:hover { outline: 2px dashed #ff6600; outline-offset: 2px; }
+.placed-item.selected-item { outline: 2px solid #ff6600; outline-offset: 2px; }
+.placed-item .item-label {
+  font-size: 9px;
+  font-family: 'Geist', monospace;
+  background: rgba(255,255,255,0.85);
+  padding: 0 3px;
+  border: 1px solid #ccc;
+  white-space: nowrap;
+  margin-top: 2px;
+  display: none;
+}
+.placed-item:hover .item-label,
+.placed-item.selected-item .item-label { display: block; }
+
+.inv-item {
+  border-top: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #a0a0a0;
+  border-right: 2px solid #a0a0a0;
+  background-color: #f9f9f9;
+  cursor: grab;
+  transition: all 0.1s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 4px;
+  gap: 2px;
+}
+.inv-item:hover { background-color: #fff3e0; }
+.inv-item.active-item {
+  border-top: 2px solid #a0a0a0;
+  border-left: 2px solid #a0a0a0;
+  border-bottom: 2px solid #ffffff;
+  border-right: 2px solid #ffffff;
+  background-color: #fff3e0;
+}
+
+/* Miniroom inventory tab */
+.inv-tab {
+  border-top: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #a0a0a0;
+  border-right: 2px solid #a0a0a0;
+  background-color: #e2e2e2;
+  cursor: pointer;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-family: 'Geist', monospace;
+  font-weight: 600;
+}
+.inv-tab.active {
+  border-top: 2px solid #a0a0a0;
+  border-left: 2px solid #a0a0a0;
+  border-bottom: 2px solid #ffffff;
+  border-right: 2px solid #ffffff;
+  background-color: #ff6600;
+  color: #ffffff;
+}
+
+/* Background option selector */
+.bg-option {
+  border-top: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #a0a0a0;
+  border-right: 2px solid #a0a0a0;
+  cursor: pointer;
+  width: 48px;
+  height: 36px;
+  flex-shrink: 0;
+}
+.bg-option.selected-bg {
+  border: 2px solid #ff6600;
+}
+
+/* Shop category tab */
+.category-tab {
+  border-top: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #a0a0a0;
+  border-right: 2px solid #a0a0a0;
+  background-color: #e2e2e2;
+  cursor: pointer;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-family: 'Geist', monospace;
+  font-weight: 600;
+}
+.category-tab.active {
+  border-top: 2px solid #a0a0a0;
+  border-left: 2px solid #a0a0a0;
+  border-bottom: 2px solid #ffffff;
+  border-right: 2px solid #ffffff;
+  background-color: #ff6600;
+  color: #ffffff;
+}
+
+/* Shop item card */
+.item-card {
+  border-top: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #a0a0a0;
+  border-right: 2px solid #a0a0a0;
+  background-color: #f9f9f9;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.item-card:hover { background-color: #fffbe8; }
+.item-card.selected {
+  border-top: 2px solid #a0a0a0;
+  border-left: 2px solid #a0a0a0;
+  border-bottom: 2px solid #ffffff;
+  border-right: 2px solid #ffffff;
+  background-color: #fff3e0;
+}
+
+/* Acorn badge */
+.acorn-badge {
+  background-color: #8B4513;
+  color: #fff;
+  font-size: 11px;
+  font-family: 'Geist', monospace;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+
+/* Cart item separator */
+.cart-item {
+  border-bottom: 1px dashed #ccc;
+}
+
+/* Title bar window buttons */
+.title-btn {
+  width: 14px;
+  height: 14px;
+  border-top: 1px solid #ffffff;
+  border-left: 1px solid #ffffff;
+  border-bottom: 1px solid #888;
+  border-right: 1px solid #888;
+  background-color: #e2e2e2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-family: 'Geist', monospace;
+}
