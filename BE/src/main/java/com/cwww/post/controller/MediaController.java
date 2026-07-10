@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/media")
@@ -23,9 +22,7 @@ public class MediaController {
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<List<String>>> upload(
             @RequestParam("files") List<MultipartFile> files) {
-        List<String> urls = files.stream()
-                .map(mediaService::upload)
-                .collect(Collectors.toList());
+        List<String> urls = mediaService.uploadAll(files);
         return ResponseEntity.ok(ApiResponse.success(urls));
     }
 }

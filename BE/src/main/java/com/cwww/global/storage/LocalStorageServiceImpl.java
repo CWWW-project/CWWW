@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -23,16 +24,30 @@ public class LocalStorageServiceImpl implements StorageService {
 
     @Override
     public String store(MultipartFile file) {
-        String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
-        Path target = Paths.get(uploadPath).resolve(filename);
+        String ext = extractExtension(file.getOriginalFilename());
+        String filename = UUID.randomUUID() + "." + ext;
+
+        Path root = Paths.get(uploadPath).toAbsolutePath().normalize();
+        Path target = root.resolve(filename).normalize();
+
+        if (!target.startsWith(root)) {
+            throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED);
+        }
 
         try {
-            Files.createDirectories(target.getParent());
+            Files.createDirectories(root);
             file.transferTo(target.toFile());
         } catch (IOException e) {
             throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED);
         }
 
         return baseUrl + "/" + filename;
+    }
+
+    private String extractExtension(String originalFilename) {
+        if (originalFilename == null || !originalFilename.contains(".")) {
+            throw new BusinessException(ErrorCode.INVALID_FILE_EXTENSION);
+        }
+        return originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
     }
 }
