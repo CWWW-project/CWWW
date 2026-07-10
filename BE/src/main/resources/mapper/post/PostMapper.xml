@@ -9,4 +9,16 @@
         VALUES (#{userId}, #{minihompyId}, #{title}, #{content}, #{visibility}, NOW(), NOW())
     </insert>
 
+    <select id="findById" resultType="com.cwww.post.domain.Post">
+        SELECT post_id, user_id, minihompy_id, title, content, visibility,
+               view_count, like_count, comment_count, created_at, updated_at, deleted_at
+        FROM post
+        WHERE post_id = #{postId}
+          AND deleted_at IS NULL
+    </select>
+
+    <update id="incrementViewCount">
+        UPDATE post SET view_count = view_count + 1 WHERE post_id = #{postId}
+    </update>
+
 </mapper>

@@ -4,6 +4,8 @@ import com.cwww.post.domain.Hashtag;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 @Mapper
 public interface HashtagMapper {
 
@@ -12,4 +14,6 @@ public interface HashtagMapper {
     Hashtag findByName(String name);
 
     void linkToPost(@Param("postId") Long postId, @Param("hashtagId") Long hashtagId);
+
+    List<String> findNamesByPostId(Long postId);
 }

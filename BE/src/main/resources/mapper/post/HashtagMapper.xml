@@ -22,4 +22,11 @@
         ON CONFLICT DO NOTHING
     </insert>
 
+    <select id="findNamesByPostId" resultType="String">
+        SELECT h.name
+        FROM hashtag h
+        JOIN post_hashtag ph ON h.hashtag_id = ph.hashtag_id
+        WHERE ph.post_id = #{postId}
+    </select>
+
 </mapper>

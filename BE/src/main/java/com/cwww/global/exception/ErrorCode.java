@@ -26,7 +26,23 @@ public enum ErrorCode {
     // Media
     INVALID_FILE_EXTENSION(HttpStatus.BAD_REQUEST, "M001", "허용되지 않는 파일 확장자입니다."),
     FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "M002", "파일 크기가 10MB를 초과합니다."),
-    FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "M003", "파일 업로드에 실패했습니다.");
+    FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "M003", "파일 업로드에 실패했습니다."),
+
+    // Post
+    POST_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "게시글을 찾을 수 없습니다."),
+    POST_FORBIDDEN(HttpStatus.FORBIDDEN, "P002", "게시글에 대한 권한이 없습니다."),
+    ALREADY_LIKED(HttpStatus.CONFLICT, "P003", "이미 좋아요한 게시글입니다."),
+    NOT_LIKED(HttpStatus.BAD_REQUEST, "P004", "좋아요하지 않은 게시글입니다."),
+
+    // Comment
+    COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "C101", "댓글을 찾을 수 없습니다."),
+    COMMENT_FORBIDDEN(HttpStatus.FORBIDDEN, "C102", "댓글에 대한 권한이 없습니다."),
+
+    // Friend
+    ALREADY_FRIEND(HttpStatus.CONFLICT, "F001", "이미 일촌 관계입니다."),
+    FRIEND_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "F002", "일촌 신청을 찾을 수 없습니다."),
+    FRIEND_NOT_FOUND(HttpStatus.NOT_FOUND, "F003", "일촌 관계를 찾을 수 없습니다."),
+    FRIEND_FORBIDDEN(HttpStatus.FORBIDDEN, "F004", "일촌 요청에 대한 권한이 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

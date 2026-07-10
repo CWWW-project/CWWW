@@ -1,10 +1,10 @@
 package com.cwww.friend.mapper;
 
-import com.cwww.friend.domain.Friend;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 @Mapper
 public interface FriendMapper {
 
-    // TODO: 쿼리 메서드 추가
+    boolean isFriend(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
 }
