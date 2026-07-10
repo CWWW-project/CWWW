@@ -76,6 +76,8 @@ public class PostServiceImpl implements PostService {
                     throw new BusinessException(ErrorCode.POST_FORBIDDEN);
                 }
             }
+            case "ALL" -> { }
+            default -> throw new BusinessException(ErrorCode.POST_FORBIDDEN);
         }
     }
 

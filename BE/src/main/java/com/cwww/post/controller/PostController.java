@@ -6,10 +6,12 @@ import com.cwww.post.dto.PostResponse;
 import com.cwww.post.service.PostService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/posts")
 @RequiredArgsConstructor
@@ -32,7 +34,11 @@ public class PostController {
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long postId) {
         PostResponse response = postService.getPost(userId, postId);
-        postService.incrementViewCount(postId);
+        try {
+            postService.incrementViewCount(postId);
+        } catch (Exception e) {
+            log.warn("조회수 증가 실패: postId={}", postId, e);
+        }
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }
