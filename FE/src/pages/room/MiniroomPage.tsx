@@ -90,13 +90,14 @@ export default function MiniroomPage() {
     draggingItemRef.current = { id, startX: e.clientX, startY: e.clientY, startLeft: item.x, startTop: item.y }
 
     const onMove = (mv: MouseEvent) => {
-      if (!draggingItemRef.current || !canvasRef.current) return
+      const drag = draggingItemRef.current
+      if (!drag || !canvasRef.current) return
       const r = canvasRef.current.getBoundingClientRect()
-      const dx = ((mv.clientX - draggingItemRef.current.startX) / r.width) * 100
-      const dy = ((mv.clientY - draggingItemRef.current.startY) / r.height) * 100
+      const dx = ((mv.clientX - drag.startX) / r.width) * 100
+      const dy = ((mv.clientY - drag.startY) / r.height) * 100
       setItems(prev => prev.map(i =>
-        i.id === draggingItemRef.current!.id
-          ? { ...i, x: Math.max(0, Math.min(90, draggingItemRef.current!.startLeft + dx)), y: Math.max(0, Math.min(90, draggingItemRef.current!.startTop + dy)) }
+        i.id === drag.id
+          ? { ...i, x: Math.max(0, Math.min(90, drag.startLeft + dx)), y: Math.max(0, Math.min(90, drag.startTop + dy)) }
           : i
       ))
     }
