@@ -32,4 +32,36 @@
         UPDATE post SET deleted_at = NOW() WHERE post_id = #{postId}
     </update>
 
+    <select id="findFeed" resultType="com.cwww.post.domain.Post">
+        SELECT p.post_id, p.user_id, p.minihompy_id, p.title, p.content, p.visibility,
+               p.view_count, p.like_count, p.comment_count, p.created_at, p.updated_at
+        FROM post p
+        WHERE p.deleted_at IS NULL
+          AND (
+              p.visibility = 'ALL'
+              OR (
+                  p.visibility = 'FRIEND'
+                  AND EXISTS (
+                      SELECT 1 FROM friend f
+                      WHERE f.status = 'ACCEPTED'
+                        AND (
+                            (f.requester_id = p.user_id AND f.receiver_id = #{viewerId})
+                            OR (f.requester_id = #{viewerId} AND f.receiver_id = p.user_id)
+                        )
+                  )
+              )
+          )
+          AND (#{cursor} IS NULL OR p.post_id &lt; #{cursor})
+        ORDER BY p.post_id DESC
+        LIMIT #{size} + 1
+    </select>
+
+    <update id="incrementLikeCount">
+        UPDATE post SET like_count = like_count + 1 WHERE post_id = #{postId}
+    </update>
+
+    <update id="decrementLikeCount">
+        UPDATE post SET like_count = GREATEST(like_count - 1, 0) WHERE post_id = #{postId}
+    </update>
+
 </mapper>
