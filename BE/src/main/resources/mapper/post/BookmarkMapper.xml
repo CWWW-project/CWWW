@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.cwww.post.mapper.BookmarkMapper">
+
+    <select id="exists" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM post_bookmark
+            WHERE post_id = #{postId} AND user_id = #{userId}
+        )
+    </select>
+
+    <insert id="insert">
+        INSERT INTO post_bookmark (post_id, user_id)
+        VALUES (#{postId}, #{userId})
+        ON CONFLICT DO NOTHING
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM post_bookmark
+        WHERE post_id = #{postId} AND user_id = #{userId}
+    </delete>
+
+    <select id="findBookmarkedPosts" resultType="com.cwww.post.domain.Post">
+        SELECT p.post_id, p.user_id, p.minihompy_id, p.title, p.content,
+               p.visibility, p.view_count, p.like_count, p.comment_count,
+               p.created_at, p.updated_at
+        FROM post p
+        INNER JOIN post_bookmark pb ON p.post_id = pb.post_id
+        WHERE pb.user_id = #{userId}
+          AND p.deleted_at IS NULL
+          <if test="cursor != null">
+            <![CDATA[AND p.post_id < #{cursor}]]>
+          </if>
+        ORDER BY p.post_id DESC
+        LIMIT #{size}
+    </select>
+
+</mapper>

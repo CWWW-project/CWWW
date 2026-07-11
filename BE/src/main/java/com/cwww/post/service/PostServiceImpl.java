@@ -155,6 +155,29 @@ public class PostServiceImpl implements PostService {
         }
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public FeedResponse searchByHashtag(String tag, Long cursor, int size) {
+        List<Post> posts = postMapper.findByHashtag(tag, cursor, size + 1);
+
+        boolean hasNext = posts.size() > size;
+        if (hasNext) {
+            posts = posts.subList(0, size);
+        }
+
+        Long nextCursor = hasNext ? posts.get(posts.size() - 1).getPostId() : null;
+
+        List<PostResponse> responses = posts.stream()
+                .map(post -> PostResponse.from(post, List.of(), List.of()))
+                .toList();
+
+        return FeedResponse.builder()
+                .posts(responses)
+                .nextCursor(nextCursor)
+                .hasNext(hasNext)
+                .build();
+    }
+
     private void checkVisibility(Long viewerId, Post post) {
         switch (post.getVisibility()) {
             case "PRIVATE" -> {

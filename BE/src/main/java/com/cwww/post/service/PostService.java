@@ -22,4 +22,6 @@ public interface PostService {
     void likePost(Long userId, Long postId);
 
     void unlikePost(Long userId, Long postId);
+
+    FeedResponse searchByHashtag(String tag, Long cursor, int size);
 }

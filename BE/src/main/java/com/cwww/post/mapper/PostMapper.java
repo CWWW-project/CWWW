@@ -29,4 +29,8 @@ public interface PostMapper {
     void incrementCommentCount(Long postId);
 
     void decrementCommentCount(Long postId);
+
+    List<Post> findByHashtag(@Param("tag") String tag,
+                             @Param("cursor") Long cursor,
+                             @Param("size") int size);
 }
