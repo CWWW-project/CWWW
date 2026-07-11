@@ -323,7 +323,7 @@ export default function FeedPage() {
                             <span className="text-[#5a4136] font-[Geist,monospace] text-[12px] ml-auto">{formatTime(post.createdAt)}</span>
                           </div>
                           {post.title && <h3 className="font-['Bricolage_Grotesque',sans-serif] text-[16px] font-bold text-[#1a1c1c] mb-1">{post.title}</h3>}
-                          <p className="text-[14px] text-[#1a1c1c] leading-relaxed">{post.content}</p>
+                          <p className="text-[14px] text-[#1a1c1c] leading-relaxed">{post.content ?? ''}</p>
                           {post.hashtags.length > 0 && (
                             <div className="flex gap-1 mt-1">
                               {post.hashtags.map(tag => (

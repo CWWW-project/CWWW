@@ -9,8 +9,8 @@ export interface PostResponse {
   userId: number
   nickname: string
   minihompyId: number | null
-  title: string
-  content: string
+  title: string | null
+  content: string | null
   visibility: 'ALL' | 'FRIEND' | 'PRIVATE'
   viewCount: number
   likeCount: number
