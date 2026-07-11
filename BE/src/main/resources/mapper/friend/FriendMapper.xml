@@ -13,4 +13,50 @@
         )
     </select>
 
+    <insert id="insert" useGeneratedKeys="true" keyProperty="friendId">
+        INSERT INTO friend (requester_id, receiver_id, status, created_at)
+        VALUES (#{requesterId}, #{receiverId}, #{status}, NOW())
+    </insert>
+
+    <select id="findById" resultType="com.cwww.friend.domain.Friend">
+        SELECT friend_id, requester_id, receiver_id, status,
+               requester_alias, receiver_alias, created_at, accepted_at, terminated_at
+        FROM friend
+        WHERE friend_id = #{friendId}
+    </select>
+
+    <select id="findActiveByUsers" resultType="com.cwww.friend.domain.Friend">
+        SELECT friend_id, requester_id, receiver_id, status,
+               requester_alias, receiver_alias, created_at, accepted_at, terminated_at
+        FROM friend
+        WHERE status IN ('PENDING', 'ACCEPTED')
+          AND ((requester_id = #{userId1} AND receiver_id = #{userId2})
+           OR  (requester_id = #{userId2} AND receiver_id = #{userId1}))
+        LIMIT 1
+    </select>
+
+    <update id="updateStatus">
+        UPDATE friend
+        SET status      = #{status},
+            accepted_at = CASE WHEN #{status} = 'ACCEPTED' THEN NOW() ELSE accepted_at END
+        WHERE friend_id = #{friendId}
+          AND status = 'PENDING'
+    </update>
+
+    <select id="findAcceptedByUserId" resultType="com.cwww.friend.domain.Friend">
+        SELECT friend_id, requester_id, receiver_id, status,
+               requester_alias, receiver_alias, created_at, accepted_at, terminated_at
+        FROM friend
+        WHERE status = 'ACCEPTED'
+          AND (requester_id = #{userId} OR receiver_id = #{userId})
+        ORDER BY accepted_at DESC
+    </select>
+
+    <update id="terminate">
+        UPDATE friend
+        SET status = 'TERMINATED', terminated_at = NOW()
+        WHERE friend_id = #{friendId}
+          AND status = 'ACCEPTED'
+    </update>
+
 </mapper>
