@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class SignupRequest {
 
-    @NotBlank @Email
+    @NotBlank @Email @Size(max = 50)
     private String email;
 
     @NotBlank

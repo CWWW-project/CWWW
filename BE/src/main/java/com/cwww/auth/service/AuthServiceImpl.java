@@ -7,6 +7,7 @@ import com.cwww.global.exception.ErrorCode;
 import com.cwww.user.domain.User;
 import com.cwww.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +24,8 @@ public class AuthServiceImpl implements AuthService {
     public SignupResponse signup(SignupRequest request) {
         if (userMapper.findByEmail(request.getEmail()) != null) {
             throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
-        } if (userMapper.findByNickname(request.getNickname()) != null) {
+        }
+        if (userMapper.findByNickname(request.getNickname()) != null) {
             throw new BusinessException(ErrorCode.DUPLICATE_NICKNAME);
         }
 
@@ -34,7 +36,18 @@ public class AuthServiceImpl implements AuthService {
                 .role("USER")
                 .build();
 
-        userMapper.insert(user);
+        try {
+            userMapper.insert(user);
+        } catch (DataIntegrityViolationException e) {
+            String msg = e.getMostSpecificCause().getMessage();
+            if (msg != null && msg.contains("email")) {
+                throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
+            } else if (msg != null && msg.contains("nickname")) {
+                throw new BusinessException(ErrorCode.DUPLICATE_NICKNAME);
+            }
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
+        }
+
         return SignupResponse.from(user);
     }
 }
