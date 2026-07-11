@@ -37,9 +37,10 @@
 
     <update id="updateStatus">
         UPDATE friend
-        SET status     = #{status},
+        SET status      = #{status},
             accepted_at = CASE WHEN #{status} = 'ACCEPTED' THEN NOW() ELSE accepted_at END
         WHERE friend_id = #{friendId}
+          AND status = 'PENDING'
     </update>
 
     <select id="findAcceptedByUserId" resultType="com.cwww.friend.domain.Friend">
@@ -55,6 +56,7 @@
         UPDATE friend
         SET status = 'TERMINATED', terminated_at = NOW()
         WHERE friend_id = #{friendId}
+          AND status = 'ACCEPTED'
     </update>
 
 </mapper>

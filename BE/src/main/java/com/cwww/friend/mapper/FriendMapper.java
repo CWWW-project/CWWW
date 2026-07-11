@@ -18,9 +18,9 @@ public interface FriendMapper {
 
     Optional<Friend> findActiveByUsers(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
 
-    void updateStatus(@Param("friendId") Long friendId, @Param("status") String status);
+    int updateStatus(@Param("friendId") Long friendId, @Param("status") String status);
 
     List<Friend> findAcceptedByUserId(Long userId);
 
-    void terminate(Long friendId);
+    int terminate(Long friendId);
 }

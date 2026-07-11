@@ -78,6 +78,8 @@ class FriendServiceTest {
         Friend request = Friend.builder().friendId(1L).requesterId(1L).receiverId(2L).status("PENDING").build();
         given(friendMapper.findById(1L)).willReturn(Optional.of(request));
 
+        given(friendMapper.updateStatus(1L, "ACCEPTED")).willReturn(1);
+
         // Act
         friendService.acceptRequest(userId, 1L);
 
@@ -133,6 +135,8 @@ class FriendServiceTest {
         Friend request = Friend.builder().friendId(1L).requesterId(1L).receiverId(2L).status("PENDING").build();
         given(friendMapper.findById(1L)).willReturn(Optional.of(request));
 
+        given(friendMapper.updateStatus(1L, "REJECTED")).willReturn(1);
+
         // Act
         friendService.rejectRequest(userId, 1L);
 
@@ -182,6 +186,8 @@ class FriendServiceTest {
         Long userId = 1L;
         Friend friend = Friend.builder().friendId(1L).requesterId(1L).receiverId(2L).status("ACCEPTED").build();
         given(friendMapper.findById(1L)).willReturn(Optional.of(friend));
+
+        given(friendMapper.terminate(1L)).willReturn(1);
 
         // Act
         friendService.terminate(userId, 1L);

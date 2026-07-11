@@ -45,7 +45,10 @@ public class FriendServiceImpl implements FriendService {
             throw new BusinessException(ErrorCode.FRIEND_FORBIDDEN);
         }
 
-        friendMapper.updateStatus(friendId, "ACCEPTED");
+        int updated = friendMapper.updateStatus(friendId, "ACCEPTED");
+        if (updated == 0) {
+            throw new BusinessException(ErrorCode.FRIEND_REQUEST_NOT_FOUND);
+        }
     }
 
     @Override
@@ -57,7 +60,10 @@ public class FriendServiceImpl implements FriendService {
             throw new BusinessException(ErrorCode.FRIEND_FORBIDDEN);
         }
 
-        friendMapper.updateStatus(friendId, "REJECTED");
+        int updated = friendMapper.updateStatus(friendId, "REJECTED");
+        if (updated == 0) {
+            throw new BusinessException(ErrorCode.FRIEND_REQUEST_NOT_FOUND);
+        }
     }
 
     @Override
@@ -78,7 +84,10 @@ public class FriendServiceImpl implements FriendService {
             throw new BusinessException(ErrorCode.FRIEND_FORBIDDEN);
         }
 
-        friendMapper.terminate(friendId);
+        int terminated = friendMapper.terminate(friendId);
+        if (terminated == 0) {
+            throw new BusinessException(ErrorCode.FRIEND_NOT_FOUND);
+        }
     }
 
     private Friend findPendingById(Long friendId) {
