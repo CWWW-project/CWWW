@@ -1,0 +1,8 @@
+POST http://localhost:8080/api/auth/signup
+Content-Type: application/json; charset=UTF-8
+
+{
+  "email": "test2@cwww.com",
+  "password": "test1234",
+  "nickname": "테스트유저2"
+}

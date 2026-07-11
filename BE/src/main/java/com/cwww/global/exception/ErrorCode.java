@@ -22,6 +22,7 @@ public enum ErrorCode {
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "A004", "만료된 토큰입니다."),
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "A005", "이미 사용 중인 이메일입니다."),
     REREGISTRATION_BLOCKED(HttpStatus.FORBIDDEN, "A006", "탈퇴 후 15일간 재가입이 불가합니다."),
+    DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "A007", "이미 사용 중인 닉네임입니다."),
 
     // Media
     INVALID_FILE_EXTENSION(HttpStatus.BAD_REQUEST, "M001", "허용되지 않는 파일 확장자입니다."),
