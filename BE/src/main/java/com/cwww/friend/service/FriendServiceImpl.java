@@ -33,7 +33,10 @@ public class FriendServiceImpl implements FriendService {
                 .status("PENDING")
                 .build();
 
-        friendMapper.insert(friend);
+        int inserted = friendMapper.insert(friend);
+        if (inserted == 0) {
+            throw new BusinessException(ErrorCode.ALREADY_FRIEND);
+        }
     }
 
     @Override
