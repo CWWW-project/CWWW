@@ -8,6 +8,7 @@ import com.cwww.post.mapper.BookmarkMapper;
 import com.cwww.post.mapper.HashtagMapper;
 import com.cwww.post.mapper.MediaMapper;
 import com.cwww.post.mapper.PostMapper;
+import com.cwww.user.domain.User;
 import com.cwww.user.mapper.UserMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -138,9 +140,11 @@ class BookmarkServiceTest {
                 Post.builder().postId(1L).userId(2L).title("글1").visibility("ALL").build()
         );
         given(bookmarkMapper.findBookmarkedPosts(userId, null, 11)).willReturn(posts);
-        given(userMapper.findNicknameById(anyLong())).willReturn("작성자");
-        given(hashtagMapper.findNamesByPostId(anyLong())).willReturn(List.of());
-        given(mediaMapper.findUrlsByTarget(anyString(), anyLong())).willReturn(List.of());
+        given(userMapper.findByIds(anyList())).willReturn(List.of(
+                User.builder().userId(2L).nickname("작성자").build()
+        ));
+        given(hashtagMapper.findAllByPostIds(anyList())).willReturn(List.of());
+        given(mediaMapper.findAllByTargets(anyString(), anyList())).willReturn(List.of());
 
         // Act
         FeedResponse response = bookmarkService.getBookmarks(userId, null, 10);
@@ -169,9 +173,11 @@ class BookmarkServiceTest {
                 Post.builder().postId(1L).userId(2L).title("글1").visibility("ALL").build()
         );
         given(bookmarkMapper.findBookmarkedPosts(userId, null, 11)).willReturn(posts);
-        given(userMapper.findNicknameById(anyLong())).willReturn("작성자");
-        given(hashtagMapper.findNamesByPostId(anyLong())).willReturn(List.of());
-        given(mediaMapper.findUrlsByTarget(anyString(), anyLong())).willReturn(List.of());
+        given(userMapper.findByIds(anyList())).willReturn(List.of(
+                User.builder().userId(2L).nickname("작성자").build()
+        ));
+        given(hashtagMapper.findAllByPostIds(anyList())).willReturn(List.of());
+        given(mediaMapper.findAllByTargets(anyString(), anyList())).willReturn(List.of());
 
         // Act
         FeedResponse response = bookmarkService.getBookmarks(userId, null, 10);

@@ -2,6 +2,9 @@ package com.cwww.user.mapper;
 
 import com.cwww.user.domain.User;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
 
 @Mapper
 public interface UserMapper {
@@ -9,5 +12,6 @@ public interface UserMapper {
     User findByEmail(String email);
     User findByNickname(String nickname);
     String findNicknameById(Long userId);
+    List<User> findByIds(@Param("userIds") List<Long> userIds);
 
 }

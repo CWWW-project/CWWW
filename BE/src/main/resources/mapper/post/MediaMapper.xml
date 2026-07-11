@@ -17,4 +17,15 @@
         ORDER BY media_id
     </select>
 
+    <select id="findAllByTargets" resultType="com.cwww.post.domain.Media">
+        SELECT target_id, media_url
+        FROM media
+        WHERE target_type = #{targetType}
+          AND target_id IN
+        <foreach item="id" collection="targetIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY media_id
+    </select>
+
 </mapper>
