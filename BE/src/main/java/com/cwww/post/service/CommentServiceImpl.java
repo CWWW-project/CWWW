@@ -53,6 +53,9 @@ public class CommentServiceImpl implements CommentService {
     @Override
     @Transactional(readOnly = true)
     public List<CommentResponse> getComments(Long postId) {
+        postMapper.findById(postId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
+
         return commentMapper.findByPostId(postId).stream()
                 .map(CommentResponse::from)
                 .toList();
