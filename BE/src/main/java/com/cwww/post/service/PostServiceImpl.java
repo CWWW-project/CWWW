@@ -14,11 +14,11 @@ import com.cwww.post.mapper.HashtagMapper;
 import com.cwww.post.mapper.MediaMapper;
 import com.cwww.post.mapper.PostLikeMapper;
 import com.cwww.post.mapper.PostMapper;
+import com.cwww.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -30,6 +30,7 @@ public class PostServiceImpl implements PostService {
     private final HashtagMapper hashtagMapper;
     private final FriendMapper friendMapper;
     private final PostLikeMapper postLikeMapper;
+    private final UserMapper userMapper;
 
     @Override
     @Transactional
@@ -46,7 +47,8 @@ public class PostServiceImpl implements PostService {
         saveHashtags(post.getPostId(), request.getHashtags());
         saveMediaUrls(post.getPostId(), request.getMediaUrls());
 
-        return PostResponse.from(post, request.getHashtags(), request.getMediaUrls());
+        String nickname = userMapper.findNicknameById(userId);
+        return PostResponse.from(post, nickname, request.getHashtags(), request.getMediaUrls());
     }
 
     @Override
@@ -57,10 +59,11 @@ public class PostServiceImpl implements PostService {
 
         checkVisibility(viewerId, post);
 
+        String nickname = userMapper.findNicknameById(post.getUserId());
         List<String> hashtags = hashtagMapper.findNamesByPostId(postId);
         List<String> mediaUrls = mediaMapper.findUrlsByTarget("POST", postId);
 
-        return PostResponse.from(post, hashtags, mediaUrls);
+        return PostResponse.from(post, nickname, hashtags, mediaUrls);
     }
 
     @Override
@@ -105,7 +108,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional(readOnly = true)
     public FeedResponse getFeed(Long viewerId, Long cursor, int size) {
-        List<Post> posts = postMapper.findFeed(viewerId, cursor, size);
+        List<Post> posts = postMapper.findFeed(viewerId, cursor, size + 1);
 
         boolean hasNext = posts.size() > size;
         if (hasNext) {
@@ -115,7 +118,12 @@ public class PostServiceImpl implements PostService {
         Long nextCursor = hasNext ? posts.get(posts.size() - 1).getPostId() : null;
 
         List<PostResponse> responses = posts.stream()
-                .map(post -> PostResponse.from(post, List.of(), List.of()))
+                .map(post -> {
+                    String nickname = userMapper.findNicknameById(post.getUserId());
+                    List<String> hashtags = hashtagMapper.findNamesByPostId(post.getPostId());
+                    List<String> mediaUrls = mediaMapper.findUrlsByTarget("POST", post.getPostId());
+                    return PostResponse.from(post, nickname, hashtags, mediaUrls);
+                })
                 .toList();
 
         return FeedResponse.builder()
@@ -168,7 +176,12 @@ public class PostServiceImpl implements PostService {
         Long nextCursor = hasNext ? posts.get(posts.size() - 1).getPostId() : null;
 
         List<PostResponse> responses = posts.stream()
-                .map(post -> PostResponse.from(post, List.of(), List.of()))
+                .map(post -> {
+                    String nickname = userMapper.findNicknameById(post.getUserId());
+                    List<String> hashtags = hashtagMapper.findNamesByPostId(post.getPostId());
+                    List<String> mediaUrls = mediaMapper.findUrlsByTarget("POST", post.getPostId());
+                    return PostResponse.from(post, nickname, hashtags, mediaUrls);
+                })
                 .toList();
 
         return FeedResponse.builder()

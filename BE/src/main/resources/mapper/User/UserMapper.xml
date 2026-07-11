@@ -15,4 +15,8 @@
     <select id="findByNickname" resultType="com.cwww.user.domain.User">
         SELECT * FROM users WHERE nickname = #{nickname} AND deleted_at IS NULL
     </select>
+
+    <select id="findNicknameById" resultType="string">
+        SELECT nickname FROM users WHERE user_id = #{userId} AND deleted_at IS NULL
+    </select>
 </mapper>

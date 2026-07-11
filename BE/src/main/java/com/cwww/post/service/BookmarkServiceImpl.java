@@ -6,7 +6,10 @@ import com.cwww.post.domain.Post;
 import com.cwww.post.dto.FeedResponse;
 import com.cwww.post.dto.PostResponse;
 import com.cwww.post.mapper.BookmarkMapper;
+import com.cwww.post.mapper.HashtagMapper;
+import com.cwww.post.mapper.MediaMapper;
 import com.cwww.post.mapper.PostMapper;
+import com.cwww.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +22,9 @@ public class BookmarkServiceImpl implements BookmarkService {
 
     private final PostMapper postMapper;
     private final BookmarkMapper bookmarkMapper;
+    private final UserMapper userMapper;
+    private final HashtagMapper hashtagMapper;
+    private final MediaMapper mediaMapper;
 
     @Override
     @Transactional
@@ -54,7 +60,12 @@ public class BookmarkServiceImpl implements BookmarkService {
         Long nextCursor = hasNext ? posts.get(posts.size() - 1).getPostId() : null;
 
         List<PostResponse> responses = posts.stream()
-                .map(post -> PostResponse.from(post, List.of(), List.of()))
+                .map(post -> {
+                    String nickname = userMapper.findNicknameById(post.getUserId());
+                    List<String> hashtags = hashtagMapper.findNamesByPostId(post.getPostId());
+                    List<String> mediaUrls = mediaMapper.findUrlsByTarget("POST", post.getPostId());
+                    return PostResponse.from(post, nickname, hashtags, mediaUrls);
+                })
                 .toList();
 
         return FeedResponse.builder()

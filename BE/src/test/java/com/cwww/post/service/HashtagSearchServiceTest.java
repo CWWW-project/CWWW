@@ -2,7 +2,10 @@ package com.cwww.post.service;
 
 import com.cwww.post.domain.Post;
 import com.cwww.post.dto.FeedResponse;
+import com.cwww.post.mapper.HashtagMapper;
+import com.cwww.post.mapper.MediaMapper;
 import com.cwww.post.mapper.PostMapper;
+import com.cwww.user.mapper.UserMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,12 +16,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)
 class HashtagSearchServiceTest {
 
     @Mock private PostMapper postMapper;
+    @Mock private UserMapper userMapper;
+    @Mock private HashtagMapper hashtagMapper;
+    @Mock private MediaMapper mediaMapper;
 
     @InjectMocks
     private PostServiceImpl postService;
@@ -32,6 +40,9 @@ class HashtagSearchServiceTest {
                 Post.builder().postId(1L).userId(1L).title("글1").visibility("ALL").build()
         );
         given(postMapper.findByHashtag("일상", null, 11)).willReturn(posts);
+        given(userMapper.findNicknameById(anyLong())).willReturn("작성자");
+        given(hashtagMapper.findNamesByPostId(anyLong())).willReturn(List.of());
+        given(mediaMapper.findUrlsByTarget(anyString(), anyLong())).willReturn(List.of());
 
         // Act
         FeedResponse response = postService.searchByHashtag("일상", null, 10);
@@ -74,6 +85,9 @@ class HashtagSearchServiceTest {
                 Post.builder().postId(1L).userId(1L).visibility("ALL").build()
         );
         given(postMapper.findByHashtag("일상", null, 11)).willReturn(posts);
+        given(userMapper.findNicknameById(anyLong())).willReturn("작성자");
+        given(hashtagMapper.findNamesByPostId(anyLong())).willReturn(List.of());
+        given(mediaMapper.findUrlsByTarget(anyString(), anyLong())).willReturn(List.of());
 
         // Act
         FeedResponse response = postService.searchByHashtag("일상", null, 10);

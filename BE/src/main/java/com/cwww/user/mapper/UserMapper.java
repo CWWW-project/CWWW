@@ -8,5 +8,6 @@ public interface UserMapper {
     void insert(User user);
     User findByEmail(String email);
     User findByNickname(String nickname);
+    String findNicknameById(Long userId);
 
 }
