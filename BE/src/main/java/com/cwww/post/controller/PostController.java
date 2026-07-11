@@ -9,6 +9,7 @@ import com.cwww.post.service.PostService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -88,5 +89,14 @@ public class PostController {
             @PathVariable Long postId) {
         postService.unlikePost(userId, postId);
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<FeedResponse>> searchByHashtag(
+            @RequestParam @NotBlank String tag,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size) {
+        FeedResponse response = postService.searchByHashtag(tag, cursor, size);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

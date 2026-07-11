@@ -72,4 +72,21 @@
         UPDATE post SET comment_count = GREATEST(comment_count - 1, 0) WHERE post_id = #{postId}
     </update>
 
+    <select id="findByHashtag" resultType="com.cwww.post.domain.Post">
+        SELECT p.post_id, p.user_id, p.minihompy_id, p.title, p.content,
+               p.visibility, p.view_count, p.like_count, p.comment_count,
+               p.created_at, p.updated_at
+        FROM post p
+        INNER JOIN post_hashtag ph ON p.post_id = ph.post_id
+        INNER JOIN hashtag h ON ph.hashtag_id = h.hashtag_id
+        WHERE h.name = #{tag}
+          AND p.deleted_at IS NULL
+          AND p.visibility = 'ALL'
+          <if test="cursor != null">
+            <![CDATA[AND p.post_id < #{cursor}]]>
+          </if>
+        ORDER BY p.post_id DESC
+        LIMIT #{size}
+    </select>
+
 </mapper>

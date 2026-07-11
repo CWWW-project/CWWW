@@ -33,6 +33,8 @@ public enum ErrorCode {
     POST_FORBIDDEN(HttpStatus.FORBIDDEN, "P002", "게시글에 대한 권한이 없습니다."),
     ALREADY_LIKED(HttpStatus.CONFLICT, "P003", "이미 좋아요한 게시글입니다."),
     NOT_LIKED(HttpStatus.BAD_REQUEST, "P004", "좋아요하지 않은 게시글입니다."),
+    ALREADY_BOOKMARKED(HttpStatus.CONFLICT, "P005", "이미 북마크한 게시글입니다."),
+    NOT_BOOKMARKED(HttpStatus.BAD_REQUEST, "P006", "북마크하지 않은 게시글입니다."),
 
     // Comment
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "C101", "댓글을 찾을 수 없습니다."),
