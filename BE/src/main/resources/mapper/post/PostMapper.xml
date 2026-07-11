@@ -21,4 +21,15 @@
         UPDATE post SET view_count = view_count + 1 WHERE post_id = #{postId}
     </update>
 
+    <update id="update">
+        UPDATE post
+        SET title = #{title}, content = #{content}, visibility = #{visibility}, updated_at = NOW()
+        WHERE post_id = #{postId}
+          AND deleted_at IS NULL
+    </update>
+
+    <update id="softDelete">
+        UPDATE post SET deleted_at = NOW() WHERE post_id = #{postId}
+    </update>
+
 </mapper>

@@ -16,4 +16,6 @@ public interface HashtagMapper {
     void linkToPost(@Param("postId") Long postId, @Param("hashtagId") Long hashtagId);
 
     List<String> findNamesByPostId(Long postId);
+
+    void deleteByPostId(Long postId);
 }
