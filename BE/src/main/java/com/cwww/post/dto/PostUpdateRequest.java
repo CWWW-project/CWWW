@@ -20,12 +20,11 @@ public class PostUpdateRequest {
     @NotBlank
     private String content;
 
+    @NotBlank
     @Pattern(regexp = "ALL|FRIEND|PRIVATE", message = "공개범위는 ALL, FRIEND, PRIVATE 중 하나여야 합니다.")
     private String visibility;
 
     private List<String> hashtags = new ArrayList<>();
-    private List<String> mediaUrls = new ArrayList<>();
 
     public void setHashtags(List<String> hashtags) { this.hashtags = hashtags != null ? hashtags : new ArrayList<>(); }
-    public void setMediaUrls(List<String> mediaUrls) { this.mediaUrls = mediaUrls != null ? mediaUrls : new ArrayList<>(); }
 }

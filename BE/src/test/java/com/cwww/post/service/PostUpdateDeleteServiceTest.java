@@ -37,7 +37,7 @@ class PostUpdateDeleteServiceTest {
         // Arrange
         Long userId = 1L;
         Post post = Post.builder().postId(1L).userId(1L).visibility("ALL").build();
-        PostUpdateRequest request = new PostUpdateRequest("새 제목", "새 내용", "FRIEND", List.of(), List.of());
+        PostUpdateRequest request = new PostUpdateRequest("새 제목", "새 내용", "FRIEND", List.of());
         given(postMapper.findById(1L)).willReturn(Optional.of(post));
 
         // Act
@@ -54,7 +54,7 @@ class PostUpdateDeleteServiceTest {
         given(postMapper.findById(99L)).willReturn(Optional.empty());
 
         // Act & Assert
-        assertThatThrownBy(() -> postService.updatePost(1L, 99L, new PostUpdateRequest("제목", "내용", "ALL", List.of(), List.of())))
+        assertThatThrownBy(() -> postService.updatePost(1L, 99L, new PostUpdateRequest("제목", "내용", "ALL", List.of())))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.POST_NOT_FOUND);
     }
@@ -67,7 +67,7 @@ class PostUpdateDeleteServiceTest {
         given(postMapper.findById(1L)).willReturn(Optional.of(post));
 
         // Act & Assert
-        assertThatThrownBy(() -> postService.updatePost(2L, 1L, new PostUpdateRequest("제목", "내용", "ALL", List.of(), List.of())))
+        assertThatThrownBy(() -> postService.updatePost(2L, 1L, new PostUpdateRequest("제목", "내용", "ALL", List.of())))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.POST_FORBIDDEN);
     }
