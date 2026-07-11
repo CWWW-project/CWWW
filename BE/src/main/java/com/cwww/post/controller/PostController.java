@@ -3,6 +3,7 @@ package com.cwww.post.controller;
 import com.cwww.global.response.ApiResponse;
 import com.cwww.post.dto.PostCreateRequest;
 import com.cwww.post.dto.PostResponse;
+import com.cwww.post.dto.PostUpdateRequest;
 import com.cwww.post.service.PostService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,5 +41,22 @@ public class PostController {
             log.warn("조회수 증가 실패: postId={}", postId, e);
         }
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PatchMapping("/{postId}")
+    public ResponseEntity<ApiResponse<Void>> updatePost(
+            @RequestHeader("X-User-Id") Long userId,
+            @PathVariable Long postId,
+            @Valid @RequestBody PostUpdateRequest request) {
+        postService.updatePost(userId, postId, request);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @DeleteMapping("/{postId}")
+    public ResponseEntity<ApiResponse<Void>> deletePost(
+            @RequestHeader("X-User-Id") Long userId,
+            @PathVariable Long postId) {
+        postService.deletePost(userId, postId);
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

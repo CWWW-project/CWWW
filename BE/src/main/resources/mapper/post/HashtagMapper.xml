@@ -29,4 +29,8 @@
         WHERE ph.post_id = #{postId}
     </select>
 
+    <delete id="deleteByPostId">
+        DELETE FROM post_hashtag WHERE post_id = #{postId}
+    </delete>
+
 </mapper>

@@ -8,6 +8,7 @@ import com.cwww.post.domain.Media;
 import com.cwww.post.domain.Post;
 import com.cwww.post.dto.PostCreateRequest;
 import com.cwww.post.dto.PostResponse;
+import com.cwww.post.dto.PostUpdateRequest;
 import com.cwww.post.mapper.HashtagMapper;
 import com.cwww.post.mapper.MediaMapper;
 import com.cwww.post.mapper.PostMapper;
@@ -62,6 +63,39 @@ public class PostServiceImpl implements PostService {
     @Transactional
     public void incrementViewCount(Long postId) {
         postMapper.incrementViewCount(postId);
+    }
+
+    @Override
+    @Transactional
+    public void updatePost(Long userId, Long postId, PostUpdateRequest request) {
+        Post post = postMapper.findById(postId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
+
+        if (!post.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.POST_FORBIDDEN);
+        }
+
+        post.setTitle(request.getTitle());
+        post.setContent(request.getContent());
+        post.setVisibility(request.getVisibility());
+
+        postMapper.update(post);
+
+        hashtagMapper.deleteByPostId(postId);
+        saveHashtags(postId, request.getHashtags());
+    }
+
+    @Override
+    @Transactional
+    public void deletePost(Long userId, Long postId) {
+        Post post = postMapper.findById(postId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
+
+        if (!post.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.POST_FORBIDDEN);
+        }
+
+        postMapper.softDelete(postId);
     }
 
     private void checkVisibility(Long viewerId, Post post) {

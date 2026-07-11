@@ -13,4 +13,8 @@ public interface PostMapper {
     Optional<Post> findById(Long postId);
 
     void incrementViewCount(Long postId);
+
+    void update(Post post);
+
+    void softDelete(Long postId);
 }
