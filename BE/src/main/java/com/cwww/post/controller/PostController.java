@@ -1,6 +1,7 @@
 package com.cwww.post.controller;
 
 import com.cwww.global.response.ApiResponse;
+import com.cwww.post.dto.FeedResponse;
 import com.cwww.post.dto.PostCreateRequest;
 import com.cwww.post.dto.PostResponse;
 import com.cwww.post.dto.PostUpdateRequest;
@@ -11,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Slf4j
 @RestController
@@ -57,6 +60,31 @@ public class PostController {
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long postId) {
         postService.deletePost(userId, postId);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @GetMapping("/feed")
+    public ResponseEntity<ApiResponse<FeedResponse>> getFeed(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "10") int size) {
+        FeedResponse response = postService.getFeed(userId, cursor, size);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/{postId}/like")
+    public ResponseEntity<ApiResponse<Void>> likePost(
+            @RequestHeader("X-User-Id") Long userId,
+            @PathVariable Long postId) {
+        postService.likePost(userId, postId);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @DeleteMapping("/{postId}/like")
+    public ResponseEntity<ApiResponse<Void>> unlikePost(
+            @RequestHeader("X-User-Id") Long userId,
+            @PathVariable Long postId) {
+        postService.unlikePost(userId, postId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

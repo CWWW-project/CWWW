@@ -6,16 +6,19 @@ import com.cwww.global.exception.ErrorCode;
 import com.cwww.post.domain.Hashtag;
 import com.cwww.post.domain.Media;
 import com.cwww.post.domain.Post;
+import com.cwww.post.dto.FeedResponse;
 import com.cwww.post.dto.PostCreateRequest;
 import com.cwww.post.dto.PostResponse;
 import com.cwww.post.dto.PostUpdateRequest;
 import com.cwww.post.mapper.HashtagMapper;
 import com.cwww.post.mapper.MediaMapper;
+import com.cwww.post.mapper.PostLikeMapper;
 import com.cwww.post.mapper.PostMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -26,6 +29,7 @@ public class PostServiceImpl implements PostService {
     private final MediaMapper mediaMapper;
     private final HashtagMapper hashtagMapper;
     private final FriendMapper friendMapper;
+    private final PostLikeMapper postLikeMapper;
 
     @Override
     @Transactional
@@ -96,6 +100,57 @@ public class PostServiceImpl implements PostService {
         }
 
         postMapper.softDelete(postId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public FeedResponse getFeed(Long viewerId, Long cursor, int size) {
+        List<Post> posts = postMapper.findFeed(viewerId, cursor, size);
+
+        boolean hasNext = posts.size() > size;
+        if (hasNext) {
+            posts = posts.subList(0, size);
+        }
+
+        Long nextCursor = hasNext ? posts.get(posts.size() - 1).getPostId() : null;
+
+        List<PostResponse> responses = posts.stream()
+                .map(post -> PostResponse.from(post, List.of(), List.of()))
+                .toList();
+
+        return FeedResponse.builder()
+                .posts(responses)
+                .nextCursor(nextCursor)
+                .hasNext(hasNext)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void likePost(Long userId, Long postId) {
+        postMapper.findById(postId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
+
+        if (postLikeMapper.exists(postId, userId)) {
+            throw new BusinessException(ErrorCode.ALREADY_LIKED);
+        }
+
+        postLikeMapper.insert(postId, userId);
+        postMapper.incrementLikeCount(postId);
+    }
+
+    @Override
+    @Transactional
+    public void unlikePost(Long userId, Long postId) {
+        postMapper.findById(postId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
+
+        if (!postLikeMapper.exists(postId, userId)) {
+            throw new BusinessException(ErrorCode.NOT_LIKED);
+        }
+
+        postLikeMapper.delete(postId, userId);
+        postMapper.decrementLikeCount(postId);
     }
 
     private void checkVisibility(Long viewerId, Post post) {
