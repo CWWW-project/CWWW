@@ -38,6 +38,7 @@ class FriendServiceTest {
         Long requesterId = 1L;
         Long receiverId = 2L;
         given(friendMapper.findActiveByUsers(requesterId, receiverId)).willReturn(Optional.empty());
+        given(friendMapper.insert(any(Friend.class))).willReturn(1);
 
         // Act
         friendService.sendRequest(requesterId, receiverId);
@@ -61,6 +62,19 @@ class FriendServiceTest {
         // Arrange
         Friend existing = Friend.builder().friendId(1L).status("ACCEPTED").build();
         given(friendMapper.findActiveByUsers(1L, 2L)).willReturn(Optional.of(existing));
+
+        // Act & Assert
+        assertThatThrownBy(() -> friendService.sendRequest(1L, 2L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.ALREADY_FRIEND);
+    }
+
+    @Test
+    @DisplayName("일촌 신청 실패 - 동시 신청으로 DB 제약 충돌")
+    void sendRequest_concurrentDuplicate() {
+        // Arrange
+        given(friendMapper.findActiveByUsers(1L, 2L)).willReturn(Optional.empty());
+        given(friendMapper.insert(any(Friend.class))).willReturn(0); // ON CONFLICT DO NOTHING
 
         // Act & Assert
         assertThatThrownBy(() -> friendService.sendRequest(1L, 2L))

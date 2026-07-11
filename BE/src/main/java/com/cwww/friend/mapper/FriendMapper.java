@@ -12,7 +12,7 @@ public interface FriendMapper {
 
     boolean isFriend(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
 
-    void insert(Friend friend);
+    int insert(Friend friend);
 
     Optional<Friend> findById(Long friendId);
 
