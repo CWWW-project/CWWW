@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cwww.user.mapper.UserMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="userId">
+        INSERT INTO users (email, password, nickname, role, status, created_at, updated_at)
+        VALUES (#{email}, #{password}, #{nickname}, #{role}, 'ACTIVE', NOW(), NOW())
+    </insert>
+
+    <select id="findByEmail" resultType="com.cwww.user.domain.User">
+        SELECT * FROM users WHERE email = #{email} AND deleted_at IS NULL
+    </select>
+
+    <select id="findByNickname" resultType="com.cwww.user.domain.User">
+        SELECT * FROM users WHERE nickname = #{nickname} AND deleted_at IS NULL
+    </select>
+</mapper>
