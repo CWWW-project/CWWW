@@ -28,6 +28,7 @@
         UPDATE post_comment
         SET content = #{content}, updated_at = NOW()
         WHERE comment_id = #{commentId}
+          AND status = 'ACTIVE'
     </update>
 
     <update id="softDelete">

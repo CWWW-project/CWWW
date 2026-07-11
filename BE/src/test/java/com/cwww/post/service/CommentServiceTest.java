@@ -119,9 +119,11 @@ class CommentServiceTest {
     @DisplayName("댓글 목록 조회 성공")
     void getComments_success() {
         // Arrange
+        Post post = Post.builder().postId(1L).userId(2L).build();
         List<PostComment> comments = List.of(
                 PostComment.builder().commentId(1L).postId(1L).content("댓글1").build()
         );
+        given(postMapper.findById(1L)).willReturn(Optional.of(post));
         given(commentMapper.findByPostId(1L)).willReturn(comments);
 
         // Act
@@ -129,6 +131,18 @@ class CommentServiceTest {
 
         // Assert
         assertThat(responses).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("댓글 목록 조회 실패 - 게시글 없음")
+    void getComments_postNotFound() {
+        // Arrange
+        given(postMapper.findById(99L)).willReturn(Optional.empty());
+
+        // Act & Assert
+        assertThatThrownBy(() -> commentService.getComments(99L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.POST_NOT_FOUND);
     }
 
     // ── 수정 ──────────────────────────────────────────
