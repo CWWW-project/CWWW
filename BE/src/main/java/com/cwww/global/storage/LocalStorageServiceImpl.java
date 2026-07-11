@@ -41,7 +41,7 @@ public class LocalStorageServiceImpl implements StorageService {
             throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED);
         }
 
-        return baseUrl + "/" + filename;
+        return baseUrl.stripTrailing().replaceAll("/+$", "") + "/" + filename;
     }
 
     private String extractExtension(String originalFilename) {

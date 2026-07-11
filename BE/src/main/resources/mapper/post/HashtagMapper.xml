@@ -4,16 +4,11 @@
 
 <mapper namespace="com.cwww.post.mapper.HashtagMapper">
 
-    <insert id="upsertHashtag">
+    <select id="upsertAndGet" resultType="com.cwww.post.domain.Hashtag">
         INSERT INTO hashtag (name)
         VALUES (#{name})
-        ON CONFLICT (name) DO NOTHING
-    </insert>
-
-    <select id="findByName" resultType="com.cwww.post.domain.Hashtag">
-        SELECT hashtag_id, name
-        FROM hashtag
-        WHERE name = #{name}
+        ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+        RETURNING hashtag_id, name
     </select>
 
     <insert id="linkToPost">

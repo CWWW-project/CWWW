@@ -105,7 +105,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional(readOnly = true)
     public FeedResponse getFeed(Long viewerId, Long cursor, int size) {
-        List<Post> posts = postMapper.findFeed(viewerId, cursor, size);
+        List<Post> posts = postMapper.findFeed(viewerId, cursor, size + 1);
 
         boolean hasNext = posts.size() > size;
         if (hasNext) {
@@ -174,8 +174,7 @@ public class PostServiceImpl implements PostService {
 
     private void saveHashtags(Long postId, List<String> hashtags) {
         for (String name : hashtags) {
-            hashtagMapper.upsertHashtag(name);
-            Hashtag hashtag = hashtagMapper.findByName(name);
+            Hashtag hashtag = hashtagMapper.upsertAndGet(name);
             hashtagMapper.linkToPost(postId, hashtag.getHashtagId());
         }
     }

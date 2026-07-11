@@ -51,9 +51,9 @@
                   )
               )
           )
-          AND (#{cursor} IS NULL OR p.post_id &lt; #{cursor})
+          AND (<![CDATA[#{cursor} IS NULL OR p.post_id < #{cursor}]]>)
         ORDER BY p.post_id DESC
-        LIMIT #{size} + 1
+        LIMIT #{size}
     </select>
 
     <update id="incrementLikeCount">

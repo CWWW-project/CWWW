@@ -26,14 +26,9 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class PostServiceTest {
 
-    @Mock
-    private PostMapper postMapper;
-
-    @Mock
-    private MediaMapper mediaMapper;
-
-    @Mock
-    private HashtagMapper hashtagMapper;
+    @Mock private PostMapper postMapper;
+    @Mock private MediaMapper mediaMapper;
+    @Mock private HashtagMapper hashtagMapper;
 
     @InjectMocks
     private PostServiceImpl postService;
@@ -84,15 +79,15 @@ class PostServiceTest {
             return null;
         }).when(postMapper).insert(any(Post.class));
 
-        given(hashtagMapper.findByName("일상")).willReturn(new Hashtag(1L, "일상"));
-        given(hashtagMapper.findByName("맑음")).willReturn(new Hashtag(2L, "맑음"));
+        given(hashtagMapper.upsertAndGet("일상")).willReturn(new Hashtag(1L, "일상"));
+        given(hashtagMapper.upsertAndGet("맑음")).willReturn(new Hashtag(2L, "맑음"));
 
         // Act
         PostResponse response = postService.createPost(userId, request);
 
         // Assert
         assertThat(response.getHashtags()).containsExactly("일상", "맑음");
-        verify(hashtagMapper).upsertHashtag("일상");
-        verify(hashtagMapper).upsertHashtag("맑음");
+        verify(hashtagMapper).upsertAndGet("일상");
+        verify(hashtagMapper).upsertAndGet("맑음");
     }
 }

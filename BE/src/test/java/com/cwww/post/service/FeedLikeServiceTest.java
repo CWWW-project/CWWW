@@ -41,7 +41,7 @@ class FeedLikeServiceTest {
                 Post.builder().postId(2L).userId(2L).title("글2").visibility("ALL").build(),
                 Post.builder().postId(1L).userId(2L).title("글1").visibility("ALL").build()
         );
-        given(postMapper.findFeed(viewerId, null, 10)).willReturn(posts);
+        given(postMapper.findFeed(viewerId, null, 11)).willReturn(posts);
 
         // Act
         FeedResponse response = postService.getFeed(viewerId, null, 10);
@@ -55,7 +55,7 @@ class FeedLikeServiceTest {
     @DisplayName("피드 조회 성공 - 빈 결과")
     void getFeed_empty() {
         // Arrange
-        given(postMapper.findFeed(1L, null, 10)).willReturn(List.of());
+        given(postMapper.findFeed(1L, null, 11)).willReturn(List.of());
 
         // Act
         FeedResponse response = postService.getFeed(1L, null, 10);

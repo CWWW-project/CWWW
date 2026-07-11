@@ -21,7 +21,7 @@
         FROM post_comment
         WHERE post_id = #{postId}
           AND status = 'ACTIVE'
-        ORDER BY created_at ASC
+        ORDER BY COALESCE(parent_comment_id, comment_id), comment_id ASC
     </select>
 
     <update id="update">

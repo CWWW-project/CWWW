@@ -1,11 +1,14 @@
 package com.cwww.global.exception;
 
 import com.cwww.global.response.ApiResponse;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestControllerAdvice
@@ -24,8 +27,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleValidationException(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().stream()
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                .findFirst()
-                .orElse(ErrorCode.INVALID_INPUT.getMessage());
+                .collect(Collectors.joining(", "));
+        return ResponseEntity
+                .status(ErrorCode.INVALID_INPUT.getHttpStatus())
+                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.getCode(), message));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolation(ConstraintViolationException e) {
+        String message = e.getConstraintViolations().stream()
+                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                .collect(Collectors.joining(", "));
         return ResponseEntity
                 .status(ErrorCode.INVALID_INPUT.getHttpStatus())
                 .body(ApiResponse.error(ErrorCode.INVALID_INPUT.getCode(), message));

@@ -9,9 +9,7 @@ import java.util.List;
 @Mapper
 public interface HashtagMapper {
 
-    void upsertHashtag(String name);
-
-    Hashtag findByName(String name);
+    Hashtag upsertAndGet(String name);
 
     void linkToPost(@Param("postId") Long postId, @Param("hashtagId") Long hashtagId);
 
