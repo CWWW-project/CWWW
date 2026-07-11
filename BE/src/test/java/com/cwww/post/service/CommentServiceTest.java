@@ -57,7 +57,7 @@ class CommentServiceTest {
         // Arrange
         Long userId = 1L;
         Post post = Post.builder().postId(1L).userId(2L).build();
-        PostComment parent = PostComment.builder().commentId(10L).postId(1L).build();
+        PostComment parent = PostComment.builder().commentId(10L).postId(1L).parentCommentId(null).build();
         CommentCreateRequest request = new CommentCreateRequest("대댓글 내용", 10L);
         given(postMapper.findById(1L)).willReturn(Optional.of(post));
         given(commentMapper.findById(10L)).willReturn(Optional.of(parent));
@@ -67,6 +67,38 @@ class CommentServiceTest {
 
         // Assert
         verify(commentMapper).insert(org.mockito.ArgumentMatchers.any(PostComment.class));
+    }
+
+    @Test
+    @DisplayName("대댓글 작성 실패 - 2depth 중첩 불가")
+    void createComment_replyDepthExceeded() {
+        // Arrange
+        Post post = Post.builder().postId(1L).userId(2L).build();
+        PostComment parent = PostComment.builder().commentId(10L).postId(1L).parentCommentId(5L).build();
+        CommentCreateRequest request = new CommentCreateRequest("3depth 대댓글", 10L);
+        given(postMapper.findById(1L)).willReturn(Optional.of(post));
+        given(commentMapper.findById(10L)).willReturn(Optional.of(parent));
+
+        // Act & Assert
+        assertThatThrownBy(() -> commentService.createComment(1L, 1L, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.COMMENT_REPLY_DEPTH_EXCEEDED);
+    }
+
+    @Test
+    @DisplayName("대댓글 작성 실패 - 다른 게시글의 댓글을 부모로 지정")
+    void createComment_crossPostParent() {
+        // Arrange
+        Post post = Post.builder().postId(1L).userId(2L).build();
+        PostComment parent = PostComment.builder().commentId(10L).postId(99L).parentCommentId(null).build();
+        CommentCreateRequest request = new CommentCreateRequest("대댓글", 10L);
+        given(postMapper.findById(1L)).willReturn(Optional.of(post));
+        given(commentMapper.findById(10L)).willReturn(Optional.of(parent));
+
+        // Act & Assert
+        assertThatThrownBy(() -> commentService.createComment(1L, 1L, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.COMMENT_NOT_FOUND);
     }
 
     @Test
@@ -109,7 +141,7 @@ class CommentServiceTest {
         given(commentMapper.findById(1L)).willReturn(Optional.of(comment));
 
         // Act
-        commentService.updateComment(1L, 1L, "수정된 내용");
+        commentService.updateComment(1L, 1L, 1L, "수정된 내용");
 
         // Assert
         verify(commentMapper).update(comment);
@@ -123,7 +155,7 @@ class CommentServiceTest {
         given(commentMapper.findById(1L)).willReturn(Optional.of(comment));
 
         // Act & Assert
-        assertThatThrownBy(() -> commentService.updateComment(2L, 1L, "수정"))
+        assertThatThrownBy(() -> commentService.updateComment(2L, 1L, 1L, "수정"))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.COMMENT_FORBIDDEN);
     }
@@ -138,12 +170,12 @@ class CommentServiceTest {
         Post post = Post.builder().postId(1L).userId(2L).build();
         given(commentMapper.findById(1L)).willReturn(Optional.of(comment));
         given(postMapper.findById(1L)).willReturn(Optional.of(post));
+        given(commentMapper.softDelete(1L)).willReturn(1);
 
         // Act
-        commentService.deleteComment(1L, 1L);
+        commentService.deleteComment(1L, 1L, 1L);
 
         // Assert
-        verify(commentMapper).softDelete(1L);
         verify(postMapper).decrementCommentCount(1L);
     }
 
@@ -155,12 +187,12 @@ class CommentServiceTest {
         Post post = Post.builder().postId(1L).userId(2L).build();
         given(commentMapper.findById(1L)).willReturn(Optional.of(comment));
         given(postMapper.findById(1L)).willReturn(Optional.of(post));
+        given(commentMapper.softDelete(1L)).willReturn(1);
 
         // Act
-        commentService.deleteComment(2L, 1L);
+        commentService.deleteComment(2L, 1L, 1L);
 
         // Assert
-        verify(commentMapper).softDelete(1L);
         verify(postMapper).decrementCommentCount(1L);
     }
 
@@ -174,7 +206,7 @@ class CommentServiceTest {
         given(postMapper.findById(1L)).willReturn(Optional.of(post));
 
         // Act & Assert
-        assertThatThrownBy(() -> commentService.deleteComment(3L, 1L))
+        assertThatThrownBy(() -> commentService.deleteComment(3L, 1L, 1L))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.COMMENT_FORBIDDEN);
     }

@@ -45,7 +45,7 @@ public class CommentController {
             @PathVariable Long postId,
             @PathVariable Long commentId,
             @RequestBody @NotBlank @Size(max = 500) String content) {
-        commentService.updateComment(userId, commentId, content);
+        commentService.updateComment(userId, postId, commentId, content);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -54,7 +54,7 @@ public class CommentController {
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long postId,
             @PathVariable Long commentId) {
-        commentService.deleteComment(userId, commentId);
+        commentService.deleteComment(userId, postId, commentId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

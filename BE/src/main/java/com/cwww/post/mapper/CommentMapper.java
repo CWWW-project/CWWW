@@ -17,5 +17,5 @@ public interface CommentMapper {
 
     void update(PostComment comment);
 
-    void softDelete(Long commentId);
+    int softDelete(Long commentId);
 }

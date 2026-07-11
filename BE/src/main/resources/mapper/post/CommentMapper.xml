@@ -31,7 +31,7 @@
     </update>
 
     <update id="softDelete">
-        UPDATE post_comment SET status = 'DELETED' WHERE comment_id = #{commentId}
+        UPDATE post_comment SET status = 'DELETED' WHERE comment_id = #{commentId} AND status = 'ACTIVE'
     </update>
 
 </mapper>

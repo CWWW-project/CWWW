@@ -28,8 +28,15 @@ public class CommentServiceImpl implements CommentService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
 
         if (request.getParentCommentId() != null) {
-            commentMapper.findById(request.getParentCommentId())
+            PostComment parent = commentMapper.findById(request.getParentCommentId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
+
+            if (!parent.getPostId().equals(postId)) {
+                throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
+            }
+            if (parent.getParentCommentId() != null) {
+                throw new BusinessException(ErrorCode.COMMENT_REPLY_DEPTH_EXCEEDED);
+            }
         }
 
         PostComment comment = PostComment.builder()
@@ -53,10 +60,13 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional
-    public void updateComment(Long userId, Long commentId, String content) {
+    public void updateComment(Long userId, Long postId, Long commentId, String content) {
         PostComment comment = commentMapper.findById(commentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
 
+        if (!comment.getPostId().equals(postId)) {
+            throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
+        }
         if (!comment.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.COMMENT_FORBIDDEN);
         }
@@ -67,18 +77,24 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional
-    public void deleteComment(Long userId, Long commentId) {
+    public void deleteComment(Long userId, Long postId, Long commentId) {
         PostComment comment = commentMapper.findById(commentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
 
-        Post post = postMapper.findById(comment.getPostId())
+        if (!comment.getPostId().equals(postId)) {
+            throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
+        }
+
+        Post post = postMapper.findById(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
 
         if (!comment.getUserId().equals(userId) && !post.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.COMMENT_FORBIDDEN);
         }
 
-        commentMapper.softDelete(commentId);
-        postMapper.decrementCommentCount(comment.getPostId());
+        int deleted = commentMapper.softDelete(commentId);
+        if (deleted == 1) {
+            postMapper.decrementCommentCount(postId);
+        }
     }
 }
