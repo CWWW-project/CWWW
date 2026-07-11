@@ -64,4 +64,12 @@
         UPDATE post SET like_count = GREATEST(like_count - 1, 0) WHERE post_id = #{postId}
     </update>
 
+    <update id="incrementCommentCount">
+        UPDATE post SET comment_count = comment_count + 1 WHERE post_id = #{postId}
+    </update>
+
+    <update id="decrementCommentCount">
+        UPDATE post SET comment_count = GREATEST(comment_count - 1, 0) WHERE post_id = #{postId}
+    </update>
+
 </mapper>
