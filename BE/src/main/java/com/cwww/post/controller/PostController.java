@@ -7,15 +7,17 @@ import com.cwww.post.dto.PostResponse;
 import com.cwww.post.dto.PostUpdateRequest;
 import com.cwww.post.service.PostService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import org.springframework.web.bind.annotation.RequestParam;
-
 @Slf4j
+@Validated
 @RestController
 @RequestMapping("/api/posts")
 @RequiredArgsConstructor
@@ -67,7 +69,7 @@ public class PostController {
     public ResponseEntity<ApiResponse<FeedResponse>> getFeed(
             @RequestHeader("X-User-Id") Long userId,
             @RequestParam(required = false) Long cursor,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size) {
         FeedResponse response = postService.getFeed(userId, cursor, size);
         return ResponseEntity.ok(ApiResponse.success(response));
     }

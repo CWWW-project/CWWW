@@ -107,12 +107,12 @@ class FeedLikeServiceTest {
         Post post = Post.builder().postId(1L).userId(2L).build();
         given(postMapper.findById(1L)).willReturn(Optional.of(post));
         given(postLikeMapper.exists(1L, userId)).willReturn(true);
+        given(postLikeMapper.delete(1L, userId)).willReturn(1);
 
         // Act
         postService.unlikePost(userId, 1L);
 
         // Assert
-        verify(postLikeMapper).delete(1L, userId);
         verify(postMapper).decrementLikeCount(1L);
     }
 

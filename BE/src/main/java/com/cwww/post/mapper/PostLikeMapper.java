@@ -10,5 +10,5 @@ public interface PostLikeMapper {
 
     void insert(@Param("postId") Long postId, @Param("userId") Long userId);
 
-    void delete(@Param("postId") Long postId, @Param("userId") Long userId);
+    int delete(@Param("postId") Long postId, @Param("userId") Long userId);
 }

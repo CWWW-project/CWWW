@@ -149,8 +149,10 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.NOT_LIKED);
         }
 
-        postLikeMapper.delete(postId, userId);
-        postMapper.decrementLikeCount(postId);
+        int deleted = postLikeMapper.delete(postId, userId);
+        if (deleted == 1) {
+            postMapper.decrementLikeCount(postId);
+        }
     }
 
     private void checkVisibility(Long viewerId, Post post) {
