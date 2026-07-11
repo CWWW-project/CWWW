@@ -2,3 +2,4 @@ language: "ko-KR"
 reviews:
   profile: chill
   request_changes_workflow: false
+  poem: true
