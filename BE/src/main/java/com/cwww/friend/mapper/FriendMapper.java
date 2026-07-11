@@ -1,10 +1,26 @@
 package com.cwww.friend.mapper;
 
+import com.cwww.friend.domain.Friend;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
+import java.util.Optional;
 
 @Mapper
 public interface FriendMapper {
 
     boolean isFriend(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
+
+    void insert(Friend friend);
+
+    Optional<Friend> findById(Long friendId);
+
+    Optional<Friend> findActiveByUsers(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
+
+    void updateStatus(@Param("friendId") Long friendId, @Param("status") String status);
+
+    List<Friend> findAcceptedByUserId(Long userId);
+
+    void terminate(Long friendId);
 }

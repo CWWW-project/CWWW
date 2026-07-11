@@ -1,7 +1,18 @@
 package com.cwww.friend.service;
 
+import com.cwww.friend.dto.response.FriendResponse;
+
+import java.util.List;
+
 public interface FriendService {
 
-    // TODO: POST-010 일촌 신청/수락
-    // TODO: POST-011 일촌 목록/끊기
+    void sendRequest(Long requesterId, Long receiverId);
+
+    void acceptRequest(Long userId, Long friendId);
+
+    void rejectRequest(Long userId, Long friendId);
+
+    List<FriendResponse> getFriends(Long userId);
+
+    void terminate(Long userId, Long friendId);
 }
