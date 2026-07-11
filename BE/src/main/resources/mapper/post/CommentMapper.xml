@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.cwww.post.mapper.CommentMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="commentId">
+        INSERT INTO post_comment (post_id, user_id, parent_comment_id, content, status, created_at, updated_at)
+        VALUES (#{postId}, #{userId}, #{parentCommentId}, #{content}, 'ACTIVE', NOW(), NOW())
+    </insert>
+
+    <select id="findById" resultType="com.cwww.post.domain.PostComment">
+        SELECT comment_id, post_id, user_id, parent_comment_id, content, status, created_at, updated_at
+        FROM post_comment
+        WHERE comment_id = #{commentId}
+          AND status = 'ACTIVE'
+    </select>
+
+    <select id="findByPostId" resultType="com.cwww.post.domain.PostComment">
+        SELECT comment_id, post_id, user_id, parent_comment_id, content, status, created_at, updated_at
+        FROM post_comment
+        WHERE post_id = #{postId}
+          AND status = 'ACTIVE'
+        ORDER BY created_at ASC
+    </select>
+
+    <update id="update">
+        UPDATE post_comment
+        SET content = #{content}, updated_at = NOW()
+        WHERE comment_id = #{commentId}
+    </update>
+
+    <update id="softDelete">
+        UPDATE post_comment SET status = 'DELETED' WHERE comment_id = #{commentId} AND status = 'ACTIVE'
+    </update>
+
+</mapper>
