@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.cwww.minihompy.mapper.MinihompyMapper">
+	
+	<resultMap id="minihompyMainMap" type="com.cwww.minihompy.domain.response.MinihompyMainResponse">
+		<result property="ownerId" column="user_id"/>
+		<result property="nickname" column="nickname"/>
+		<result property="profileImageUrl" column="profile_image_url"/>
+		<result property="title" column="title"/>
+		<result property="introduction" column="introduction"/>
+		<result property="mood" column="mood"/>
+		<result property="accessLevel" column="access_level"/>
+		<result property="createdAt" column="created_at"/>
+		<result property="bgmUrl" column="bgm_url"/>
+	</resultMap>
+	
+	<!-- BGM이나 프로필 사진을 아직 설정 안 한 유저의 경우 null로 채우기 -->
+	<select id="selectMinihompyMain" resultMap="minihompyMainMap">
+		SELECT
+		    m.user_id,
+		    u.nickname,
+		    profile.media_url AS profile_image_url,
+		    m.title,
+		    m.introduction,
+		    m.mood,
+		    m.access_level,
+		    m.created_at,
+		    bgm.media_url AS bgm_url
+		FROM minihompy m
+		JOIN users u
+		    ON u.user_id = m.user_id
+		LEFT JOIN media bgm
+		    ON bgm.media_id = m.media_id
+		LEFT JOIN media profile
+		    ON profile.target_type = 'USER'
+		    AND profile.target_id = m.user_id
+		WHERE m.user_id = #{ownerId}
+	</select>
+
+
+	<insert id="insertDefaultMinihompy">
+		INSERT INTO minihompy (user_id, title, introduction, access_level, created_at)
+		VALUES (#{userId}, '환영합니다', '', 'ALL', CURRENT_TIMESTAMP)
+	</insert>
+
+</mapper>
