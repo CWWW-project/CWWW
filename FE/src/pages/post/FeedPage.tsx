@@ -28,8 +28,10 @@ export default function FeedPage() {
   const [hasNext, setHasNext] = useState(false)
   const [loading, setLoading] = useState(false)
   const [likedPostIds, setLikedPostIds] = useState<Set<number>>(new Set())
+  const [pendingLikeIds, setPendingLikeIds] = useState<Set<number>>(new Set())
   const [filter, setFilter] = useState<'전체' | '일촌만' | '사진만'>('전체')
   const [newPost, setNewPost] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [commentInputs, setCommentInputs] = useState<Record<number, string>>({})
 
   const loadFeed = useCallback(async (cursorParam?: number) => {
@@ -52,7 +54,10 @@ export default function FeedPage() {
   }, [loadFeed])
 
   const toggleLike = async (postId: number) => {
+    if (pendingLikeIds.has(postId)) return
     const liked = likedPostIds.has(postId)
+
+    setPendingLikeIds(prev => new Set(prev).add(postId))
     setLikedPostIds(prev => {
       const next = new Set(prev)
       liked ? next.delete(postId) : next.add(postId)
@@ -73,11 +78,18 @@ export default function FeedPage() {
       setPosts(prev => prev.map(p =>
         p.postId === postId ? { ...p, likeCount: liked ? p.likeCount + 1 : p.likeCount - 1 } : p
       ))
+    } finally {
+      setPendingLikeIds(prev => {
+        const next = new Set(prev)
+        next.delete(postId)
+        return next
+      })
     }
   }
 
   const submitPost = async () => {
-    if (!newPost.trim()) return
+    if (!newPost.trim() || isSubmitting) return
+    setIsSubmitting(true)
     try {
       const res = await postApi.createPost({
         title: '',
@@ -90,6 +102,8 @@ export default function FeedPage() {
       setNewPost('')
     } catch (e) {
       console.error('글 작성 실패', e)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -257,13 +271,13 @@ export default function FeedPage() {
                   placeholder="오늘 어떤 하루였나요? 다이어리 써보세요..."
                   value={newPost}
                   onChange={(e) => setNewPost(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && submitPost()}
+                  onKeyDown={(e) => e.key === 'Enter' && !isSubmitting && submitPost()}
                 />
                 <div className="flex gap-1">
                   <button className="retro-btn p-1 font-[Geist,monospace] text-[12px] font-semibold flex items-center gap-1">
                     <span className="material-symbols-outlined text-sm">image</span>
                   </button>
-                  <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold px-2 py-1" onClick={submitPost}>작성</button>
+                  <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold px-2 py-1" onClick={submitPost} disabled={isSubmitting}>작성</button>
                 </div>
               </div>
             </div>
