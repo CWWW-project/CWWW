@@ -29,6 +29,16 @@
         WHERE ph.post_id = #{postId}
     </select>
 
+    <select id="findAllByPostIds" resultType="com.cwww.post.dto.PostHashtagDto">
+        SELECT ph.post_id as postId, h.name
+        FROM hashtag h
+        JOIN post_hashtag ph ON h.hashtag_id = ph.hashtag_id
+        WHERE ph.post_id IN
+        <foreach item="id" collection="postIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
     <delete id="deleteByPostId">
         DELETE FROM post_hashtag WHERE post_id = #{postId}
     </delete>

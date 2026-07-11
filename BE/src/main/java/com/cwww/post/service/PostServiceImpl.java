@@ -8,18 +8,22 @@ import com.cwww.post.domain.Media;
 import com.cwww.post.domain.Post;
 import com.cwww.post.dto.FeedResponse;
 import com.cwww.post.dto.PostCreateRequest;
+import com.cwww.post.dto.PostHashtagDto;
 import com.cwww.post.dto.PostResponse;
 import com.cwww.post.dto.PostUpdateRequest;
 import com.cwww.post.mapper.HashtagMapper;
 import com.cwww.post.mapper.MediaMapper;
 import com.cwww.post.mapper.PostLikeMapper;
 import com.cwww.post.mapper.PostMapper;
+import com.cwww.user.domain.User;
+import com.cwww.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +34,7 @@ public class PostServiceImpl implements PostService {
     private final HashtagMapper hashtagMapper;
     private final FriendMapper friendMapper;
     private final PostLikeMapper postLikeMapper;
+    private final UserMapper userMapper;
 
     @Override
     @Transactional
@@ -46,7 +51,8 @@ public class PostServiceImpl implements PostService {
         saveHashtags(post.getPostId(), request.getHashtags());
         saveMediaUrls(post.getPostId(), request.getMediaUrls());
 
-        return PostResponse.from(post, request.getHashtags(), request.getMediaUrls());
+        String nickname = userMapper.findNicknameById(userId);
+        return PostResponse.from(post, nickname, request.getHashtags(), request.getMediaUrls());
     }
 
     @Override
@@ -57,10 +63,11 @@ public class PostServiceImpl implements PostService {
 
         checkVisibility(viewerId, post);
 
+        String nickname = userMapper.findNicknameById(post.getUserId());
         List<String> hashtags = hashtagMapper.findNamesByPostId(postId);
         List<String> mediaUrls = mediaMapper.findUrlsByTarget("POST", postId);
 
-        return PostResponse.from(post, hashtags, mediaUrls);
+        return PostResponse.from(post, nickname, hashtags, mediaUrls);
     }
 
     @Override
@@ -105,7 +112,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional(readOnly = true)
     public FeedResponse getFeed(Long viewerId, Long cursor, int size) {
-        List<Post> posts = postMapper.findFeed(viewerId, cursor, size);
+        List<Post> posts = postMapper.findFeed(viewerId, cursor, size + 1);
 
         boolean hasNext = posts.size() > size;
         if (hasNext) {
@@ -114,9 +121,7 @@ public class PostServiceImpl implements PostService {
 
         Long nextCursor = hasNext ? posts.get(posts.size() - 1).getPostId() : null;
 
-        List<PostResponse> responses = posts.stream()
-                .map(post -> PostResponse.from(post, List.of(), List.of()))
-                .toList();
+        List<PostResponse> responses = toPostResponses(posts);
 
         return FeedResponse.builder()
                 .posts(responses)
@@ -167,15 +172,38 @@ public class PostServiceImpl implements PostService {
 
         Long nextCursor = hasNext ? posts.get(posts.size() - 1).getPostId() : null;
 
-        List<PostResponse> responses = posts.stream()
-                .map(post -> PostResponse.from(post, List.of(), List.of()))
-                .toList();
+        List<PostResponse> responses = toPostResponses(posts);
 
         return FeedResponse.builder()
                 .posts(responses)
                 .nextCursor(nextCursor)
                 .hasNext(hasNext)
                 .build();
+    }
+
+    private List<PostResponse> toPostResponses(List<Post> posts) {
+        if (posts.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> postIds = posts.stream().map(Post::getPostId).toList();
+        List<Long> userIds = posts.stream().map(Post::getUserId).distinct().toList();
+
+        Map<Long, String> nicknameMap = userMapper.findByIds(userIds).stream()
+                .collect(Collectors.toMap(User::getUserId, User::getNickname));
+        Map<Long, List<String>> hashtagMap = hashtagMapper.findAllByPostIds(postIds).stream()
+                .collect(Collectors.groupingBy(PostHashtagDto::postId,
+                        Collectors.mapping(PostHashtagDto::name, Collectors.toList())));
+        Map<Long, List<String>> mediaMap = mediaMapper.findAllByTargets("POST", postIds).stream()
+                .collect(Collectors.groupingBy(Media::getTargetId,
+                        Collectors.mapping(Media::getMediaUrl, Collectors.toList())));
+
+        return posts.stream()
+                .map(post -> PostResponse.from(post,
+                        nicknameMap.getOrDefault(post.getUserId(), ""),
+                        hashtagMap.getOrDefault(post.getPostId(), List.of()),
+                        mediaMap.getOrDefault(post.getPostId(), List.of())))
+                .toList();
     }
 
     private void checkVisibility(Long viewerId, Post post) {

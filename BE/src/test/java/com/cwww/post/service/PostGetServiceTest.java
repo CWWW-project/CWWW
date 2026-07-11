@@ -8,6 +8,7 @@ import com.cwww.post.dto.PostResponse;
 import com.cwww.post.mapper.HashtagMapper;
 import com.cwww.post.mapper.MediaMapper;
 import com.cwww.post.mapper.PostMapper;
+import com.cwww.user.mapper.UserMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +21,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -31,6 +33,7 @@ class PostGetServiceTest {
     @Mock private MediaMapper mediaMapper;
     @Mock private HashtagMapper hashtagMapper;
     @Mock private FriendMapper friendMapper;
+    @Mock private UserMapper userMapper;
 
     @InjectMocks
     private PostServiceImpl postService;
@@ -42,6 +45,7 @@ class PostGetServiceTest {
         Long viewerId = 2L;
         Post post = Post.builder().postId(1L).userId(1L).title("제목").content("내용").visibility("ALL").build();
         given(postMapper.findById(1L)).willReturn(Optional.of(post));
+        given(userMapper.findNicknameById(anyLong())).willReturn("작성자");
         given(mediaMapper.findUrlsByTarget("POST", 1L)).willReturn(List.of());
         given(hashtagMapper.findNamesByPostId(1L)).willReturn(List.of());
 
@@ -86,6 +90,7 @@ class PostGetServiceTest {
         Long ownerId = 1L;
         Post post = Post.builder().postId(1L).userId(1L).title("비공개").content("내용").visibility("PRIVATE").build();
         given(postMapper.findById(1L)).willReturn(Optional.of(post));
+        given(userMapper.findNicknameById(anyLong())).willReturn("작성자");
         given(mediaMapper.findUrlsByTarget("POST", 1L)).willReturn(List.of());
         given(hashtagMapper.findNamesByPostId(1L)).willReturn(List.of());
 
@@ -104,6 +109,7 @@ class PostGetServiceTest {
         Post post = Post.builder().postId(1L).userId(1L).title("일촌글").content("내용").visibility("FRIEND").build();
         given(postMapper.findById(1L)).willReturn(Optional.of(post));
         given(friendMapper.isFriend(1L, viewerId)).willReturn(true);
+        given(userMapper.findNicknameById(anyLong())).willReturn("작성자");
         given(mediaMapper.findUrlsByTarget("POST", 1L)).willReturn(List.of());
         given(hashtagMapper.findNamesByPostId(1L)).willReturn(List.of());
 

@@ -13,6 +13,7 @@ public class PostResponse {
 
     private Long postId;
     private Long userId;
+    private String nickname;
     private Long minihompyId;
     private String title;
     private String content;
@@ -25,10 +26,11 @@ public class PostResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public static PostResponse from(Post post, List<String> hashtags, List<String> mediaUrls) {
+    public static PostResponse from(Post post, String nickname, List<String> hashtags, List<String> mediaUrls) {
         return PostResponse.builder()
                 .postId(post.getPostId())
                 .userId(post.getUserId())
+                .nickname(nickname)
                 .minihompyId(post.getMinihompyId())
                 .title(post.getTitle())
                 .content(post.getContent())

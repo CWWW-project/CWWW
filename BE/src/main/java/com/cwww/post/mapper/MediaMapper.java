@@ -12,4 +12,6 @@ public interface MediaMapper {
     void insert(Media media);
 
     List<String> findUrlsByTarget(@Param("targetType") String targetType, @Param("targetId") Long targetId);
+
+    List<Media> findAllByTargets(@Param("targetType") String targetType, @Param("targetIds") List<Long> targetIds);
 }

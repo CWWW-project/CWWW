@@ -7,6 +7,7 @@ import com.cwww.post.dto.PostResponse;
 import com.cwww.post.mapper.HashtagMapper;
 import com.cwww.post.mapper.MediaMapper;
 import com.cwww.post.mapper.PostMapper;
+import com.cwww.user.mapper.UserMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +20,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
@@ -26,14 +28,10 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class PostServiceTest {
 
-    @Mock
-    private PostMapper postMapper;
-
-    @Mock
-    private MediaMapper mediaMapper;
-
-    @Mock
-    private HashtagMapper hashtagMapper;
+    @Mock private PostMapper postMapper;
+    @Mock private MediaMapper mediaMapper;
+    @Mock private HashtagMapper hashtagMapper;
+    @Mock private UserMapper userMapper;
 
     @InjectMocks
     private PostServiceImpl postService;
@@ -54,6 +52,7 @@ class PostServiceTest {
             post.setCreatedAt(LocalDateTime.now());
             return null;
         }).when(postMapper).insert(any(Post.class));
+        given(userMapper.findNicknameById(anyLong())).willReturn("송경용");
 
         // Act
         PostResponse response = postService.createPost(userId, request);
@@ -86,6 +85,7 @@ class PostServiceTest {
 
         given(hashtagMapper.findByName("일상")).willReturn(new Hashtag(1L, "일상"));
         given(hashtagMapper.findByName("맑음")).willReturn(new Hashtag(2L, "맑음"));
+        given(userMapper.findNicknameById(anyLong())).willReturn("송경용");
 
         // Act
         PostResponse response = postService.createPost(userId, request);
