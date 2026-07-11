@@ -4,13 +4,6 @@
 
 <mapper namespace="com.cwww.post.mapper.BookmarkMapper">
 
-    <select id="exists" resultType="boolean">
-        SELECT EXISTS (
-            SELECT 1 FROM post_bookmark
-            WHERE post_id = #{postId} AND user_id = #{userId}
-        )
-    </select>
-
     <insert id="insert">
         INSERT INTO post_bookmark (post_id, user_id)
         VALUES (#{postId}, #{userId})
@@ -30,6 +23,21 @@
         INNER JOIN post_bookmark pb ON p.post_id = pb.post_id
         WHERE pb.user_id = #{userId}
           AND p.deleted_at IS NULL
+          AND (
+              p.user_id = #{userId}
+              OR p.visibility = 'ALL'
+              OR (
+                  p.visibility = 'FRIEND'
+                  AND EXISTS (
+                      SELECT 1 FROM friend f
+                      WHERE f.status = 'ACCEPTED'
+                        AND (
+                            (f.requester_id = p.user_id AND f.receiver_id = #{userId})
+                            OR (f.requester_id = #{userId} AND f.receiver_id = p.user_id)
+                        )
+                  )
+              )
+          )
           <if test="cursor != null">
             <![CDATA[AND p.post_id < #{cursor}]]>
           </if>

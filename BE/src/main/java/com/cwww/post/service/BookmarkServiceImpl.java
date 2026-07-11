@@ -26,23 +26,15 @@ public class BookmarkServiceImpl implements BookmarkService {
         postMapper.findById(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
 
-        if (bookmarkMapper.exists(postId, userId)) {
+        int inserted = bookmarkMapper.insert(postId, userId);
+        if (inserted == 0) {
             throw new BusinessException(ErrorCode.ALREADY_BOOKMARKED);
         }
-
-        bookmarkMapper.insert(postId, userId);
     }
 
     @Override
     @Transactional
     public void unbookmark(Long userId, Long postId) {
-        postMapper.findById(postId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
-
-        if (!bookmarkMapper.exists(postId, userId)) {
-            throw new BusinessException(ErrorCode.NOT_BOOKMARKED);
-        }
-
         int deleted = bookmarkMapper.delete(postId, userId);
         if (deleted == 0) {
             throw new BusinessException(ErrorCode.NOT_BOOKMARKED);

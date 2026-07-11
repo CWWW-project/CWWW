@@ -39,7 +39,7 @@ class BookmarkServiceTest {
         Long userId = 1L;
         Post post = Post.builder().postId(1L).userId(2L).build();
         given(postMapper.findById(1L)).willReturn(Optional.of(post));
-        given(bookmarkMapper.exists(1L, userId)).willReturn(false);
+        given(bookmarkMapper.insert(1L, userId)).willReturn(1);
 
         // Act
         bookmarkService.bookmark(userId, 1L);
@@ -55,7 +55,7 @@ class BookmarkServiceTest {
         Long userId = 1L;
         Post post = Post.builder().postId(1L).userId(2L).build();
         given(postMapper.findById(1L)).willReturn(Optional.of(post));
-        given(bookmarkMapper.exists(1L, userId)).willReturn(true);
+        given(bookmarkMapper.insert(1L, userId)).willReturn(0);
 
         // Act & Assert
         assertThatThrownBy(() -> bookmarkService.bookmark(userId, 1L))
@@ -82,9 +82,20 @@ class BookmarkServiceTest {
     void unbookmark_success() {
         // Arrange
         Long userId = 1L;
-        Post post = Post.builder().postId(1L).userId(2L).build();
-        given(postMapper.findById(1L)).willReturn(Optional.of(post));
-        given(bookmarkMapper.exists(1L, userId)).willReturn(true);
+        given(bookmarkMapper.delete(1L, userId)).willReturn(1);
+
+        // Act
+        bookmarkService.unbookmark(userId, 1L);
+
+        // Assert
+        verify(bookmarkMapper).delete(1L, userId);
+    }
+
+    @Test
+    @DisplayName("북마크 취소 성공 - 소프트 삭제된 게시글")
+    void unbookmark_softDeletedPost() {
+        // Arrange
+        Long userId = 1L;
         given(bookmarkMapper.delete(1L, userId)).willReturn(1);
 
         // Act
@@ -99,9 +110,7 @@ class BookmarkServiceTest {
     void unbookmark_notBookmarked() {
         // Arrange
         Long userId = 1L;
-        Post post = Post.builder().postId(1L).userId(2L).build();
-        given(postMapper.findById(1L)).willReturn(Optional.of(post));
-        given(bookmarkMapper.exists(1L, userId)).willReturn(false);
+        given(bookmarkMapper.delete(1L, userId)).willReturn(0);
 
         // Act & Assert
         assertThatThrownBy(() -> bookmarkService.unbookmark(userId, 1L))
