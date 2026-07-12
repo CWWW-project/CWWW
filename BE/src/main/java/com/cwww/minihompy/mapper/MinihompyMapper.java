@@ -1,9 +1,10 @@
 package com.cwww.minihompy.mapper;
 
+import com.cwww.minihompy.domain.Minihompy;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
-import com.cwww.minihompy.domain.response.MinihompyMainResponse;
+import com.cwww.minihompy.dto.response.MinihompyMainResponse;
 
 
 @Mapper
@@ -13,6 +14,6 @@ public interface MinihompyMapper {
 	MinihompyMainResponse selectMinihompyMain(@Param("ownerId") Long ownerId);
 	
 	// 미니홈피 기본 생성
-	int insertDefaultMinihompy(@Param("userId") Long userId);
+	int insertDefaultMinihompy(Minihompy minihompy);
 	
 }

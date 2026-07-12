@@ -5,7 +5,7 @@
     
 <mapper namespace="com.cwww.minihompy.mapper.MinihompyMapper">
 	
-	<resultMap id="minihompyMainMap" type="com.cwww.minihompy.domain.response.MinihompyMainResponse">
+	<resultMap id="minihompyMainMap" type="com.cwww.minihompy.dto.response.MinihompyMainResponse">
 		<result property="ownerId" column="user_id"/>
 		<result property="nickname" column="nickname"/>
 		<result property="profileImageUrl" column="profile_image_url"/>
@@ -41,9 +41,9 @@
 	</select>
 
 
-	<insert id="insertDefaultMinihompy">
+	<insert id="insertDefaultMinihompy" parameterType="com.cwww.minihompy.domain.Minihompy">
 		INSERT INTO minihompy (user_id, title, introduction, access_level, created_at)
-		VALUES (#{userId}, '환영합니다', '', 'ALL', CURRENT_TIMESTAMP)
+		VALUES (#{userId}, #{title}, #{introduction}, #{accessLevel}, #{createdAt})
 	</insert>
 
 </mapper>

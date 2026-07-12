@@ -1,7 +1,7 @@
 package com.cwww.minihompy.controller;
 
 import com.cwww.global.response.ApiResponse;
-import com.cwww.minihompy.domain.response.MinihompyMainResponse;
+import com.cwww.minihompy.dto.response.MinihompyMainResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
