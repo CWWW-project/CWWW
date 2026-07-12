@@ -31,4 +31,10 @@
         WHERE media_id = #{mediaId}
     </update>
 
+    <delete id="deleteMedia">
+        DELETE FROM media
+        WHERE target_type = #{targetType}
+        AND target_id = #{targetId}
+    </delete>
+
 </mapper>

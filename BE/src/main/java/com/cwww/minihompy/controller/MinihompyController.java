@@ -24,7 +24,7 @@ public class MinihompyController {
 	) {
 
 		// TODO 지금은 임시로 로그인 사용자를 하드코딩, 인증 완료되면 교체 예정
-		Long viewerId = 2L;
+		Long viewerId = 1L;
 
 		MinihompyMainResponse response = minihompyService.getMinihompyMain(ownerId,viewerId);
 
@@ -43,6 +43,17 @@ public class MinihompyController {
 
 		return ApiResponse.success(response);
 
+	}
+
+	// 프로필 사진 삭제
+	@DeleteMapping("/profile-image")
+	public ApiResponse<Void> deleteProfileImage() {
+
+		// TODO 지금은 임시로 로그인 사용자를 하드코딩, 인증 완료되면 교체 예정
+		Long userId = 1L;
+		minihompyService.deleteProfileImage(userId);
+
+		return ApiResponse.success(null);
 	}
 
 }

@@ -4,6 +4,7 @@ import com.cwww.minihompy.domain.Media;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+// 프로필 사진 등록/갱신/삭제
 @Mapper
 public interface ProfileMediaMapper {
 
@@ -15,5 +16,8 @@ public interface ProfileMediaMapper {
 
     // 기존 media 갱신
     int updateMedia(Media media);
+
+    // media 삭제
+    void deleteMedia(@Param("targetType") Media.TargetType targetType, @Param("targetId") Long targetId);
 
 }

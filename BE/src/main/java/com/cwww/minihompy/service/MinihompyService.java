@@ -78,6 +78,7 @@ public class MinihompyService {
 
 
 	// 프로필 사진 업로드/변경 (공용 StorageService 사용)
+	@Transactional
 	public ProfileImageResponse uploadProfileImage(Long userId, MultipartFile file) {
 
 		// 파일 검증
@@ -118,6 +119,15 @@ public class MinihompyService {
 		return ProfileImageResponse.builder()
 				.profileImageUrl(imageUrl)
 				.build();
+
+	}
+
+
+	// 프로필 사진 삭제
+	@Transactional
+	public void deleteProfileImage(Long userId) {
+
+		profileMediaMapper.deleteMedia(Media.TargetType.PROFILE, userId);
 
 	}
 
