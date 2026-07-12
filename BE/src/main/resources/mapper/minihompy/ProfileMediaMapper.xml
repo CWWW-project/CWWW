@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.cwww.minihompy.mapper.ProfileMediaMapper">
+
+    <resultMap id="mediaMap" type="com.cwww.minihompy.domain.Media">
+        <id     property="mediaId"    column="media_id"/>
+        <result property="targetType" column="target_type"/>
+        <result property="targetId"   column="target_id"/>
+        <result property="mediaUrl"   column="media_url"/>
+        <result property="createdAt"  column="created_at"/>
+    </resultMap>
+
+    <select id="selectMedia" resultMap="mediaMap">
+        SELECT media_id, target_type, target_id, media_url, created_at
+        FROM media
+        WHERE target_type = #{targetType}
+        AND target_id = #{targetId}
+    </select>
+
+    <insert id="insertMedia" parameterType="com.cwww.minihompy.domain.Media">
+        INSERT INTO media (target_type, target_id, media_url, created_at)
+        VALUES (#{targetType}, #{targetId}, #{mediaUrl}, #{createdAt})
+    </insert>
+
+    <update id="updateMedia" parameterType="com.cwww.minihompy.domain.Media">
+        UPDATE media
+        SET media_url = #{mediaUrl}
+        WHERE media_id = #{mediaId}
+    </update>
+
+</mapper>

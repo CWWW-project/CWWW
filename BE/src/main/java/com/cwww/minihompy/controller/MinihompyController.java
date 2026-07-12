@@ -1,15 +1,15 @@
 package com.cwww.minihompy.controller;
 
 import com.cwww.global.response.ApiResponse;
+import com.cwww.minihompy.dto.request.ProfileImageUploadRequest;
 import com.cwww.minihompy.dto.response.MinihompyMainResponse;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import com.cwww.minihompy.dto.response.ProfileImageResponse;
+import org.springframework.web.bind.annotation.*;
 
 import com.cwww.minihompy.service.MinihompyService;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/minihompy")
@@ -24,11 +24,25 @@ public class MinihompyController {
 	) {
 
 		// TODO 지금은 임시로 로그인 사용자를 하드코딩, 인증 완료되면 교체 예정
-		Long viewerId = 1L;
+		Long viewerId = 2L;
 
 		MinihompyMainResponse response = minihompyService.getMinihompyMain(ownerId,viewerId);
 
 		return ApiResponse.success(response);
+	}
+
+	// 프로필 사진 업로드/변경 (있으면 교체, 없으면 생성)
+	@PutMapping("/profile-image")
+	public ApiResponse<ProfileImageResponse> uploadProfileImage(
+			@RequestParam("file")MultipartFile file
+	) {
+
+		// TODO 지금은 임시로 로그인 사용자를 하드코딩, 인증 완료되면 교체 예정
+		Long userId = 1L;
+		ProfileImageResponse response = minihompyService.uploadProfileImage(userId, file);
+
+		return ApiResponse.success(response);
+
 	}
 
 }

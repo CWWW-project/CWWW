@@ -35,7 +35,7 @@
 		LEFT JOIN media bgm
 		    ON bgm.media_id = m.media_id
 		LEFT JOIN media profile
-		    ON profile.target_type = 'USER'
+		    ON profile.target_type = 'PROFILE'
 		    AND profile.target_id = m.user_id
 		WHERE m.user_id = #{ownerId}
 	</select>

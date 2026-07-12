@@ -14,6 +14,6 @@ public interface MinihompyMapper {
 	MinihompyMainResponse selectMinihompyMain(@Param("ownerId") Long ownerId);
 	
 	// 미니홈피 기본 생성
-	int insertDefaultMinihompy(Minihompy minihompy);
+	void insertDefaultMinihompy(Minihompy minihompy);
 	
 }
