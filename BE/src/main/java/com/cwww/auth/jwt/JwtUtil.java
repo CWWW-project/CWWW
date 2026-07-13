@@ -75,6 +75,8 @@ public class JwtUtil {
                     .getPayload();
         } catch (ExpiredJwtException e) {
             throw new BusinessException(ErrorCode.EXPIRED_TOKEN);
+        } catch (JwtException | IllegalArgumentException e) {
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
     }
 }
