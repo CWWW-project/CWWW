@@ -41,9 +41,20 @@
 	</select>
 
 
+	<!-- 회원가입/로그인 후 처음 미니홈피 조회한 사용자 자동 미니홈피 생성(기본값으로) -->
 	<insert id="insertDefaultMinihompy" parameterType="com.cwww.minihompy.domain.Minihompy">
 		INSERT INTO minihompy (user_id, title, introduction, mood, access_level, created_at)
 		VALUES (#{userId}, #{title}, #{introduction}, #{mood}, #{accessLevel}, #{createdAt})
 	</insert>
+
+
+	<!-- 미니홈피 설정 변경 (accessLevel, introduction, mood 한번에) -->
+	<update id="updateSettings">
+		UPDATE minihompy
+		SET access_level = #{accessLevel},
+			introduction = #{introduction},
+			mood = #{mood}
+		WHERE user_id = #{userId}
+	</update>
 
 </mapper>

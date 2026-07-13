@@ -4,6 +4,7 @@ import com.cwww.friend.mapper.FriendMapper;
 import com.cwww.global.storage.StorageService;
 import com.cwww.minihompy.domain.Media;
 import com.cwww.minihompy.domain.Minihompy;
+import com.cwww.minihompy.dto.request.MinihompySettingsRequest;
 import com.cwww.minihompy.dto.response.ProfileImageResponse;
 import com.cwww.minihompy.mapper.ProfileMediaMapper;
 import com.cwww.user.mapper.UserMapper;
@@ -183,6 +184,28 @@ public class MinihompyService {
 		if(!ALLOWED_EXTENSIONS.contains(ext)) {
 			throw new BusinessException(ErrorCode.INVALID_FILE_EXTENSION);
 		}
+
+	}
+
+
+	// 미니홈피 설정 변경 (공개범위 + 소개글 + 기분 한번에)
+	@Transactional
+	public MinihompyMainResponse updateSettings(Long userId, MinihompySettingsRequest request) {
+
+		int updated = minihompyMapper.updateSettings(
+				userId,
+				request.getAccessLevel(),
+				request.getIntroduction(),
+				request.getMood()
+		);
+
+		// 미니홈피 없는 이상 상황 대비 방어 코드
+		if(updated == 0) {
+			throw new BusinessException(ErrorCode.MINIHOMPY_NOT_FOUND);
+		}
+
+		// 갱신된 전체 데이터 다시 조회해서 리턴(프론트에서 응답받은 데이터로 화면 갱신용)
+		return minihompyMapper.selectMinihompyMain(userId);
 
 	}
 

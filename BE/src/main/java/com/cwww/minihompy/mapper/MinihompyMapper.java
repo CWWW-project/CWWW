@@ -15,5 +15,11 @@ public interface MinihompyMapper {
 	
 	// 미니홈피 기본 생성
 	void insertDefaultMinihompy(Minihompy minihompy);
-	
+
+	// 미니홈피 설정 변경 (accessLevel, introduction, mood 한번에)
+	int updateSettings(@Param("userId") Long userId,
+					   @Param("accessLevel") Minihompy.AccessLevel accessLevel,
+					   @Param("introduction") String introduction,
+					   @Param("mood") String mood);
+
 }
