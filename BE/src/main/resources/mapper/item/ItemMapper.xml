@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cwww.item.mapper.ItemMapper">
+    <select id="findAll" resultType="com.cwww.item.domain.Item">
+        SELECT item_id, category, name, description, price,
+               status, reject_reason, sales_count, creator_id,
+               created_at, updated_at
+        FROM item
+        ORDER BY created_at DESC
+    </select>
+    <select id="find" resultType="com.cwww.item.domain.Item">
+        SELECT item_id, category, name, description, price,
+               status, reject_reason, sales_count, creator_id,
+               created_at, updated_at
+        FROM item
+        ORDER BY created_at DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM item
+    </select>
+</mapper>
