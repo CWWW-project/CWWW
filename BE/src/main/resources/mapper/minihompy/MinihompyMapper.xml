@@ -42,8 +42,8 @@
 
 
 	<insert id="insertDefaultMinihompy" parameterType="com.cwww.minihompy.domain.Minihompy">
-		INSERT INTO minihompy (user_id, title, introduction, access_level, created_at)
-		VALUES (#{userId}, #{title}, #{introduction}, #{accessLevel}, #{createdAt})
+		INSERT INTO minihompy (user_id, title, introduction, mood, access_level, created_at)
+		VALUES (#{userId}, #{title}, #{introduction}, #{mood}, #{accessLevel}, #{createdAt})
 	</insert>
 
 </mapper>

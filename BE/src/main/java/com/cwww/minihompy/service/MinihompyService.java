@@ -1,10 +1,12 @@
 package com.cwww.minihompy.service;
 
+import com.cwww.friend.mapper.FriendMapper;
 import com.cwww.global.storage.StorageService;
 import com.cwww.minihompy.domain.Media;
 import com.cwww.minihompy.domain.Minihompy;
 import com.cwww.minihompy.dto.response.ProfileImageResponse;
 import com.cwww.minihompy.mapper.ProfileMediaMapper;
+import com.cwww.user.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,9 @@ public class MinihompyService {
 	private final MinihompyMapper minihompyMapper;
 	private final ProfileMediaMapper profileMediaMapper;
 	private final StorageService storageService;
+	private final UserMapper userMapper;
+	private final FriendMapper friendMapper;
+
 
 	private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 	private static final List<String> ALLOWED_EXTENSIONS = List.of("jpg", "jpeg", "png");
@@ -43,10 +48,13 @@ public class MinihompyService {
 			// 본인이 처음 접근한 경우에만 기본 생성 (남의 미니홈피가 없다고 만들어주면 안 됨)
 			if(viewerId != null && viewerId.equals(ownerId)) {
 
+				String nickname = userMapper.findNicknameById(ownerId);
+
 				Minihompy defaultMinihompy = Minihompy.builder()
 						.userId(ownerId)
-						.title("환영합니다")
+						.title(nickname + "의 홈피")
 						.introduction("")
+						.mood(null)
 						.accessLevel(Minihompy.AccessLevel.ALL)
 						.createdAt(LocalDateTime.now())
 						.build();
@@ -63,17 +71,32 @@ public class MinihompyService {
 		// 권한 체크는 response가 null이든 아니든(=새로 만들어졌든 원래 있었든) 항상 실행돼야 함
 		boolean isOwner = viewerId != null && viewerId.equals(ownerId);
 
-		// PRIVATE은 본인 외에 접근 못함
-		if(!isOwner && response.getAccessLevel() == Minihompy.AccessLevel.PRIVATE) {
-			throw new BusinessException(ErrorCode.MINIHOMPY_FORBIDDEN);
+		// 미니홈피 주인이 아닐 경우 접근 권한 체크(PRIVATE, FRIEND, ALL)
+		if(!isOwner) {
+			checkAccessPermission(response.getAccessLevel(), ownerId, viewerId);
 		}
-		
-		// TODO 일촌 체크 로직 필요
 
 		// 계산된 owner 여부를 응답에 채워서 리턴 (프론트가 편집 UI 노출 여부 판단에 사용)
 		return response.toBuilder()
 				.owner(isOwner)
 				.build();
+	}
+
+
+	// 접근 권한 체크(PRIVATE는 무조건 차단, FRIEND는 일촌 여부 확인, ALL은 통과)
+	private void checkAccessPermission(Minihompy.AccessLevel accessLevel, Long ownerId, Long viewerId) {
+
+		switch (accessLevel) {
+			case PRIVATE -> throw new BusinessException(ErrorCode.MINIHOMPY_FORBIDDEN);
+			case FRIEND ->  {
+
+				if(viewerId == null || !friendMapper.isFriend(ownerId, viewerId)) {
+					throw new BusinessException(ErrorCode.MINIHOMPY_FORBIDDEN);
+				}
+
+			}
+			case ALL -> {/* 누구나 조회 가능 */} // 빈 블록으로 그냥 통과 시킴
+		}
 	}
 
 
