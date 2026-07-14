@@ -48,8 +48,14 @@ public enum ErrorCode {
     FRIEND_NOT_FOUND(HttpStatus.NOT_FOUND, "F003", "일촌 관계를 찾을 수 없습니다."),
     FRIEND_FORBIDDEN(HttpStatus.FORBIDDEN, "F004", "일촌 요청에 대한 권한이 없습니다."),
 
+    // Minihompy
+    MINIHOMPY_NOT_FOUND(HttpStatus.NOT_FOUND, "H001", "미니홈피를 찾을 수 없습니다."),
+    MINIHOMPY_FORBIDDEN(HttpStatus.FORBIDDEN, "H002", "미니홈피에 대한 접근 권한이 없습니다."),
+    PROFILE_IMAGE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "H003", "파일 크기가 5MB를 초과합니다."),
+
     // Item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "I001", "아이템을 찾을 수 없습니다.");
+
 
     private final HttpStatus httpStatus;
     private final String code;
