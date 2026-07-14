@@ -1,11 +1,66 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { authApi } from '../../api/auth'
+import { useAuthStore } from '../../store/authStore'
 
 type Tab = 'login' | 'signup'
 
 export default function LoginPage() {
+  const navigate = useNavigate()
+  const { setAuth } = useAuthStore()
+
   const [tab, setTab] = useState<Tab>('login')
   const [showPw, setShowPw] = useState(false)
-  const [timer] = useState('04:32')
+  const [message, setMessage] = useState('')
+  const [isSuccess, setIsSuccess] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' })
+  const [signupForm, setSignupForm] = useState({ email: '', password: '', confirmPassword: '', nickname: '' })
+
+  const handleLogin = async () => {
+    if (isSubmitting) return
+    setMessage('')
+    setIsSubmitting(true)
+    try {
+      const res = await authApi.login({ email: loginForm.email, password: loginForm.password })
+      const { accessToken, userId, nickname } = res.data.data
+      setAuth({ id: userId, email: loginForm.email, nickname }, accessToken)
+      navigate('/')
+    } catch (e: any) {
+      setIsSuccess(false)
+      setMessage(e.response?.data?.message ?? '로그인에 실패했습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleSignup = async () => {
+    if (isSubmitting) return
+    setMessage('')
+    if (signupForm.password !== signupForm.confirmPassword) {
+      setIsSuccess(false)
+      setMessage('비밀번호가 일치하지 않습니다.')
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      await authApi.signup({
+        email: signupForm.email,
+        password: signupForm.password,
+        nickname: signupForm.nickname,
+      })
+      setTab('login')
+      setLoginForm({ email: signupForm.email, password: '' })
+      setIsSuccess(true)
+      setMessage('회원가입 완료! 로그인해주세요.')
+    } catch (e: any) {
+      setIsSuccess(false)
+      setMessage(e.response?.data?.message ?? '회원가입에 실패했습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center py-12 gap-6">
@@ -32,7 +87,7 @@ export default function LoginPage() {
           {(['login', 'signup'] as Tab[]).map((t) => (
             <button
               key={t}
-              onClick={() => setTab(t)}
+              onClick={() => { setTab(t); setMessage('') }}
               style={{
                 borderTop: '1px solid #a0a0a0',
                 borderLeft: '1px solid #a0a0a0',
@@ -52,6 +107,13 @@ export default function LoginPage() {
           ))}
         </div>
 
+        {/* 에러/성공 메시지 */}
+        {message && (
+          <p style={{ margin: '8px 16px 0', fontFamily: 'Geist, monospace', fontSize: 12, color: isSuccess ? '#0c6780' : '#ba1a1a' }}>
+            {message}
+          </p>
+        )}
+
         {/* Login Form */}
         {tab === 'login' && (
           <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -59,16 +121,27 @@ export default function LoginPage() {
               <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>이메일</label>
               <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>mail</span>
-                <input type="email" placeholder="example@email.com"
-                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }} />
+                <input
+                  type="email"
+                  placeholder="example@email.com"
+                  value={loginForm.email}
+                  onChange={e => setLoginForm(f => ({ ...f, email: e.target.value }))}
+                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }}
+                />
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>비밀번호</label>
               <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>lock</span>
-                <input type={showPw ? 'text' : 'password'} placeholder="비밀번호 입력"
-                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }} />
+                <input
+                  type={showPw ? 'text' : 'password'}
+                  placeholder="비밀번호 입력"
+                  value={loginForm.password}
+                  onChange={e => setLoginForm(f => ({ ...f, password: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }}
+                />
                 <button onClick={() => setShowPw(!showPw)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>
                     {showPw ? 'visibility_off' : 'visibility'}
@@ -76,17 +149,14 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                <input type="checkbox" className="window-inset" style={{ width: 14, height: 14 }} />
-                <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136' }}>로그인 유지</span>
-              </label>
-              <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Geist, monospace', fontSize: 12, color: '#0c6780', textDecoration: 'none' }}>
-                비밀번호 찾기
-              </button>
-            </div>
-            <button className="retro-btn retro-btn-primary" style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>login</span> 로그인
+            <button
+              className="retro-btn retro-btn-primary"
+              onClick={handleLogin}
+              disabled={isSubmitting}
+              style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>login</span>
+              {isSubmitting ? '로그인 중...' : '로그인'}
             </button>
 
             {/* Divider */}
@@ -120,52 +190,34 @@ export default function LoginPage() {
         {/* Signup Form */}
         {tab === 'signup' && (
           <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>이메일</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <div className="window-inset" style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '6px 8px' }}>
-                  <input type="email" placeholder="이메일 주소"
-                    style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }} />
-                </div>
-                <button className="retro-btn" style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>인증 전송</button>
-              </div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>인증 코드</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <div className="window-inset" style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '6px 8px' }}>
-                  <input type="text" placeholder="6자리 코드"
-                    style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }} />
-                </div>
-                <button className="retro-btn retro-btn-primary" style={{ padding: '6px 10px' }}>확인</button>
-              </div>
-              <p style={{ fontFamily: 'Geist, monospace', fontSize: 12, color: '#0c6780' }}>
-                유효시간 <span style={{ color: '#ba1a1a', fontWeight: 700 }}>{timer}</span>
-              </p>
-            </div>
             {[
-              { label: '닉네임', icon: 'badge', type: 'text', placeholder: '사용할 닉네임 (2~10자)' },
-              { label: '비밀번호', icon: 'lock', type: 'password', placeholder: '8자 이상, 영문+숫자+특수문자' },
-              { label: '비밀번호 확인', icon: 'lock_reset', type: 'password', placeholder: '비밀번호 재입력' },
-            ].map(({ label, icon, type, placeholder }) => (
-              <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              { label: '이메일', icon: 'mail', type: 'email', placeholder: '이메일 주소', field: 'email' },
+              { label: '닉네임', icon: 'badge', type: 'text', placeholder: '사용할 닉네임 (2~20자)', field: 'nickname' },
+              { label: '비밀번호', icon: 'lock', type: 'password', placeholder: '영문+숫자 포함 8~20자', field: 'password' },
+              { label: '비밀번호 확인', icon: 'lock_reset', type: 'password', placeholder: '비밀번호 재입력', field: 'confirmPassword' },
+            ].map(({ label, icon, type, placeholder, field }) => (
+              <div key={field} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>{label}</label>
                 <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>{icon}</span>
-                  <input type={type} placeholder={placeholder}
-                    style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }} />
+                  <input
+                    type={type}
+                    placeholder={placeholder}
+                    value={signupForm[field as keyof typeof signupForm]}
+                    onChange={e => setSignupForm(f => ({ ...f, [field]: e.target.value }))}
+                    style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }}
+                  />
                 </div>
               </div>
             ))}
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 6, cursor: 'pointer' }}>
-              <input type="checkbox" style={{ marginTop: 2 }} />
-              <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136', lineHeight: 1.6 }}>
-                <span style={{ color: '#0c6780', cursor: 'pointer' }}>이용약관</span> 및{' '}
-                <span style={{ color: '#0c6780', cursor: 'pointer' }}>개인정보처리방침</span>에 동의합니다
-              </span>
-            </label>
-            <button className="retro-btn retro-btn-primary" style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>person_add</span> 회원가입
+            <button
+              className="retro-btn retro-btn-primary"
+              onClick={handleSignup}
+              disabled={isSubmitting}
+              style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>person_add</span>
+              {isSubmitting ? '처리 중...' : '회원가입'}
             </button>
           </div>
         )}

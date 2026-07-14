@@ -14,6 +14,7 @@ public class PostComment {
     private Long commentId;
     private Long postId;
     private Long userId;
+    private String nickname;
     private Long parentCommentId;
     private String content;
     private String status;

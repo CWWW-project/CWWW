@@ -52,7 +52,7 @@ public class PostServiceImpl implements PostService {
         saveMediaUrls(post.getPostId(), request.getMediaUrls());
 
         String nickname = userMapper.findNicknameById(userId);
-        return PostResponse.from(post, nickname, request.getHashtags(), request.getMediaUrls());
+        return PostResponse.from(post, nickname, false, request.getHashtags(), request.getMediaUrls());
     }
 
     @Override
@@ -64,10 +64,11 @@ public class PostServiceImpl implements PostService {
         checkVisibility(viewerId, post);
 
         String nickname = userMapper.findNicknameById(post.getUserId());
+        boolean isLiked = postLikeMapper.exists(postId, viewerId);
         List<String> hashtags = hashtagMapper.findNamesByPostId(postId);
         List<String> mediaUrls = mediaMapper.findUrlsByTarget("POST", postId);
 
-        return PostResponse.from(post, nickname, hashtags, mediaUrls);
+        return PostResponse.from(post, nickname, isLiked, hashtags, mediaUrls);
     }
 
     @Override
@@ -121,7 +122,7 @@ public class PostServiceImpl implements PostService {
 
         Long nextCursor = hasNext ? posts.get(posts.size() - 1).getPostId() : null;
 
-        List<PostResponse> responses = toPostResponses(posts);
+        List<PostResponse> responses = toPostResponses(posts, viewerId);
 
         return FeedResponse.builder()
                 .posts(responses)
@@ -172,7 +173,7 @@ public class PostServiceImpl implements PostService {
 
         Long nextCursor = hasNext ? posts.get(posts.size() - 1).getPostId() : null;
 
-        List<PostResponse> responses = toPostResponses(posts);
+        List<PostResponse> responses = toPostResponses(posts, null);
 
         return FeedResponse.builder()
                 .posts(responses)
@@ -181,7 +182,7 @@ public class PostServiceImpl implements PostService {
                 .build();
     }
 
-    private List<PostResponse> toPostResponses(List<Post> posts) {
+    private List<PostResponse> toPostResponses(List<Post> posts, Long viewerId) {
         if (posts.isEmpty()) {
             return List.of();
         }
@@ -198,9 +199,14 @@ public class PostServiceImpl implements PostService {
                 .collect(Collectors.groupingBy(Media::getTargetId,
                         Collectors.mapping(Media::getMediaUrl, Collectors.toList())));
 
+        java.util.Set<Long> likedPostIds = (viewerId != null)
+                ? postLikeMapper.findLikedPostIds(viewerId, postIds)
+                : java.util.Set.of();
+
         return posts.stream()
                 .map(post -> PostResponse.from(post,
                         nicknameMap.getOrDefault(post.getUserId(), ""),
+                        likedPostIds.contains(post.getPostId()),
                         hashtagMap.getOrDefault(post.getPostId(), List.of()),
                         mediaMap.getOrDefault(post.getPostId(), List.of())))
                 .toList();
