@@ -44,8 +44,13 @@ export default function FeedPage() {
   const [loading, setLoading] = useState(false)
   const [likedPostIds, setLikedPostIds] = useState<Set<number>>(new Set())
   const [pendingLikeIds, setPendingLikeIds] = useState<Set<number>>(new Set())
-  const [filter, setFilter] = useState<'전체' | '일촌만' | '사진만'>('전체')
+  const [filter, setFilter] = useState<'전체' | '일촌만' | '사진만' | '북마크'>('전체')
   const [commentInputs, setCommentInputs] = useState<Record<number, string>>({})
+  const [bookmarkedPostIds, setBookmarkedPostIds] = useState<Set<number>>(new Set())
+  const [pendingBookmarkIds, setPendingBookmarkIds] = useState<Set<number>>(new Set())
+  const [bookmarkPosts, setBookmarkPosts] = useState<PostResponse[]>([])
+  const [bookmarkCursor, setBookmarkCursor] = useState<number | undefined>(undefined)
+  const [bookmarkHasNext, setBookmarkHasNext] = useState(false)
   const [openCommentIds, setOpenCommentIds] = useState<Set<number>>(new Set())
   const [postComments, setPostComments] = useState<Record<number, CommentResponse[]>>({})
   const [commentLoading, setCommentLoading] = useState<Set<number>>(new Set())
@@ -71,6 +76,8 @@ export default function FeedPage() {
       setHasNext(more)
       const liked = new Set(newPosts.filter(p => p.isLiked).map(p => p.postId))
       setLikedPostIds(prev => cursorParam !== undefined ? new Set([...prev, ...liked]) : liked)
+      const bookmarked = new Set(newPosts.filter(p => p.isBookmarked).map(p => p.postId))
+      setBookmarkedPostIds(prev => cursorParam !== undefined ? new Set([...prev, ...bookmarked]) : bookmarked)
     } catch (e) {
       console.error('피드 로드 실패', e)
     } finally {
@@ -187,6 +194,57 @@ export default function FeedPage() {
     }
   }
 
+  const loadBookmarks = useCallback(async (cursorParam?: number) => {
+    setLoading(true)
+    try {
+      const res = await postApi.getBookmarks(cursorParam)
+      const { posts: newPosts, nextCursor, hasNext: more } = res.data.data
+      setBookmarkPosts(prev => cursorParam !== undefined ? [...prev, ...newPosts] : newPosts)
+      setBookmarkCursor(nextCursor ?? undefined)
+      setBookmarkHasNext(more)
+      setBookmarkedPostIds(prev => {
+        const next = new Set(prev)
+        newPosts.forEach(p => next.add(p.postId))
+        return next
+      })
+    } catch (e) {
+      console.error('북마크 로드 실패', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (filter === '북마크') loadBookmarks()
+  }, [filter, loadBookmarks])
+
+  const toggleBookmark = async (postId: number) => {
+    if (pendingBookmarkIds.has(postId)) return
+    const bookmarked = bookmarkedPostIds.has(postId)
+    setPendingBookmarkIds(prev => new Set(prev).add(postId))
+    setBookmarkedPostIds(prev => {
+      const next = new Set(prev)
+      bookmarked ? next.delete(postId) : next.add(postId)
+      return next
+    })
+    try {
+      if (bookmarked) {
+        await postApi.unbookmark(postId)
+        setBookmarkPosts(prev => prev.filter(p => p.postId !== postId))
+      } else {
+        await postApi.bookmark(postId)
+      }
+    } catch {
+      setBookmarkedPostIds(prev => {
+        const next = new Set(prev)
+        bookmarked ? next.add(postId) : next.delete(postId)
+        return next
+      })
+    } finally {
+      setPendingBookmarkIds(prev => { const next = new Set(prev); next.delete(postId); return next })
+    }
+  }
+
   const toggleComments = async (postId: number) => {
     const isOpen = openCommentIds.has(postId)
     setOpenCommentIds(prev => {
@@ -246,6 +304,7 @@ export default function FeedPage() {
     if (filter === '사진만') return p.mediaUrls.length > 0
     return true
   })
+  const displayPosts = filter === '북마크' ? bookmarkPosts : filteredPosts
 
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
@@ -554,8 +613,8 @@ export default function FeedPage() {
 
             {/* 피드 필터 */}
             <div className="flex gap-1">
-              {(['전체 피드', '일촌만', '사진만'] as const).map((label, i) => {
-                const val = (['전체', '일촌만', '사진만'] as const)[i]
+              {(['전체 피드', '일촌만', '사진만', '북마크'] as const).map((label, i) => {
+                const val = (['전체', '일촌만', '사진만', '북마크'] as const)[i]
                 return (
                   <button
                     key={label}
@@ -572,16 +631,17 @@ export default function FeedPage() {
                 <span className="material-symbols-outlined text-sm">dynamic_feed</span> 일촌 소식
               </div>
               <div className="flex flex-col overflow-y-auto" style={{ maxHeight: 520 }}>
-                {filteredPosts.length === 0 && !loading && (
+                {displayPosts.length === 0 && !loading && (
                   <div className="p-8 text-center font-[Geist,monospace] text-[12px] text-[#5a4136]">
-                    아직 피드가 없어요. 일촌을 추가해보세요!
+                    {filter === '북마크' ? '북마크한 게시물이 없어요.' : '아직 피드가 없어요. 일촌을 추가해보세요!'}
                   </div>
                 )}
 
-                {filteredPosts.map((post, idx) => {
+                {displayPosts.map((post, idx) => {
                   const liked = likedPostIds.has(post.postId)
+                  const bookmarked = bookmarkedPostIds.has(post.postId)
                   return (
-                    <div key={post.postId} className={`p-2 flex flex-col gap-2${idx < filteredPosts.length - 1 ? ' border-b border-[#e3bfb1]' : ''}`}>
+                    <div key={post.postId} className={`p-2 flex flex-col gap-2${idx < displayPosts.length - 1 ? ' border-b border-[#e3bfb1]' : ''}`}>
                       <div className="flex gap-2 items-start">
                         <div className="w-10 h-10 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
                           <span className="material-symbols-outlined text-[28px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
@@ -625,7 +685,15 @@ export default function FeedPage() {
                           <span className="material-symbols-outlined text-sm">chat_bubble</span>
                           댓글 {post.commentCount}
                         </button>
-                        <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1 ml-auto">
+                        <button
+                          className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1 ml-auto"
+                          onClick={() => toggleBookmark(post.postId)}
+                          disabled={pendingBookmarkIds.has(post.postId)}
+                          aria-label={bookmarked ? '북마크 해제' : '북마크'}
+                        >
+                          <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: bookmarked ? "'FILL' 1" : "'FILL' 0", color: bookmarked ? '#a33e00' : undefined }}>bookmark</span>
+                        </button>
+                        <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1">
                           <span className="material-symbols-outlined text-sm">share</span>
                         </button>
                       </div>
@@ -675,10 +743,10 @@ export default function FeedPage() {
                 })}
 
                 <div className="p-2 flex justify-center border-t border-[#e3bfb1]">
-                  {hasNext ? (
+                  {(filter === '북마크' ? bookmarkHasNext : hasNext) ? (
                     <button
                       className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-12 py-2 flex items-center gap-1"
-                      onClick={() => loadFeed(cursor)}
+                      onClick={() => filter === '북마크' ? loadBookmarks(bookmarkCursor) : loadFeed(cursor)}
                       disabled={loading}
                     >
                       <span className="material-symbols-outlined text-base">{loading ? 'hourglass_empty' : 'expand_more'}</span>

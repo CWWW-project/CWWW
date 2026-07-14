@@ -94,6 +94,7 @@ public class BookmarkServiceImpl implements BookmarkService {
                 .map(post -> PostResponse.from(post,
                         nicknameMap.getOrDefault(post.getUserId(), ""),
                         false,
+                        true,
                         hashtagMap.getOrDefault(post.getPostId(), List.of()),
                         mediaMap.getOrDefault(post.getPostId(), List.of())))
                 .toList();

@@ -11,6 +11,7 @@ import com.cwww.post.dto.PostCreateRequest;
 import com.cwww.post.dto.PostHashtagDto;
 import com.cwww.post.dto.PostResponse;
 import com.cwww.post.dto.PostUpdateRequest;
+import com.cwww.post.mapper.BookmarkMapper;
 import com.cwww.post.mapper.HashtagMapper;
 import com.cwww.post.mapper.MediaMapper;
 import com.cwww.post.mapper.PostLikeMapper;
@@ -34,6 +35,7 @@ public class PostServiceImpl implements PostService {
     private final HashtagMapper hashtagMapper;
     private final FriendMapper friendMapper;
     private final PostLikeMapper postLikeMapper;
+    private final BookmarkMapper bookmarkMapper;
     private final UserMapper userMapper;
 
     @Override
@@ -52,7 +54,7 @@ public class PostServiceImpl implements PostService {
         saveMediaUrls(post.getPostId(), request.getMediaUrls());
 
         String nickname = userMapper.findNicknameById(userId);
-        return PostResponse.from(post, nickname, false, request.getHashtags(), request.getMediaUrls());
+        return PostResponse.from(post, nickname, false, false, request.getHashtags(), request.getMediaUrls());
     }
 
     @Override
@@ -65,10 +67,11 @@ public class PostServiceImpl implements PostService {
 
         String nickname = userMapper.findNicknameById(post.getUserId());
         boolean isLiked = postLikeMapper.exists(postId, viewerId);
+        boolean isBookmarked = bookmarkMapper.findBookmarkedPostIds(viewerId, List.of(postId)).contains(postId);
         List<String> hashtags = hashtagMapper.findNamesByPostId(postId);
         List<String> mediaUrls = mediaMapper.findUrlsByTarget("POST", postId);
 
-        return PostResponse.from(post, nickname, isLiked, hashtags, mediaUrls);
+        return PostResponse.from(post, nickname, isLiked, isBookmarked, hashtags, mediaUrls);
     }
 
     @Override
@@ -202,11 +205,15 @@ public class PostServiceImpl implements PostService {
         java.util.Set<Long> likedPostIds = (viewerId != null)
                 ? postLikeMapper.findLikedPostIds(viewerId, postIds)
                 : java.util.Set.of();
+        java.util.Set<Long> bookmarkedPostIds = (viewerId != null)
+                ? bookmarkMapper.findBookmarkedPostIds(viewerId, postIds)
+                : java.util.Set.of();
 
         return posts.stream()
                 .map(post -> PostResponse.from(post,
                         nicknameMap.getOrDefault(post.getUserId(), ""),
                         likedPostIds.contains(post.getPostId()),
+                        bookmarkedPostIds.contains(post.getPostId()),
                         hashtagMap.getOrDefault(post.getPostId(), List.of()),
                         mediaMap.getOrDefault(post.getPostId(), List.of())))
                 .toList();
