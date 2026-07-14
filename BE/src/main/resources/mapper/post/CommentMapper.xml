@@ -17,11 +17,13 @@
     </select>
 
     <select id="findByPostId" resultType="com.cwww.post.domain.PostComment">
-        SELECT comment_id, post_id, user_id, parent_comment_id, content, status, created_at, updated_at
-        FROM post_comment
-        WHERE post_id = #{postId}
-          AND status = 'ACTIVE'
-        ORDER BY created_at ASC
+        SELECT pc.comment_id, pc.post_id, pc.user_id, u.nickname,
+               pc.parent_comment_id, pc.content, pc.status, pc.created_at, pc.updated_at
+        FROM post_comment pc
+        JOIN users u ON pc.user_id = u.user_id
+        WHERE pc.post_id = #{postId}
+          AND pc.status = 'ACTIVE'
+        ORDER BY COALESCE(pc.parent_comment_id, pc.comment_id), pc.comment_id ASC
     </select>
 
     <update id="update">
