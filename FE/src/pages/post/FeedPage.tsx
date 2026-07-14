@@ -51,6 +51,7 @@ export default function FeedPage() {
   const [form, setForm] = useState<WriteForm>(EMPTY_FORM)
   const [tagInput, setTagInput] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState(false)
@@ -115,6 +116,9 @@ export default function FeedPage() {
 
   const closeModal = () => {
     if (isSubmitting || isUploading) return
+    imagePreviews.forEach(url => URL.revokeObjectURL(url))
+    setImageFiles([])
+    setImagePreviews([])
     setShowModal(false)
   }
 
@@ -129,13 +133,13 @@ export default function FeedPage() {
     setForm(prev => ({ ...prev, hashtags: prev.hashtags.filter(t => t !== tag) }))
   }
 
-  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? [])
     if (files.length === 0) return
-    const newFiles = [...imageFiles, ...files].slice(0, 5)
-    setImageFiles(newFiles)
-    const previews = newFiles.map(f => URL.createObjectURL(f))
-    setImagePreviews(previews)
+    const accepted = files.slice(0, Math.max(0, 5 - imageFiles.length))
+    if (accepted.length === 0) return
+    setImageFiles(prev => [...prev, ...accepted])
+    setImagePreviews(prev => [...prev, ...accepted.map(f => URL.createObjectURL(f))])
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -148,6 +152,7 @@ export default function FeedPage() {
   const submitPost = async () => {
     if (!form.content.trim() || isSubmitting) return
     setIsSubmitting(true)
+    setSubmitError('')
     try {
       let mediaUrls = form.mediaUrls
       if (imageFiles.length > 0) {
@@ -166,11 +171,11 @@ export default function FeedPage() {
       setPosts(prev => [res.data.data, ...prev])
       imagePreviews.forEach(url => URL.revokeObjectURL(url))
       setShowModal(false)
-    } catch (e) {
-      console.error('글 작성 실패', e)
+    } catch (e: any) {
+      setSubmitError(e.response?.data?.message ?? '글 작성에 실패했습니다. 다시 시도해주세요.')
+      setIsUploading(false)
     } finally {
       setIsSubmitting(false)
-      setIsUploading(false)
     }
   }
 
@@ -303,6 +308,11 @@ export default function FeedPage() {
                 )}
               </div>
             </div>
+
+            {/* 에러 메시지 */}
+            {submitError && (
+              <p className="px-3 py-1 font-[Geist,monospace] text-[12px] text-[#ba1a1a] border-t border-[#8e7164]">{submitError}</p>
+            )}
 
             {/* 버튼 영역 */}
             <div className="px-3 py-2 border-t border-[#8e7164] flex gap-2 flex-shrink-0">
@@ -593,9 +603,9 @@ export default function FeedPage() {
         <nav className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
           {[
             { icon: 'home', label: '홈', path: '/' },
-            { icon: 'edit_note', label: '다이어리', path: `/home/${user?.id}` },
-            { icon: 'photo_library', label: '사진첩', path: `/home/${user?.id}` },
-            { icon: 'forum', label: '방명록', path: `/home/${user?.id}` },
+            { icon: 'edit_note', label: '다이어리', path: `/home/${user?.id ?? 'me'}` },
+            { icon: 'photo_library', label: '사진첩', path: `/home/${user?.id ?? 'me'}` },
+            { icon: 'forum', label: '방명록', path: `/home/${user?.id ?? 'me'}` },
             { icon: 'storefront', label: '상점', path: '/shop' },
           ].map(tab => {
             const active = tab.path === '/'
@@ -615,9 +625,9 @@ export default function FeedPage() {
       <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center bg-[#e2e2e2] px-2 border-t-2 border-[#e3bfb1] h-16">
         {[
           { icon: 'home', label: '홈', path: '/' },
-          { icon: 'edit_note', label: '다이어리', path: `/home/${user?.id}` },
-          { icon: 'photo_library', label: '사진첩', path: `/home/${user?.id}` },
-          { icon: 'forum', label: '방명록', path: `/home/${user?.id}` },
+          { icon: 'edit_note', label: '다이어리', path: `/home/${user?.id ?? 'me'}` },
+          { icon: 'photo_library', label: '사진첩', path: `/home/${user?.id ?? 'me'}` },
+          { icon: 'forum', label: '방명록', path: `/home/${user?.id ?? 'me'}` },
           { icon: 'storefront', label: '상점', path: '/shop' },
         ].map(tab => {
           const active = tab.path === '/'

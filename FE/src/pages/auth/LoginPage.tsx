@@ -11,29 +11,39 @@ export default function LoginPage() {
 
   const [tab, setTab] = useState<Tab>('login')
   const [showPw, setShowPw] = useState(false)
-  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const [isSuccess, setIsSuccess] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [loginForm, setLoginForm] = useState({ email: '', password: '' })
   const [signupForm, setSignupForm] = useState({ email: '', password: '', confirmPassword: '', nickname: '' })
 
   const handleLogin = async () => {
-    setError('')
+    if (isSubmitting) return
+    setMessage('')
+    setIsSubmitting(true)
     try {
       const res = await authApi.login({ email: loginForm.email, password: loginForm.password })
       const { accessToken, userId, nickname } = res.data.data
       setAuth({ id: userId, email: loginForm.email, nickname }, accessToken)
       navigate('/')
     } catch (e: any) {
-      setError(e.response?.data?.message ?? '로그인에 실패했습니다.')
+      setIsSuccess(false)
+      setMessage(e.response?.data?.message ?? '로그인에 실패했습니다.')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   const handleSignup = async () => {
-    setError('')
+    if (isSubmitting) return
+    setMessage('')
     if (signupForm.password !== signupForm.confirmPassword) {
-      setError('비밀번호가 일치하지 않습니다.')
+      setIsSuccess(false)
+      setMessage('비밀번호가 일치하지 않습니다.')
       return
     }
+    setIsSubmitting(true)
     try {
       await authApi.signup({
         email: signupForm.email,
@@ -42,9 +52,13 @@ export default function LoginPage() {
       })
       setTab('login')
       setLoginForm({ email: signupForm.email, password: '' })
-      setError('회원가입 완료! 로그인해주세요.')
+      setIsSuccess(true)
+      setMessage('회원가입 완료! 로그인해주세요.')
     } catch (e: any) {
-      setError(e.response?.data?.message ?? '회원가입에 실패했습니다.')
+      setIsSuccess(false)
+      setMessage(e.response?.data?.message ?? '회원가입에 실패했습니다.')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -73,7 +87,7 @@ export default function LoginPage() {
           {(['login', 'signup'] as Tab[]).map((t) => (
             <button
               key={t}
-              onClick={() => { setTab(t); setError('') }}
+              onClick={() => { setTab(t); setMessage('') }}
               style={{
                 borderTop: '1px solid #a0a0a0',
                 borderLeft: '1px solid #a0a0a0',
@@ -94,9 +108,9 @@ export default function LoginPage() {
         </div>
 
         {/* 에러/성공 메시지 */}
-        {error && (
-          <p style={{ margin: '8px 16px 0', fontFamily: 'Geist, monospace', fontSize: 12, color: error.includes('완료') ? '#0c6780' : '#ba1a1a' }}>
-            {error}
+        {message && (
+          <p style={{ margin: '8px 16px 0', fontFamily: 'Geist, monospace', fontSize: 12, color: isSuccess ? '#0c6780' : '#ba1a1a' }}>
+            {message}
           </p>
         )}
 
@@ -138,9 +152,11 @@ export default function LoginPage() {
             <button
               className="retro-btn retro-btn-primary"
               onClick={handleLogin}
+              disabled={isSubmitting}
               style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>login</span> 로그인
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>login</span>
+              {isSubmitting ? '로그인 중...' : '로그인'}
             </button>
 
             {/* Divider */}
@@ -197,9 +213,11 @@ export default function LoginPage() {
             <button
               className="retro-btn retro-btn-primary"
               onClick={handleSignup}
+              disabled={isSubmitting}
               style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>person_add</span> 회원가입
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>person_add</span>
+              {isSubmitting ? '처리 중...' : '회원가입'}
             </button>
           </div>
         )}
