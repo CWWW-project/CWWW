@@ -55,6 +55,10 @@ export default function FeedPage() {
   const [postComments, setPostComments] = useState<Record<number, CommentResponse[]>>({})
   const [commentLoading, setCommentLoading] = useState<Set<number>>(new Set())
   const [commentSubmitting, setCommentSubmitting] = useState<Set<number>>(new Set())
+  const [selectedTag, setSelectedTag] = useState<string | null>(null)
+  const [searchPosts, setSearchPosts] = useState<PostResponse[]>([])
+  const [searchCursor, setSearchCursor] = useState<number | undefined>(undefined)
+  const [searchHasNext, setSearchHasNext] = useState(false)
 
   // 다이어리 작성 모달
   const [showModal, setShowModal] = useState(false)
@@ -300,11 +304,43 @@ export default function FeedPage() {
     }
   }
 
+  const loadSearch = useCallback(async (tag: string, cursorParam?: number) => {
+    setLoading(true)
+    try {
+      const res = await postApi.searchByHashtag(tag, cursorParam)
+      const { posts: newPosts, nextCursor, hasNext: more } = res.data.data
+      setSearchPosts(prev => cursorParam !== undefined ? [...prev, ...newPosts] : newPosts)
+      setSearchCursor(nextCursor ?? undefined)
+      setSearchHasNext(more)
+      const liked = new Set(newPosts.filter(p => p.isLiked).map(p => p.postId))
+      setLikedPostIds(prev => new Set([...prev, ...liked]))
+      const bookmarked = new Set(newPosts.filter(p => p.isBookmarked).map(p => p.postId))
+      setBookmarkedPostIds(prev => new Set([...prev, ...bookmarked]))
+    } catch (e) {
+      console.error('해시태그 검색 실패', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const selectTag = (tag: string) => {
+    setSelectedTag(tag)
+    setSearchPosts([])
+    setSearchCursor(undefined)
+    setSearchHasNext(false)
+    loadSearch(tag)
+  }
+
+  const clearTag = () => {
+    setSelectedTag(null)
+    setSearchPosts([])
+  }
+
   const filteredPosts = posts.filter(p => {
     if (filter === '사진만') return p.mediaUrls.length > 0
     return true
   })
-  const displayPosts = filter === '북마크' ? bookmarkPosts : filteredPosts
+  const displayPosts = selectedTag ? searchPosts : filter === '북마크' ? bookmarkPosts : filteredPosts
 
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
@@ -628,12 +664,25 @@ export default function FeedPage() {
             {/* 피드 포스트 */}
             <div className="window-inset border border-[#8e7164] flex-1 flex flex-col bg-white">
               <div className="bg-[#e2e2e2] px-2 py-1 border-b border-[#8e7164] font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c] flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">dynamic_feed</span> 일촌 소식
+                <span className="material-symbols-outlined text-sm">{selectedTag ? 'tag' : 'dynamic_feed'}</span>
+                {selectedTag ? (
+                  <>
+                    <span className="text-[#09657f]">#{selectedTag}</span> 검색 결과
+                    <button onClick={clearTag} className="ml-auto flex items-center gap-0.5 text-[#5a4136] hover:text-[#ba1a1a]">
+                      <span className="material-symbols-outlined text-sm">close</span>
+                      <span className="text-[11px]">피드로 돌아가기</span>
+                    </button>
+                  </>
+                ) : '일촌 소식'}
               </div>
               <div className="flex flex-col overflow-y-auto" style={{ maxHeight: 520 }}>
                 {displayPosts.length === 0 && !loading && (
                   <div className="p-8 text-center font-[Geist,monospace] text-[12px] text-[#5a4136]">
-                    {filter === '북마크' ? '북마크한 게시물이 없어요.' : '아직 피드가 없어요. 일촌을 추가해보세요!'}
+                    {selectedTag
+                      ? `#${selectedTag} 태그가 달린 게시물이 없어요.`
+                      : filter === '북마크'
+                        ? '북마크한 게시물이 없어요.'
+                        : '아직 피드가 없어요. 일촌을 추가해보세요!'}
                   </div>
                 )}
 
@@ -655,9 +704,13 @@ export default function FeedPage() {
                           {post.title && <h3 className="font-['Bricolage_Grotesque',sans-serif] text-[16px] font-bold text-[#1a1c1c] mb-1">{post.title}</h3>}
                           <p className="text-[14px] text-[#1a1c1c] leading-relaxed">{post.content ?? ''}</p>
                           {post.hashtags.length > 0 && (
-                            <div className="flex gap-1 mt-1">
+                            <div className="flex gap-1 mt-1 flex-wrap">
                               {post.hashtags.map(tag => (
-                                <span key={tag} className="font-[Geist,monospace] text-[10px] text-[#0c6780] cursor-pointer hover:underline">#{tag}</span>
+                                <span
+                                  key={tag}
+                                  className="font-[Geist,monospace] text-[10px] text-[#0c6780] cursor-pointer hover:underline"
+                                  onClick={() => selectTag(tag)}
+                                >#{tag}</span>
                               ))}
                             </div>
                           )}
@@ -743,10 +796,10 @@ export default function FeedPage() {
                 })}
 
                 <div className="p-2 flex justify-center border-t border-[#e3bfb1]">
-                  {(filter === '북마크' ? bookmarkHasNext : hasNext) ? (
+                  {(selectedTag ? searchHasNext : filter === '북마크' ? bookmarkHasNext : hasNext) ? (
                     <button
                       className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-12 py-2 flex items-center gap-1"
-                      onClick={() => filter === '북마크' ? loadBookmarks(bookmarkCursor) : loadFeed(cursor)}
+                      onClick={() => selectedTag ? loadSearch(selectedTag, searchCursor) : filter === '북마크' ? loadBookmarks(bookmarkCursor) : loadFeed(cursor)}
                       disabled={loading}
                     >
                       <span className="material-symbols-outlined text-base">{loading ? 'hourglass_empty' : 'expand_more'}</span>
