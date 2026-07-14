@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { postApi } from '../../api/post'
-import type { PostResponse } from '../../types'
+import { commentApi } from '../../api/comment'
+import type { PostResponse, CommentResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
 
 function formatTime(iso: string): string {
@@ -45,6 +46,9 @@ export default function FeedPage() {
   const [pendingLikeIds, setPendingLikeIds] = useState<Set<number>>(new Set())
   const [filter, setFilter] = useState<'전체' | '일촌만' | '사진만'>('전체')
   const [commentInputs, setCommentInputs] = useState<Record<number, string>>({})
+  const [openCommentIds, setOpenCommentIds] = useState<Set<number>>(new Set())
+  const [postComments, setPostComments] = useState<Record<number, CommentResponse[]>>({})
+  const [commentLoading, setCommentLoading] = useState<Set<number>>(new Set())
 
   // 다이어리 작성 모달
   const [showModal, setShowModal] = useState(false)
@@ -177,6 +181,54 @@ export default function FeedPage() {
       setIsUploading(false)
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const toggleComments = async (postId: number) => {
+    const isOpen = openCommentIds.has(postId)
+    setOpenCommentIds(prev => {
+      const next = new Set(prev)
+      isOpen ? next.delete(postId) : next.add(postId)
+      return next
+    })
+    if (!isOpen && !postComments[postId]) {
+      setCommentLoading(prev => new Set(prev).add(postId))
+      try {
+        const res = await commentApi.getComments(postId)
+        setPostComments(prev => ({ ...prev, [postId]: res.data.data }))
+      } catch {
+        // 실패 시 펼침 취소
+        setOpenCommentIds(prev => { const next = new Set(prev); next.delete(postId); return next })
+      } finally {
+        setCommentLoading(prev => { const next = new Set(prev); next.delete(postId); return next })
+      }
+    }
+  }
+
+  const submitComment = async (postId: number) => {
+    const content = (commentInputs[postId] ?? '').trim()
+    if (!content) return
+    try {
+      await commentApi.createComment(postId, { content })
+      setCommentInputs(prev => ({ ...prev, [postId]: '' }))
+      const res = await commentApi.getComments(postId)
+      setPostComments(prev => ({ ...prev, [postId]: res.data.data }))
+      setPosts(prev => prev.map(p => p.postId === postId ? { ...p, commentCount: p.commentCount + 1 } : p))
+    } catch {
+      // 조용히 실패
+    }
+  }
+
+  const deleteComment = async (postId: number, commentId: number) => {
+    try {
+      await commentApi.deleteComment(postId, commentId)
+      setPostComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] ?? []).filter(c => c.commentId !== commentId),
+      }))
+      setPosts(prev => prev.map(p => p.postId === postId ? { ...p, commentCount: Math.max(0, p.commentCount - 1) } : p))
+    } catch {
+      // 조용히 실패
     }
   }
 
@@ -556,7 +608,10 @@ export default function FeedPage() {
                           <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: liked ? "'FILL' 1" : "'FILL' 0", color: liked ? '#a33e00' : undefined }}>favorite</span>
                           좋아요 <span className="text-[#a33e00] font-bold">{post.likeCount}</span>
                         </button>
-                        <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1">
+                        <button
+                          className={`retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1${openCommentIds.has(post.postId) ? ' retro-btn-primary' : ''}`}
+                          onClick={() => toggleComments(post.postId)}
+                        >
                           <span className="material-symbols-outlined text-sm">chat_bubble</span>
                           댓글 {post.commentCount}
                         </button>
@@ -565,16 +620,45 @@ export default function FeedPage() {
                         </button>
                       </div>
 
-                      <div className="ml-6 flex gap-1">
-                        <input
-                          className="window-inset flex-1 text-[12px] p-1 focus:outline-none"
-                          type="text"
-                          placeholder="댓글 달기..."
-                          value={commentInputs[post.postId] ?? ''}
-                          onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.postId]: e.target.value }))}
-                        />
-                        <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1">등록</button>
-                      </div>
+                      {openCommentIds.has(post.postId) && (
+                        <div className="ml-6 flex flex-col gap-1">
+                          {commentLoading.has(post.postId) ? (
+                            <p className="font-[Geist,monospace] text-[11px] text-[#5a4136] py-1">불러오는 중...</p>
+                          ) : (postComments[post.postId] ?? []).length === 0 ? (
+                            <p className="font-[Geist,monospace] text-[11px] text-[#5a4136] py-1">첫 댓글을 남겨보세요!</p>
+                          ) : (
+                            <div className="flex flex-col gap-1">
+                              {(postComments[post.postId] ?? []).map(c => (
+                                <div key={c.commentId} className={`flex gap-1 items-start py-1${c.parentCommentId ? ' ml-4' : ''}`}>
+                                  {c.parentCommentId && <span className="material-symbols-outlined text-[13px] text-[#5a4136] mt-0.5">subdirectory_arrow_right</span>}
+                                  <span className="font-[Geist,monospace] text-[11px] font-bold text-[#a33e00] shrink-0">{c.nickname}</span>
+                                  <span className="font-[Geist,monospace] text-[11px] text-[#1a1c1c] flex-1">{c.content}</span>
+                                  {user?.id === c.userId && (
+                                    <button
+                                      className="font-[Geist,monospace] text-[10px] text-[#ba1a1a] hover:underline shrink-0"
+                                      onClick={() => deleteComment(post.postId, c.commentId)}
+                                    >삭제</button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex gap-1 mt-1">
+                            <input
+                              className="window-inset flex-1 text-[12px] p-1 focus:outline-none"
+                              type="text"
+                              placeholder="댓글 달기..."
+                              value={commentInputs[post.postId] ?? ''}
+                              onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.postId]: e.target.value }))}
+                              onKeyDown={(e) => { if (e.key === 'Enter') submitComment(post.postId) }}
+                            />
+                            <button
+                              className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1"
+                              onClick={() => submitComment(post.postId)}
+                            >등록</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
