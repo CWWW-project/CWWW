@@ -46,7 +46,7 @@ public class FriendController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<FriendResponse>>> getFriends(
-            @RequestHeader("X-User-Id") Long userId) {
+            @AuthenticationPrincipal Long userId) {
         List<FriendResponse> response = friendService.getFriends(userId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
