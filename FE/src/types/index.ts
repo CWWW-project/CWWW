@@ -46,6 +46,12 @@ export interface FriendResponse {
   status: 'PENDING' | 'ACCEPTED'
   requesterAlias: string | null
   receiverAlias: string | null
+  opponentNickname: string
   createdAt: string
   acceptedAt: string | null
+}
+
+export interface UserSearchResponse {
+  userId: number
+  nickname: string
 }

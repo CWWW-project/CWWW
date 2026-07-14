@@ -526,6 +526,14 @@ export default function FeedPage() {
                 ))}
               </div>
             </div>
+
+            {/* 일촌 관리 */}
+            <button
+              className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
+              onClick={() => navigate('/friends')}
+            >
+              <span className="material-symbols-outlined text-base">group</span> 일촌 관리
+            </button>
           </aside>
 
           {/* 피드 */}

@@ -23,4 +23,10 @@ public interface FriendMapper {
     List<Friend> findAcceptedByUserId(Long userId);
 
     int terminate(Long friendId);
+
+    List<Friend> findPendingByReceiverId(Long receiverId);
+
+    int updateAlias(@Param("friendId") Long friendId,
+                    @Param("requesterId") Long requesterId,
+                    @Param("alias") String alias);
 }

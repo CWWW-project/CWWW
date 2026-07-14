@@ -14,5 +14,9 @@ public interface FriendService {
 
     List<FriendResponse> getFriends(Long userId);
 
+    List<FriendResponse> getPendingRequests(Long userId);
+
+    void setAlias(Long userId, Long friendId, String alias);
+
     void terminate(Long userId, Long friendId);
 }

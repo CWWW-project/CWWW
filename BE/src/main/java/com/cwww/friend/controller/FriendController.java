@@ -1,5 +1,6 @@
 package com.cwww.friend.controller;
 
+import com.cwww.friend.dto.request.FriendAliasRequest;
 import com.cwww.friend.dto.request.FriendRequest;
 import com.cwww.friend.dto.response.FriendResponse;
 import com.cwww.friend.service.FriendService;
@@ -49,6 +50,22 @@ public class FriendController {
             @AuthenticationPrincipal Long userId) {
         List<FriendResponse> response = friendService.getFriends(userId);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/pending")
+    public ResponseEntity<ApiResponse<List<FriendResponse>>> getPendingRequests(
+            @AuthenticationPrincipal Long userId) {
+        List<FriendResponse> response = friendService.getPendingRequests(userId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PatchMapping("/{friendId}/alias")
+    public ResponseEntity<ApiResponse<Void>> setAlias(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long friendId,
+            @Valid @RequestBody FriendAliasRequest request) {
+        friendService.setAlias(userId, friendId, request.getAlias());
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @DeleteMapping("/{friendId}")
