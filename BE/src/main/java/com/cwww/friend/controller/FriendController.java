@@ -7,6 +7,7 @@ import com.cwww.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,7 +22,7 @@ public class FriendController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<Void>> sendRequest(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @Valid @RequestBody FriendRequest request) {
         friendService.sendRequest(userId, request.getReceiverId());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(null));
@@ -29,7 +30,7 @@ public class FriendController {
 
     @PatchMapping("/{friendId}/accept")
     public ResponseEntity<ApiResponse<Void>> acceptRequest(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long friendId) {
         friendService.acceptRequest(userId, friendId);
         return ResponseEntity.ok(ApiResponse.success(null));
@@ -37,7 +38,7 @@ public class FriendController {
 
     @PatchMapping("/{friendId}/reject")
     public ResponseEntity<ApiResponse<Void>> rejectRequest(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long friendId) {
         friendService.rejectRequest(userId, friendId);
         return ResponseEntity.ok(ApiResponse.success(null));
@@ -52,7 +53,7 @@ public class FriendController {
 
     @DeleteMapping("/{friendId}")
     public ResponseEntity<ApiResponse<Void>> terminate(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long friendId) {
         friendService.terminate(userId, friendId);
         return ResponseEntity.ok(ApiResponse.success(null));
