@@ -1,16 +1,17 @@
 package com.cwww.item.controller;
 
+import com.cwww.global.exception.BusinessException;
+import com.cwww.global.exception.ErrorCode;
+import com.cwww.global.response.ApiResponse;
 import com.cwww.item.domain.Item;
 import com.cwww.item.service.ItemService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
 
 @RestController
 @RequestMapping("/api/items")
@@ -22,15 +23,16 @@ public class ItemController {
     private final ItemService itemService;
 
     @GetMapping
-    public List<Item> getItems(
+    public ResponseEntity<ApiResponse<List<Item>>> getItems(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        if (page < 1) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page는 1 이상이어야 합니다.");
+        if (page < 1 || size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
-        if (size < 1 || size > MAX_PAGE_SIZE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "size는 1~" + MAX_PAGE_SIZE + " 사이여야 합니다.");
-        }
-        return itemService.find(page, size);
+        return ResponseEntity.ok(ApiResponse.success(itemService.find(page, size)));
     }
-}
+
+    @GetMapping("/{itemId}")
+    public ResponseEntity<ApiResponse<Item>> getItem(@PathVariable Long itemId) {
+        return ResponseEntity.ok(ApiResponse.success(itemService.findById(itemId)));
+    }}

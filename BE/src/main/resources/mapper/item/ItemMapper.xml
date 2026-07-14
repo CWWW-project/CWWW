@@ -20,4 +20,13 @@
     <select id="countAll" resultType="int">
         SELECT COUNT(*) FROM item
     </select>
+
+
+    <select id="findById" resultType="com.cwww.item.domain.Item">
+        SELECT item_id, category, name, description, price,
+               status, reject_reason, sales_count, creator_id,
+               created_at, updated_at
+        FROM item
+        WHERE item_id = #{itemId}
+    </select>
 </mapper>

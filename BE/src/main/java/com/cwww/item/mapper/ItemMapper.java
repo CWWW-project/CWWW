@@ -12,4 +12,5 @@ public interface ItemMapper {
     List<Item> find(@Param("size") int size, @Param("offset") long offset);
     int countAll();
 
+    Item findById(@Param("itemId") Long itemId);
 }
