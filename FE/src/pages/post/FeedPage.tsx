@@ -49,6 +49,7 @@ export default function FeedPage() {
   const [openCommentIds, setOpenCommentIds] = useState<Set<number>>(new Set())
   const [postComments, setPostComments] = useState<Record<number, CommentResponse[]>>({})
   const [commentLoading, setCommentLoading] = useState<Set<number>>(new Set())
+  const [commentSubmitting, setCommentSubmitting] = useState<Set<number>>(new Set())
 
   // 다이어리 작성 모달
   const [showModal, setShowModal] = useState(false)
@@ -209,15 +210,22 @@ export default function FeedPage() {
 
   const submitComment = async (postId: number) => {
     const content = (commentInputs[postId] ?? '').trim()
-    if (!content) return
+    if (!content || commentSubmitting.has(postId)) return
+    setCommentSubmitting(prev => new Set(prev).add(postId))
     try {
       await commentApi.createComment(postId, { content })
       setCommentInputs(prev => ({ ...prev, [postId]: '' }))
-      const res = await commentApi.getComments(postId)
-      setPostComments(prev => ({ ...prev, [postId]: res.data.data }))
       setPosts(prev => prev.map(p => p.postId === postId ? { ...p, commentCount: p.commentCount + 1 } : p))
+      try {
+        const res = await commentApi.getComments(postId)
+        setPostComments(prev => ({ ...prev, [postId]: res.data.data }))
+      } catch {
+        // 목록 갱신 실패는 조용히 처리 (댓글 작성은 성공)
+      }
     } catch {
-      // 조용히 실패
+      // 댓글 작성 자체 실패 — 조용히 처리
+    } finally {
+      setCommentSubmitting(prev => { const next = new Set(prev); next.delete(postId); return next })
     }
   }
 
@@ -652,11 +660,12 @@ export default function FeedPage() {
                               placeholder="댓글 달기..."
                               value={commentInputs[post.postId] ?? ''}
                               onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.postId]: e.target.value }))}
-                              onKeyDown={(e) => { if (e.key === 'Enter') submitComment(post.postId) }}
+                              onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) submitComment(post.postId) }}
                             />
                             <button
                               className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1"
                               onClick={() => submitComment(post.postId)}
+                              disabled={commentSubmitting.has(post.postId)}
                             >등록</button>
                           </div>
                         </div>
