@@ -26,7 +26,7 @@ public class MinihompyController {
 	) {
 
 		// TODO 지금은 임시로 로그인 사용자를 하드코딩, 인증 완료되면 교체 예정
-		Long viewerId = 3L;
+		Long viewerId = 1L;
 
 		MinihompyMainResponse response = minihompyService.getMinihompyMain(ownerId,viewerId);
 
@@ -66,7 +66,7 @@ public class MinihompyController {
 	) {
 
 		// TODO 지금은 임시로 로그인 사용자를 하드코딩, 인증 완료되면 교체 예정
-		Long userId = 3L;
+		Long userId = 1L;
 		MinihompyMainResponse response = minihompyService.updateSettings(userId, request);
 
 		return ApiResponse.success(response);

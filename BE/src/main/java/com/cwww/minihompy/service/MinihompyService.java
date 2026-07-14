@@ -4,10 +4,13 @@ import com.cwww.friend.mapper.FriendMapper;
 import com.cwww.global.storage.StorageService;
 import com.cwww.minihompy.domain.Media;
 import com.cwww.minihompy.domain.Minihompy;
+import com.cwww.minihompy.domain.VisitLog;
 import com.cwww.minihompy.dto.request.MinihompySettingsRequest;
 import com.cwww.minihompy.dto.response.ProfileImageResponse;
 import com.cwww.minihompy.mapper.ProfileMediaMapper;
+import com.cwww.minihompy.mapper.VisitLogMapper;
 import com.cwww.user.mapper.UserMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +28,7 @@ import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MinihompyService {
 	
 	private final MinihompyMapper minihompyMapper;
@@ -36,6 +40,7 @@ public class MinihompyService {
 
 	private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 	private static final List<String> ALLOWED_EXTENSIONS = List.of("jpg", "jpeg", "png");
+	private final VisitLogMapper visitLogMapper;
 
 
 	// 미니홈피 메인 조회( + 최초 접근 시 자동 생성)
@@ -74,12 +79,39 @@ public class MinihompyService {
 
 		// 미니홈피 주인이 아닐 경우 접근 권한 체크(PRIVATE, FRIEND, ALL)
 		if(!isOwner) {
+
 			checkAccessPermission(response.getAccessLevel(), ownerId, viewerId);
+
+			if(viewerId != null) {
+
+				try {
+
+					Long minihompyId = visitLogMapper.selectMinihompyIdByOwnerId(ownerId);
+
+					VisitLog visitLog = VisitLog.builder()
+							.minihompyId(minihompyId)
+							.visitorId(viewerId)
+							.visitedAt(LocalDateTime.now())
+							.build();
+
+					visitLogMapper.insertVisit(visitLog);
+
+				} catch(Exception e) {
+					log.warn("방문 기록 실패: ownerId={}, viewerId={}", ownerId, viewerId, e);
+				}
+			}
 		}
+
+		// 방문자 수(Today/Total)는 DB 컬럼이 아니라 별도 조회 결과를 조립한 값
+		MinihompyMainResponse.VisitorCount visitorCount = MinihompyMainResponse.VisitorCount.builder()
+				.today(visitLogMapper.countToday(ownerId))
+				.total(visitLogMapper.countTotal(ownerId))
+				.build();
 
 		// 계산된 owner 여부를 응답에 채워서 리턴 (프론트가 편집 UI 노출 여부 판단에 사용)
 		return response.toBuilder()
 				.owner(isOwner)
+				.visitorCount(visitorCount)
 				.build();
 	}
 

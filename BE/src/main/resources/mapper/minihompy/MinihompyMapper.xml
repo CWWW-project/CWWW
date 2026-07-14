@@ -16,7 +16,8 @@
 		<result property="createdAt" column="created_at"/>
 		<result property="bgmUrl" column="bgm_url"/>
 	</resultMap>
-	
+
+
 	<!-- BGM이나 프로필 사진을 아직 설정 안 한 유저의 경우 null로 채우기 -->
 	<select id="selectMinihompyMain" resultMap="minihompyMainMap">
 		SELECT

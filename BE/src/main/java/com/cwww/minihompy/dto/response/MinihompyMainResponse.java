@@ -27,6 +27,20 @@ public class MinihompyMainResponse {
 	private LocalDateTime createdAt;
 	private String bgmUrl;
 
+	private VisitorCount visitorCount; // 방문자 수 (Today/Total)
+
 	private boolean owner; // 현재 로그인 사용자가 owner 본인인지 (getter: isOwner())
+
+
+	@Getter
+	@Builder
+	@NoArgsConstructor
+	@AllArgsConstructor
+	public static class VisitorCount {
+
+		private long today;
+		private long total;
+
+	}
 
 }

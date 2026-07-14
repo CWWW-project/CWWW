@@ -13,6 +13,11 @@
         <result property="createdAt"  column="created_at"/>
     </resultMap>
 
+
+    <!--
+        target_type + target_id 기준으로 media 단건 조회
+        기존 레코드가 있는지 확인해서 있으면 UPDATE, 없으면 INSERT 분기 처리할 때 사용
+    -->
     <select id="selectMedia" resultMap="mediaMap">
         SELECT media_id, target_type, target_id, media_url, created_at
         FROM media
@@ -20,17 +25,23 @@
         AND target_id = #{targetId}
     </select>
 
+
+    <!-- media 신규 등록 -->
     <insert id="insertMedia" parameterType="com.cwww.minihompy.domain.Media">
         INSERT INTO media (target_type, target_id, media_url, created_at)
         VALUES (#{targetType}, #{targetId}, #{mediaUrl}, #{createdAt})
     </insert>
 
+
+    <!-- 기존 media 갱신 -->
     <update id="updateMedia" parameterType="com.cwww.minihompy.domain.Media">
         UPDATE media
         SET media_url = #{mediaUrl}
         WHERE media_id = #{mediaId}
     </update>
 
+
+    <!-- media 삭제, 대상이 없어도 에러 아님(0건 처리) -->
     <delete id="deleteMedia">
         DELETE FROM media
         WHERE target_type = #{targetType}
