@@ -119,6 +119,7 @@ export default function FeedPage() {
     imagePreviews.forEach(url => URL.revokeObjectURL(url))
     setImageFiles([])
     setImagePreviews([])
+    setSubmitError('')
     setShowModal(false)
   }
 
