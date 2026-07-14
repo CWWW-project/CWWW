@@ -16,4 +16,7 @@ public interface BookmarkMapper {
     List<Post> findBookmarkedPosts(@Param("userId") Long userId,
                                    @Param("cursor") Long cursor,
                                    @Param("size") int size);
+
+    java.util.Set<Long> findBookmarkedPostIds(@Param("userId") Long userId,
+                                              @Param("postIds") List<Long> postIds);
 }

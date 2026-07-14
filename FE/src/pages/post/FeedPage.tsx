@@ -76,6 +76,8 @@ export default function FeedPage() {
       setHasNext(more)
       const liked = new Set(newPosts.filter(p => p.isLiked).map(p => p.postId))
       setLikedPostIds(prev => cursorParam !== undefined ? new Set([...prev, ...liked]) : liked)
+      const bookmarked = new Set(newPosts.filter(p => p.isBookmarked).map(p => p.postId))
+      setBookmarkedPostIds(prev => cursorParam !== undefined ? new Set([...prev, ...bookmarked]) : bookmarked)
     } catch (e) {
       console.error('피드 로드 실패', e)
     } finally {
@@ -205,8 +207,8 @@ export default function FeedPage() {
         newPosts.forEach(p => next.add(p.postId))
         return next
       })
-    } catch {
-      // 조용히 실패
+    } catch (e) {
+      console.error('북마크 로드 실패', e)
     } finally {
       setLoading(false)
     }
@@ -687,6 +689,7 @@ export default function FeedPage() {
                           className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1 ml-auto"
                           onClick={() => toggleBookmark(post.postId)}
                           disabled={pendingBookmarkIds.has(post.postId)}
+                          aria-label={bookmarked ? '북마크 해제' : '북마크'}
                         >
                           <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: bookmarked ? "'FILL' 1" : "'FILL' 0", color: bookmarked ? '#a33e00' : undefined }}>bookmark</span>
                         </button>
