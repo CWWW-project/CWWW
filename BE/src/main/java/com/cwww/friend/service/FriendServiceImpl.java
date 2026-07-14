@@ -114,8 +114,11 @@ public class FriendServiceImpl implements FriendService {
     @Override
     @Transactional
     public void setAlias(Long userId, Long friendId, String alias) {
-        friendMapper.findById(friendId)
+        Friend friend = friendMapper.findById(friendId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FRIEND_NOT_FOUND));
+        if (!"ACCEPTED".equals(friend.getStatus())) {
+            throw new BusinessException(ErrorCode.FRIEND_NOT_FOUND);
+        }
         int updated = friendMapper.updateAlias(friendId, userId, alias);
         if (updated == 0) {
             throw new BusinessException(ErrorCode.FRIEND_FORBIDDEN);
