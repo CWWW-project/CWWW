@@ -9,7 +9,7 @@ import java.util.List;
 public interface ItemMapper {
 
     List<Item> findAll();
-    List<Item> find(@Param("size") int size, @Param("offset") int offset);
+    List<Item> find(@Param("size") int size, @Param("offset") long offset);
     int countAll();
 
 }

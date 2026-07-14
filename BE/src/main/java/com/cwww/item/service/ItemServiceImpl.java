@@ -20,7 +20,7 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     public List<Item> find(int page, int size) {
-        int offset = (page-1)*size;                   // ← 공식, 직접!
-        return itemMapper.find(size, offset);    // ← 순서: size 먼저, offset 나중
+        long offset = (long) (page - 1) * size;
+        return itemMapper.find(size, offset);
     }
 }
