@@ -31,27 +31,31 @@ public class JwtUtil {
         this.refreshExpiration = refreshExpiration;
     }
 
+    private static final String TOKEN_TYPE_ACCESS = "access";
+    private static final String TOKEN_TYPE_REFRESH = "refresh";
+    private static final String CLAIM_TYPE = "typ";
+
     public String createAccessToken(Long userId, String role) {
-        return buildToken(userId, role, accessExpiration);
-    }
-
-    public String createRefreshToken(Long userId) {
-        return buildToken(userId, null, refreshExpiration);
-    }
-
-    private String buildToken(Long userId, String role, long expiration) {
         Date now = new Date();
-        Date expiry = new Date(now.getTime() + expiration);
-
         var builder = Jwts.builder()
                 .subject(String.valueOf(userId))
                 .issuedAt(now)
-                .expiration(expiry)
+                .expiration(new Date(now.getTime() + accessExpiration))
+                .claim(CLAIM_TYPE, TOKEN_TYPE_ACCESS)
+                .claim("role", role)
                 .signWith(key);
-        if (role != null) {
-            builder.claim("role", role);
-        }
         return builder.compact();
+    }
+
+    public String createRefreshToken(Long userId) {
+        Date now = new Date();
+        return Jwts.builder()
+                .subject(String.valueOf(userId))
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + refreshExpiration))
+                .claim(CLAIM_TYPE, TOKEN_TYPE_REFRESH)
+                .signWith(key)
+                .compact();
     }
 
     public Long getUserId(String token) {
@@ -60,6 +64,10 @@ public class JwtUtil {
 
     public String getRole(String token) {
         return parseClaims(token).get("role", String.class);
+    }
+
+    public boolean isAccessToken(String token) {
+        return TOKEN_TYPE_ACCESS.equals(parseClaims(token).get(CLAIM_TYPE, String.class));
     }
 
     public void validateToken(String token) {

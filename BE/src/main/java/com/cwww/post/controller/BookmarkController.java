@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,7 +21,7 @@ public class BookmarkController {
 
     @PostMapping("/{postId}/bookmark")
     public ResponseEntity<ApiResponse<Void>> bookmark(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long postId) {
         bookmarkService.bookmark(userId, postId);
         return ResponseEntity.ok(ApiResponse.success(null));
@@ -28,7 +29,7 @@ public class BookmarkController {
 
     @DeleteMapping("/{postId}/bookmark")
     public ResponseEntity<ApiResponse<Void>> unbookmark(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long postId) {
         bookmarkService.unbookmark(userId, postId);
         return ResponseEntity.ok(ApiResponse.success(null));
@@ -36,7 +37,7 @@ public class BookmarkController {
 
     @GetMapping("/bookmarks")
     public ResponseEntity<ApiResponse<FeedResponse>> getBookmarks(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @RequestParam(required = false) Long cursor,
             @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size) {
         FeedResponse response = bookmarkService.getBookmarks(userId, cursor, size);
