@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { postApi } from '../../api/post'
 import type { PostResponse } from '../../types'
@@ -19,9 +19,23 @@ const ONLINE_FRIENDS = [
   { name: '김찬호', status: '20분 전', color: 'text-[#5a4136]' },
 ]
 
+type Visibility = 'ALL' | 'FRIEND' | 'PRIVATE'
+const VISIBILITY_LABELS: Record<Visibility, string> = { ALL: '전체공개', FRIEND: '일촌공개', PRIVATE: '비공개' }
+
+interface WriteForm {
+  title: string
+  content: string
+  visibility: Visibility
+  hashtags: string[]
+  mediaUrls: string[]
+}
+
+const EMPTY_FORM: WriteForm = { title: '', content: '', visibility: 'ALL', hashtags: [], mediaUrls: [] }
+
 export default function FeedPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [posts, setPosts] = useState<PostResponse[]>([])
   const [cursor, setCursor] = useState<number | undefined>(undefined)
@@ -30,9 +44,17 @@ export default function FeedPage() {
   const [likedPostIds, setLikedPostIds] = useState<Set<number>>(new Set())
   const [pendingLikeIds, setPendingLikeIds] = useState<Set<number>>(new Set())
   const [filter, setFilter] = useState<'전체' | '일촌만' | '사진만'>('전체')
-  const [newPost, setNewPost] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [commentInputs, setCommentInputs] = useState<Record<number, string>>({})
+
+  // 다이어리 작성 모달
+  const [showModal, setShowModal] = useState(false)
+  const [form, setForm] = useState<WriteForm>(EMPTY_FORM)
+  const [tagInput, setTagInput] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [isUploading, setIsUploading] = useState(false)
 
   const loadFeed = useCallback(async (cursorParam?: number) => {
     setLoading(true)
@@ -49,14 +71,11 @@ export default function FeedPage() {
     }
   }, [])
 
-  useEffect(() => {
-    loadFeed()
-  }, [loadFeed])
+  useEffect(() => { loadFeed() }, [loadFeed])
 
   const toggleLike = async (postId: number) => {
     if (pendingLikeIds.has(postId)) return
     const liked = likedPostIds.has(postId)
-
     setPendingLikeIds(prev => new Set(prev).add(postId))
     setLikedPostIds(prev => {
       const next = new Set(prev)
@@ -87,21 +106,75 @@ export default function FeedPage() {
     }
   }
 
+  const openModal = () => {
+    setForm(EMPTY_FORM)
+    setTagInput('')
+    setImageFiles([])
+    setImagePreviews([])
+    setShowModal(true)
+  }
+
+  const closeModal = () => {
+    if (isSubmitting || isUploading) return
+    imagePreviews.forEach(url => URL.revokeObjectURL(url))
+    setImageFiles([])
+    setImagePreviews([])
+    setSubmitError('')
+    setShowModal(false)
+  }
+
+  const addTag = () => {
+    const tag = tagInput.trim().replace(/^#/, '')
+    if (!tag || form.hashtags.includes(tag)) { setTagInput(''); return }
+    setForm(prev => ({ ...prev, hashtags: [...prev.hashtags, tag] }))
+    setTagInput('')
+  }
+
+  const removeTag = (tag: string) => {
+    setForm(prev => ({ ...prev, hashtags: prev.hashtags.filter(t => t !== tag) }))
+  }
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    if (files.length === 0) return
+    const accepted = files.slice(0, Math.max(0, 5 - imageFiles.length))
+    if (accepted.length === 0) return
+    setImageFiles(prev => [...prev, ...accepted])
+    setImagePreviews(prev => [...prev, ...accepted.map(f => URL.createObjectURL(f))])
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const removeImage = (idx: number) => {
+    URL.revokeObjectURL(imagePreviews[idx])
+    setImageFiles(prev => prev.filter((_, i) => i !== idx))
+    setImagePreviews(prev => prev.filter((_, i) => i !== idx))
+  }
+
   const submitPost = async () => {
-    if (!newPost.trim() || isSubmitting) return
+    if (!form.content.trim() || isSubmitting) return
     setIsSubmitting(true)
+    setSubmitError('')
     try {
+      let mediaUrls = form.mediaUrls
+      if (imageFiles.length > 0) {
+        setIsUploading(true)
+        const uploadRes = await postApi.uploadImages(imageFiles)
+        mediaUrls = uploadRes.data.data
+        setIsUploading(false)
+      }
       const res = await postApi.createPost({
-        title: '',
-        content: newPost.trim(),
-        visibility: 'ALL',
-        hashtags: [],
-        mediaUrls: [],
+        title: form.title.trim(),
+        content: form.content.trim(),
+        visibility: form.visibility,
+        hashtags: form.hashtags,
+        mediaUrls,
       })
       setPosts(prev => [res.data.data, ...prev])
-      setNewPost('')
-    } catch (e) {
-      console.error('글 작성 실패', e)
+      imagePreviews.forEach(url => URL.revokeObjectURL(url))
+      setShowModal(false)
+    } catch (e: any) {
+      setSubmitError(e.response?.data?.message ?? '글 작성에 실패했습니다. 다시 시도해주세요.')
+      setIsUploading(false)
     } finally {
       setIsSubmitting(false)
     }
@@ -114,6 +187,152 @@ export default function FeedPage() {
 
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
+
+      {/* 다이어리 작성 모달 */}
+      {showModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-2">
+          <div className="window-frame bg-[#f9f9f9] w-full max-w-lg flex flex-col" style={{ maxHeight: '90vh' }}>
+            {/* 모달 타이틀바 */}
+            <div className="bg-[#e2e2e2] px-3 py-2 border-b-2 border-[#8e7164] flex items-center gap-2 flex-shrink-0">
+              <span className="material-symbols-outlined text-sm text-[#a33e00]">edit_note</span>
+              <span className="font-[Geist,monospace] text-[13px] font-bold text-[#1a1c1c]">다이어리 쓰기</span>
+              <button className="ml-auto retro-btn p-1" onClick={closeModal} disabled={isSubmitting}>
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 p-3 flex flex-col gap-3">
+              {/* 제목 */}
+              <div className="flex flex-col gap-1">
+                <label className="font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136]">제목</label>
+                <input
+                  className="window-inset p-2 text-[14px] focus:outline-none w-full"
+                  type="text"
+                  placeholder="제목을 입력하세요 (선택)"
+                  maxLength={100}
+                  value={form.title}
+                  onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
+                />
+              </div>
+
+              {/* 내용 */}
+              <div className="flex flex-col gap-1">
+                <label className="font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136]">내용 <span className="text-[#ba1a1a]">*</span></label>
+                <textarea
+                  className="window-inset p-2 text-[14px] focus:outline-none w-full resize-none"
+                  placeholder="오늘 어떤 하루였나요?"
+                  rows={6}
+                  maxLength={2000}
+                  value={form.content}
+                  onChange={(e) => setForm(prev => ({ ...prev, content: e.target.value }))}
+                />
+                <span className="font-[Geist,monospace] text-[10px] text-[#5a4136] text-right">{form.content.length}/2000</span>
+              </div>
+
+              {/* 공개범위 */}
+              <div className="flex flex-col gap-1">
+                <label className="font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136]">공개범위</label>
+                <div className="flex gap-1">
+                  {(['ALL', 'FRIEND', 'PRIVATE'] as Visibility[]).map(v => (
+                    <button
+                      key={v}
+                      className={`retro-btn font-[Geist,monospace] text-[12px] font-semibold px-3 py-1 flex-1${form.visibility === v ? ' retro-btn-primary' : ''}`}
+                      onClick={() => setForm(prev => ({ ...prev, visibility: v }))}
+                    >
+                      {VISIBILITY_LABELS[v]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 해시태그 */}
+              <div className="flex flex-col gap-1">
+                <label className="font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136]">해시태그</label>
+                <div className="flex gap-1">
+                  <input
+                    className="window-inset flex-1 p-2 text-[13px] focus:outline-none"
+                    type="text"
+                    placeholder="#태그 입력 후 Enter"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
+                  />
+                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1" onClick={addTag}>추가</button>
+                </div>
+                {form.hashtags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {form.hashtags.map(tag => (
+                      <span key={tag} className="flex items-center gap-1 bg-[#baeaff] text-[#09657f] font-[Geist,monospace] text-[11px] px-2 py-0.5 rounded">
+                        #{tag}
+                        <button onClick={() => removeTag(tag)} className="hover:text-[#ba1a1a]">
+                          <span className="material-symbols-outlined text-[13px]">close</span>
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 이미지 업로드 */}
+              <div className="flex flex-col gap-1">
+                <label className="font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136]">사진 첨부 <span className="text-[#5a4136] font-normal">(최대 5장)</span></label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleImageSelect}
+                />
+                <button
+                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-3 py-2 flex items-center gap-1 self-start"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={imageFiles.length >= 5}
+                >
+                  <span className="material-symbols-outlined text-sm">image</span>
+                  사진 선택
+                </button>
+                {imagePreviews.length > 0 && (
+                  <div className="flex gap-2 flex-wrap mt-1">
+                    {imagePreviews.map((url, idx) => (
+                      <div key={idx} className="relative">
+                        <img src={url} alt="" className="w-20 h-20 object-cover border border-[#8e7164]" />
+                        <button
+                          className="absolute top-0 right-0 bg-[#ba1a1a] text-white rounded-bl"
+                          onClick={() => removeImage(idx)}
+                        >
+                          <span className="material-symbols-outlined text-[14px] leading-none p-0.5">close</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 에러 메시지 */}
+            {submitError && (
+              <p className="px-3 py-1 font-[Geist,monospace] text-[12px] text-[#ba1a1a] border-t border-[#8e7164]">{submitError}</p>
+            )}
+
+            {/* 버튼 영역 */}
+            <div className="px-3 py-2 border-t border-[#8e7164] flex gap-2 flex-shrink-0">
+              <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-4 py-2 flex-1" onClick={closeModal} disabled={isSubmitting}>취소</button>
+              <button
+                className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold px-4 py-2 flex-1 flex items-center justify-center gap-1"
+                onClick={submitPost}
+                disabled={isSubmitting || !form.content.trim()}
+              >
+                {isUploading ? (
+                  <><span className="material-symbols-outlined text-sm animate-spin">autorenew</span> 업로드 중...</>
+                ) : isSubmitting ? (
+                  <><span className="material-symbols-outlined text-sm">hourglass_empty</span> 등록 중...</>
+                ) : '작성 완료'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 모바일 헤더 */}
       <header className="md:hidden flex justify-between items-center px-4 h-16 w-full fixed top-0 z-50 bg-[#f9f9f9] border-b-2 border-[#e3bfb1]" style={{ boxShadow: '2px 2px 0px rgba(0,0,0,0.1)' }}>
@@ -158,7 +377,8 @@ export default function FeedPage() {
                   onClick={() => navigate('/home/me')}>
                   <span className="material-symbols-outlined text-base">home</span> 내 홈피 가기
                 </button>
-                <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1">
+                <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
+                  onClick={openModal}>
                   <span className="material-symbols-outlined text-base">edit_note</span> 다이어리 쓰기
                 </button>
               </div>
@@ -256,30 +476,18 @@ export default function FeedPage() {
               </div>
             </div>
 
-            {/* 글쓰기 */}
-            <div className="window-inset border border-[#8e7164] bg-white">
-              <div className="bg-[#e2e2e2] px-2 py-1 border-b border-[#8e7164] font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c] flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">edit</span> 오늘 하루 기록하기
+            {/* 글쓰기 트리거 */}
+            <div
+              className="window-inset border border-[#8e7164] bg-white p-2 flex gap-2 items-center cursor-pointer hover:bg-[#f3f3f3]"
+              onClick={openModal}
+            >
+              <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
+                <span className="material-symbols-outlined text-xl text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
               </div>
-              <div className="p-2 flex gap-2 items-center">
-                <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                  <span className="material-symbols-outlined text-xl text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
-                </div>
-                <input
-                  className="window-inset flex-1 text-[14px] p-1 focus:outline-none"
-                  type="text"
-                  placeholder="오늘 어떤 하루였나요? 다이어리 써보세요..."
-                  value={newPost}
-                  onChange={(e) => setNewPost(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !isSubmitting && submitPost()}
-                />
-                <div className="flex gap-1">
-                  <button className="retro-btn p-1 font-[Geist,monospace] text-[12px] font-semibold flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">image</span>
-                  </button>
-                  <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold px-2 py-1" onClick={submitPost} disabled={isSubmitting}>작성</button>
-                </div>
-              </div>
+              <span className="window-inset flex-1 text-[14px] p-1 text-[#8e7164] font-[Geist,monospace]">
+                오늘 어떤 하루였나요? 다이어리 써보세요...
+              </span>
+              <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold px-2 py-1">작성</button>
             </div>
 
             {/* 피드 필터 */}
@@ -395,35 +603,44 @@ export default function FeedPage() {
         {/* 우측 탭 */}
         <nav className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
           {[
-            { icon: 'home', label: '홈', active: true },
-            { icon: 'edit_note', label: '다이어리' },
-            { icon: 'photo_library', label: '사진첩' },
-            { icon: 'forum', label: '방명록' },
-            { icon: 'storefront', label: '상점' },
-          ].map(tab => (
-            <div key={tab.label}
-              className={`tab-item${tab.active ? ' tab-active' : ' bg-[#f3f3f3] text-[#5a4136] hover:bg-[#e2e2e2]'} py-2 px-1 text-center font-[Geist,monospace] text-[12px] font-semibold flex flex-col items-center gap-1`}>
-              <span className="material-symbols-outlined text-lg">{tab.icon}</span>
-              {tab.label}
-            </div>
-          ))}
+            { icon: 'home', label: '홈', path: '/' },
+            { icon: 'edit_note', label: '다이어리', path: `/home/${user?.id ?? 'me'}` },
+            { icon: 'photo_library', label: '사진첩', path: `/home/${user?.id ?? 'me'}` },
+            { icon: 'forum', label: '방명록', path: `/home/${user?.id ?? 'me'}` },
+            { icon: 'storefront', label: '상점', path: '/shop' },
+          ].map(tab => {
+            const active = tab.path === '/'
+            return (
+              <div key={tab.label}
+                onClick={() => navigate(tab.path)}
+                className={`tab-item${active ? ' tab-active' : ' bg-[#f3f3f3] text-[#5a4136] hover:bg-[#e2e2e2]'} py-2 px-1 text-center font-[Geist,monospace] text-[12px] font-semibold flex flex-col items-center gap-1 cursor-pointer`}>
+                <span className="material-symbols-outlined text-lg">{tab.icon}</span>
+                {tab.label}
+              </div>
+            )
+          })}
         </nav>
       </div>
 
       {/* 모바일 하단 탭 */}
       <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center bg-[#e2e2e2] px-2 border-t-2 border-[#e3bfb1] h-16">
         {[
-          { icon: 'home', label: '홈', active: true },
-          { icon: 'edit_note', label: '다이어리' },
-          { icon: 'photo_library', label: '사진첩' },
-          { icon: 'forum', label: '방명록' },
-          { icon: 'storefront', label: '상점' },
-        ].map(tab => (
-          <div key={tab.label} className={`flex flex-col items-center justify-center p-1 flex-1 cursor-pointer${tab.active ? ' bg-[#a33e00] text-white rounded-lg border-t-2 border-l-2 border-white border-r-2 border-b-2 border-[#7c2e00] mx-1' : ' text-[#5a4136]'}`}>
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: tab.active ? "'FILL' 1" : "'FILL' 0" }}>{tab.icon}</span>
-            <span className="font-[Geist,monospace] text-[12px] font-semibold mt-1">{tab.label}</span>
-          </div>
-        ))}
+          { icon: 'home', label: '홈', path: '/' },
+          { icon: 'edit_note', label: '다이어리', path: `/home/${user?.id ?? 'me'}` },
+          { icon: 'photo_library', label: '사진첩', path: `/home/${user?.id ?? 'me'}` },
+          { icon: 'forum', label: '방명록', path: `/home/${user?.id ?? 'me'}` },
+          { icon: 'storefront', label: '상점', path: '/shop' },
+        ].map(tab => {
+          const active = tab.path === '/'
+          return (
+            <div key={tab.label}
+              onClick={() => navigate(tab.path)}
+              className={`flex flex-col items-center justify-center p-1 flex-1 cursor-pointer${active ? ' bg-[#a33e00] text-white rounded-lg border-t-2 border-l-2 border-white border-r-2 border-b-2 border-[#7c2e00] mx-1' : ' text-[#5a4136]'}`}>
+              <span className="material-symbols-outlined" style={{ fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>{tab.icon}</span>
+              <span className="font-[Geist,monospace] text-[12px] font-semibold mt-1">{tab.label}</span>
+            </div>
+          )
+        })}
       </nav>
     </div>
   )

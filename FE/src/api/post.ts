@@ -50,4 +50,10 @@ export const postApi = {
 
   getBookmarks: (cursor?: number, size = 10) =>
     api.get<ApiResponse<FeedResponse>>('/posts/bookmarks', { params: { cursor, size } }),
+
+  uploadImages: (files: File[]) => {
+    const form = new FormData()
+    files.forEach(f => form.append('files', f))
+    return api.post<ApiResponse<string[]>>('/media/upload', form)
+  },
 }
