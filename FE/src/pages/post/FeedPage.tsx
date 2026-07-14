@@ -37,6 +37,7 @@ export default function FeedPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const searchRequestIdRef = useRef(0)
 
   const [posts, setPosts] = useState<PostResponse[]>([])
   const [cursor, setCursor] = useState<number | undefined>(undefined)
@@ -55,6 +56,11 @@ export default function FeedPage() {
   const [postComments, setPostComments] = useState<Record<number, CommentResponse[]>>({})
   const [commentLoading, setCommentLoading] = useState<Set<number>>(new Set())
   const [commentSubmitting, setCommentSubmitting] = useState<Set<number>>(new Set())
+  const [selectedTag, setSelectedTag] = useState<string | null>(null)
+  const [searchPosts, setSearchPosts] = useState<PostResponse[]>([])
+  const [searchCursor, setSearchCursor] = useState<number | undefined>(undefined)
+  const [searchHasNext, setSearchHasNext] = useState(false)
+  const [searchError, setSearchError] = useState(false)
 
   // 다이어리 작성 모달
   const [showModal, setShowModal] = useState(false)
@@ -96,9 +102,12 @@ export default function FeedPage() {
       liked ? next.delete(postId) : next.add(postId)
       return next
     })
-    setPosts(prev => prev.map(p =>
-      p.postId === postId ? { ...p, likeCount: liked ? p.likeCount - 1 : p.likeCount + 1 } : p
-    ))
+    const applyLikeCount = (delta: number) => {
+      const updater = (p: PostResponse) => p.postId === postId ? { ...p, likeCount: p.likeCount + delta } : p
+      setPosts(prev => prev.map(updater))
+      setSearchPosts(prev => prev.map(updater))
+    }
+    applyLikeCount(liked ? -1 : 1)
     try {
       if (liked) await postApi.unlikePost(postId)
       else await postApi.likePost(postId)
@@ -108,9 +117,7 @@ export default function FeedPage() {
         liked ? next.add(postId) : next.delete(postId)
         return next
       })
-      setPosts(prev => prev.map(p =>
-        p.postId === postId ? { ...p, likeCount: liked ? p.likeCount + 1 : p.likeCount - 1 } : p
-      ))
+      applyLikeCount(liked ? 1 : -1)
     } finally {
       setPendingLikeIds(prev => {
         const next = new Set(prev)
@@ -273,7 +280,9 @@ export default function FeedPage() {
     try {
       await commentApi.createComment(postId, { content })
       setCommentInputs(prev => ({ ...prev, [postId]: '' }))
-      setPosts(prev => prev.map(p => p.postId === postId ? { ...p, commentCount: p.commentCount + 1 } : p))
+      const incComment = (p: PostResponse) => p.postId === postId ? { ...p, commentCount: p.commentCount + 1 } : p
+      setPosts(prev => prev.map(incComment))
+      setSearchPosts(prev => prev.map(incComment))
       try {
         const res = await commentApi.getComments(postId)
         setPostComments(prev => ({ ...prev, [postId]: res.data.data }))
@@ -294,17 +303,63 @@ export default function FeedPage() {
         ...prev,
         [postId]: (prev[postId] ?? []).filter(c => c.commentId !== commentId),
       }))
-      setPosts(prev => prev.map(p => p.postId === postId ? { ...p, commentCount: Math.max(0, p.commentCount - 1) } : p))
+      const decComment = (p: PostResponse) => p.postId === postId ? { ...p, commentCount: Math.max(0, p.commentCount - 1) } : p
+      setPosts(prev => prev.map(decComment))
+      setSearchPosts(prev => prev.map(decComment))
     } catch {
       // 조용히 실패
     }
+  }
+
+  const loadSearch = useCallback(async (tag: string, cursorParam?: number) => {
+    const reqId = ++searchRequestIdRef.current
+    setLoading(true)
+    setSearchError(false)
+    try {
+      const res = await postApi.searchByHashtag(tag, cursorParam)
+      if (reqId !== searchRequestIdRef.current) return
+      const { posts: newPosts, nextCursor, hasNext: more } = res.data.data
+      setSearchPosts(prev => cursorParam !== undefined ? [...prev, ...newPosts] : newPosts)
+      setSearchCursor(nextCursor ?? undefined)
+      setSearchHasNext(more)
+      setLikedPostIds(prev => {
+        const next = new Set(prev)
+        newPosts.forEach(p => p.isLiked ? next.add(p.postId) : next.delete(p.postId))
+        return next
+      })
+      setBookmarkedPostIds(prev => {
+        const next = new Set(prev)
+        newPosts.forEach(p => p.isBookmarked ? next.add(p.postId) : next.delete(p.postId))
+        return next
+      })
+    } catch (e) {
+      if (reqId !== searchRequestIdRef.current) return
+      console.error('해시태그 검색 실패', e)
+      setSearchError(true)
+    } finally {
+      if (reqId === searchRequestIdRef.current) setLoading(false)
+    }
+  }, [])
+
+  const selectTag = (tag: string) => {
+    setSelectedTag(tag)
+    setSearchPosts([])
+    setSearchCursor(undefined)
+    setSearchHasNext(false)
+    loadSearch(tag)
+  }
+
+  const clearTag = () => {
+    setSelectedTag(null)
+    setSearchPosts([])
+    setSearchError(false)
   }
 
   const filteredPosts = posts.filter(p => {
     if (filter === '사진만') return p.mediaUrls.length > 0
     return true
   })
-  const displayPosts = filter === '북마크' ? bookmarkPosts : filteredPosts
+  const displayPosts = selectedTag ? searchPosts : filter === '북마크' ? bookmarkPosts : filteredPosts
 
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
@@ -628,12 +683,27 @@ export default function FeedPage() {
             {/* 피드 포스트 */}
             <div className="window-inset border border-[#8e7164] flex-1 flex flex-col bg-white">
               <div className="bg-[#e2e2e2] px-2 py-1 border-b border-[#8e7164] font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c] flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">dynamic_feed</span> 일촌 소식
+                <span className="material-symbols-outlined text-sm">{selectedTag ? 'tag' : 'dynamic_feed'}</span>
+                {selectedTag ? (
+                  <>
+                    <span className="text-[#09657f]">#{selectedTag}</span> 검색 결과
+                    <button onClick={clearTag} className="ml-auto flex items-center gap-0.5 text-[#5a4136] hover:text-[#ba1a1a]">
+                      <span className="material-symbols-outlined text-sm">close</span>
+                      <span className="text-[11px]">피드로 돌아가기</span>
+                    </button>
+                  </>
+                ) : '일촌 소식'}
               </div>
               <div className="flex flex-col overflow-y-auto" style={{ maxHeight: 520 }}>
                 {displayPosts.length === 0 && !loading && (
                   <div className="p-8 text-center font-[Geist,monospace] text-[12px] text-[#5a4136]">
-                    {filter === '북마크' ? '북마크한 게시물이 없어요.' : '아직 피드가 없어요. 일촌을 추가해보세요!'}
+                    {selectedTag && searchError
+                      ? <span className="text-[#ba1a1a]">검색에 실패했어요. <button className="underline" onClick={() => loadSearch(selectedTag)}>다시 시도</button></span>
+                      : selectedTag
+                        ? `#${selectedTag} 태그가 달린 게시물이 없어요.`
+                        : filter === '북마크'
+                          ? '북마크한 게시물이 없어요.'
+                          : '아직 피드가 없어요. 일촌을 추가해보세요!'}
                   </div>
                 )}
 
@@ -655,9 +725,14 @@ export default function FeedPage() {
                           {post.title && <h3 className="font-['Bricolage_Grotesque',sans-serif] text-[16px] font-bold text-[#1a1c1c] mb-1">{post.title}</h3>}
                           <p className="text-[14px] text-[#1a1c1c] leading-relaxed">{post.content ?? ''}</p>
                           {post.hashtags.length > 0 && (
-                            <div className="flex gap-1 mt-1">
+                            <div className="flex gap-1 mt-1 flex-wrap">
                               {post.hashtags.map(tag => (
-                                <span key={tag} className="font-[Geist,monospace] text-[10px] text-[#0c6780] cursor-pointer hover:underline">#{tag}</span>
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  className="font-[Geist,monospace] text-[10px] text-[#0c6780] hover:underline"
+                                  onClick={() => selectTag(tag)}
+                                >#{tag}</button>
                               ))}
                             </div>
                           )}
@@ -743,10 +818,10 @@ export default function FeedPage() {
                 })}
 
                 <div className="p-2 flex justify-center border-t border-[#e3bfb1]">
-                  {(filter === '북마크' ? bookmarkHasNext : hasNext) ? (
+                  {(selectedTag ? searchHasNext : filter === '북마크' ? bookmarkHasNext : hasNext) ? (
                     <button
                       className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-12 py-2 flex items-center gap-1"
-                      onClick={() => filter === '북마크' ? loadBookmarks(bookmarkCursor) : loadFeed(cursor)}
+                      onClick={() => selectedTag ? loadSearch(selectedTag, searchCursor) : filter === '북마크' ? loadBookmarks(bookmarkCursor) : loadFeed(cursor)}
                       disabled={loading}
                     >
                       <span className="material-symbols-outlined text-base">{loading ? 'hourglass_empty' : 'expand_more'}</span>
