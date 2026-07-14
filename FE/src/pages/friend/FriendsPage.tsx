@@ -96,6 +96,7 @@ export default function FriendsPage() {
   }
 
   const terminate = async (friendId: number) => {
+    if (!window.confirm('정말 일촌을 끊으시겠어요?')) return
     try {
       await friendApi.terminate(friendId)
       setFriends(prev => prev.filter(f => f.friendId !== friendId))
@@ -104,10 +105,12 @@ export default function FriendsPage() {
     }
   }
 
+  const getMyAlias = (f: FriendResponse) =>
+    f.requesterId === user?.id ? f.requesterAlias : f.receiverAlias
+
   const startEditAlias = (friend: FriendResponse) => {
-    const myAlias = friend.requesterId === user?.id ? friend.requesterAlias : friend.receiverAlias
     setEditingFriendId(friend.friendId)
-    setAliasInput(myAlias ?? '')
+    setAliasInput(getMyAlias(friend) ?? '')
   }
 
   const saveAlias = async (friendId: number) => {
@@ -125,9 +128,6 @@ export default function FriendsPage() {
       setEditingFriendId(null)
     }
   }
-
-  const getMyAlias = (f: FriendResponse) =>
-    f.requesterId === user?.id ? f.requesterAlias : f.receiverAlias
 
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">

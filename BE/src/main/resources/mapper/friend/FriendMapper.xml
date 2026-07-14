@@ -75,6 +75,7 @@
             receiver_alias  = CASE WHEN receiver_id  = #{requesterId} THEN #{alias} ELSE receiver_alias  END
         WHERE friend_id = #{friendId}
           AND (requester_id = #{requesterId} OR receiver_id = #{requesterId})
+          AND status = 'ACCEPTED'
     </update>
 
 </mapper>
