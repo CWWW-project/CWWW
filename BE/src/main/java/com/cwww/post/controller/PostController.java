@@ -13,6 +13,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -29,7 +30,7 @@ public class PostController {
     // TODO: JWT 인증 구현 후 SecurityContext에서 userId 추출하도록 교체
     @PostMapping
     public ResponseEntity<ApiResponse<PostResponse>> createPost(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @Valid @RequestBody PostCreateRequest request) {
         PostResponse response = postService.createPost(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -38,7 +39,7 @@ public class PostController {
 
     @GetMapping("/{postId}")
     public ResponseEntity<ApiResponse<PostResponse>> getPost(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long postId) {
         PostResponse response = postService.getPost(userId, postId);
         try {
@@ -51,7 +52,7 @@ public class PostController {
 
     @PatchMapping("/{postId}")
     public ResponseEntity<ApiResponse<Void>> updatePost(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long postId,
             @Valid @RequestBody PostUpdateRequest request) {
         postService.updatePost(userId, postId, request);
@@ -60,7 +61,7 @@ public class PostController {
 
     @DeleteMapping("/{postId}")
     public ResponseEntity<ApiResponse<Void>> deletePost(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long postId) {
         postService.deletePost(userId, postId);
         return ResponseEntity.ok(ApiResponse.success(null));
@@ -68,7 +69,7 @@ public class PostController {
 
     @GetMapping("/feed")
     public ResponseEntity<ApiResponse<FeedResponse>> getFeed(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @RequestParam(required = false) Long cursor,
             @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size) {
         FeedResponse response = postService.getFeed(userId, cursor, size);
@@ -77,7 +78,7 @@ public class PostController {
 
     @PostMapping("/{postId}/like")
     public ResponseEntity<ApiResponse<Void>> likePost(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long postId) {
         postService.likePost(userId, postId);
         return ResponseEntity.ok(ApiResponse.success(null));
@@ -85,7 +86,7 @@ public class PostController {
 
     @DeleteMapping("/{postId}/like")
     public ResponseEntity<ApiResponse<Void>> unlikePost(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long postId) {
         postService.unlikePost(userId, postId);
         return ResponseEntity.ok(ApiResponse.success(null));
