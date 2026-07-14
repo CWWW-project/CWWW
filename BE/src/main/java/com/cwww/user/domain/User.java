@@ -25,5 +25,4 @@ public class User {
     private LocalDateTime refreshTokenExpiresAt;
     private String resetToken;
     private LocalDateTime resetTokenExpiresAt;
-    private int acornBalance;
 }
