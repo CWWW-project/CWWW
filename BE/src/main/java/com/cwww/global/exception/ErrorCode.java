@@ -29,6 +29,10 @@ public enum ErrorCode {
     FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "M002", "파일 크기가 10MB를 초과합니다."),
     FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "M003", "파일 업로드에 실패했습니다."),
 
+    // Redis
+    REDIS_PUBLISH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "R001", "Redis 메시지 발행에 실패했습니다."),
+    REDIS_SUBSCRIBE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "R002", "Redis 메시지 처리에 실패했습니다."),
+
     // Post
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "게시글을 찾을 수 없습니다."),
     POST_FORBIDDEN(HttpStatus.FORBIDDEN, "P002", "게시글에 대한 권한이 없습니다."),
