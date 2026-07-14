@@ -15,6 +15,7 @@ export interface PostResponse {
   viewCount: number
   likeCount: number
   commentCount: number
+  isLiked: boolean
   hashtags: string[]
   mediaUrls: string[]
   createdAt: string

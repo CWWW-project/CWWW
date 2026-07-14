@@ -68,6 +68,8 @@ export default function FeedPage() {
       setPosts(prev => cursorParam !== undefined ? [...prev, ...newPosts] : newPosts)
       setCursor(nextCursor ?? undefined)
       setHasNext(more)
+      const liked = new Set(newPosts.filter(p => p.isLiked).map(p => p.postId))
+      setLikedPostIds(prev => cursorParam !== undefined ? new Set([...prev, ...liked]) : liked)
     } catch (e) {
       console.error('피드 로드 실패', e)
     } finally {
