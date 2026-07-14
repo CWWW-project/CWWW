@@ -4,7 +4,6 @@ import com.cwww.friend.mapper.FriendMapper;
 import com.cwww.global.storage.StorageService;
 import com.cwww.minihompy.domain.Media;
 import com.cwww.minihompy.domain.Minihompy;
-import com.cwww.minihompy.domain.VisitLog;
 import com.cwww.minihompy.dto.request.MinihompySettingsRequest;
 import com.cwww.minihompy.dto.response.ProfileImageResponse;
 import com.cwww.minihompy.mapper.ProfileMediaMapper;
@@ -25,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
@@ -39,6 +39,7 @@ public class MinihompyService {
 	private final StorageService storageService;
 	private final UserMapper userMapper;
 	private final FriendMapper friendMapper;
+	private final VisitLogService visitLogService;
 
 
 	private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -88,17 +89,7 @@ public class MinihompyService {
 			if(viewerId != null) {
 
 				try {
-
-					Long minihompyId = visitLogMapper.selectMinihompyIdByOwnerId(ownerId);
-
-					VisitLog visitLog = VisitLog.builder()
-							.minihompyId(minihompyId)
-							.visitorId(viewerId)
-							.visitedAt(LocalDateTime.now())
-							.build();
-
-					visitLogMapper.insertVisit(visitLog);
-
+					visitLogService.recordVisit(ownerId, viewerId);
 				} catch(Exception e) {
 					log.warn("방문 기록 실패: ownerId={}, viewerId={}", ownerId, viewerId, e);
 				}
@@ -224,13 +215,13 @@ public class MinihompyService {
 		// 확장자만 바꿔치기한 위장 파일 방지 - 실제로 이미지로 디코딩 가능한지 확인
 		BufferedImage image;
 
-		try {
+		try (InputStream inputStream = file.getInputStream()) {
 			/*
-			* 진짜 이미지로 해석할 수 있는지 시도
-			* - 진짜 이미지 파일이면 내용을 성공적으로 해석해서 BufferedImage 반환
-			* - 가짜일 경우 해석 실패로 null 반환
-			*/
-			image = ImageIO.read(file.getInputStream());
+			 * 진짜 이미지로 해석할 수 있는지 시도
+			 * - 진짜 이미지 파일이면 내용을 성공적으로 해석해서 BufferedImage 반환
+			 * - 가짜일 경우 해석 실패로 null 반환
+			 */
+			image = ImageIO.read(inputStream);
 		} catch (IOException e) {
 			// 파일을 읽는 과정 자체에서 문제가 생길 경우
 			throw new BusinessException(ErrorCode.INVALID_FILE_EXTENSION);
