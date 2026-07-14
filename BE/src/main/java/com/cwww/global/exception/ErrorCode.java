@@ -53,6 +53,10 @@ public enum ErrorCode {
     MINIHOMPY_FORBIDDEN(HttpStatus.FORBIDDEN, "H002", "미니홈피에 대한 접근 권한이 없습니다."),
     PROFILE_IMAGE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "H003", "파일 크기가 5MB를 초과합니다."),
 
+    // Guestbook
+    GUESTBOOK_NOT_FOUND(HttpStatus.NOT_FOUND, "H004", "방명록을 찾을 수 없습니다."),
+    GUESTBOOK_FORBIDDEN(HttpStatus.FORBIDDEN, "H005", "방명록에 대한 권한이 없습니다."),
+
     // Item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "I001", "아이템을 찾을 수 없습니다.");
 
