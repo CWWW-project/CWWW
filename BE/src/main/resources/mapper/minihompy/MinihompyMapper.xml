@@ -42,10 +42,15 @@
 	</select>
 
 
-	<!-- 회원가입/로그인 후 처음 미니홈피 조회한 사용자 자동 미니홈피 생성(기본값으로) -->
+	<!--
+		회원가입/로그인 후 처음 미니홈피 조회한 사용자 자동 미니홈피 생성(기본값으로)
+        동시 요청으로 이미 다른 요청이 먼저 생성한 경우, uq_minihompy_user_id 위반 대신
+        ON CONFLICT DO NOTHING으로 조용히 무시 (Service에서 무조건 재조회하므로 멱등하게 동작)
+    -->
 	<insert id="insertDefaultMinihompy" parameterType="com.cwww.minihompy.domain.Minihompy">
 		INSERT INTO minihompy (user_id, title, introduction, mood, access_level, created_at)
 		VALUES (#{userId}, #{title}, #{introduction}, #{mood}, #{accessLevel}, #{createdAt})
+		ON CONFLICT (user_id) DO NOTHING
 	</insert>
 
 

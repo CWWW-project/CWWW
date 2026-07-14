@@ -2,10 +2,9 @@ package com.cwww.minihompy.controller;
 
 import com.cwww.global.response.ApiResponse;
 import com.cwww.minihompy.dto.request.MinihompySettingsRequest;
-import com.cwww.minihompy.dto.request.ProfileImageUploadRequest;
 import com.cwww.minihompy.dto.response.MinihompyMainResponse;
 import com.cwww.minihompy.dto.response.ProfileImageResponse;
-import org.springframework.http.ResponseEntity;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import com.cwww.minihompy.service.MinihompyService;
@@ -62,7 +61,7 @@ public class MinihompyController {
 	// 미니홈피 설정 변경(공개범위, 소개글, 기분 한번에)
 	@PatchMapping("/settings")
 	public ApiResponse<MinihompyMainResponse> updateSettings(
-			@RequestBody MinihompySettingsRequest request
+			@Valid @RequestBody MinihompySettingsRequest request
 	) {
 
 		// TODO 지금은 임시로 로그인 사용자를 하드코딩, 인증 완료되면 교체 예정

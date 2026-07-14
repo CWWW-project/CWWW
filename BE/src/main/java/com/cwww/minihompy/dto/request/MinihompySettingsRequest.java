@@ -1,6 +1,7 @@
 package com.cwww.minihompy.dto.request;
 
 import com.cwww.minihompy.domain.Minihompy;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,6 +17,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class MinihompySettingsRequest {
 
+    @NotNull
     private Minihompy.AccessLevel accessLevel;
     private String introduction;
     private String mood;
