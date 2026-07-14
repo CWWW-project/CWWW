@@ -28,4 +28,14 @@
         </foreach>
         AND deleted_at IS NULL
     </select>
+
+    <select id="searchByNickname" resultType="com.cwww.user.domain.User">
+        SELECT user_id, nickname FROM users
+        WHERE nickname LIKE CONCAT(
+            REPLACE(REPLACE(REPLACE(#{keyword}, '\', '\\'), '%', '\%'), '_', '\_'), '%'
+        ) ESCAPE '\'
+          AND deleted_at IS NULL
+        ORDER BY nickname
+        LIMIT #{limit}
+    </select>
 </mapper>
