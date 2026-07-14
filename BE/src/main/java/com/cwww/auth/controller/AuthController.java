@@ -1,6 +1,8 @@
 package com.cwww.auth.controller;
 
 
+import com.cwww.auth.dto.LoginRequest;
+import com.cwww.auth.dto.LoginResponse;
 import com.cwww.auth.dto.SignupRequest;
 import com.cwww.auth.dto.SignupResponse;
 import com.cwww.auth.service.AuthService;
@@ -26,5 +28,12 @@ public class AuthController {
     signup(@Valid @RequestBody SignupRequest request) {
         SignupResponse response = authService.signup(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<LoginResponse>>
+    login(@Valid @RequestBody LoginRequest request) {
+        LoginResponse response = authService.login(request);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

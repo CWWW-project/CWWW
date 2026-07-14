@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +26,7 @@ public class CommentController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<Void>> createComment(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long postId,
             @Valid @RequestBody CommentCreateRequest request) {
         commentService.createComment(userId, postId, request);
@@ -41,7 +42,7 @@ public class CommentController {
 
     @PatchMapping("/{commentId}")
     public ResponseEntity<ApiResponse<Void>> updateComment(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long postId,
             @PathVariable Long commentId,
             @RequestBody @NotBlank @Size(max = 500) String content) {
@@ -51,7 +52,7 @@ public class CommentController {
 
     @DeleteMapping("/{commentId}")
     public ResponseEntity<ApiResponse<Void>> deleteComment(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long postId,
             @PathVariable Long commentId) {
         commentService.deleteComment(userId, postId, commentId);
