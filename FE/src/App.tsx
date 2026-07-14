@@ -16,11 +16,12 @@ function App() {
         <Route path="/auth/login" element={<LoginPage />} />
         <Route path="/auth/signup" element={<SignupPage />} />
 
-        {/* POST - 송경용 */}
-        <Route path="/" element={<FeedPage />} />
-
         {/* HOME - 김채린 */}
+        <Route path="/" element={<MinihompyPage />} />
         <Route path="/home/:userId" element={<MinihompyPage />} />
+
+        {/* POST - 송경용 */}
+        <Route path="/feed" element={<FeedPage />} />
 
         {/* CHAT - 김찬호 */}
         <Route path="/chat" element={<ChatPage />} />

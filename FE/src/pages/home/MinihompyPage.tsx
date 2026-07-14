@@ -42,6 +42,8 @@ const ILCHON = [
   { name: '김채린', status: '3일 전', color: '#5a4136' },
 ]
 
+const MINIROOM_ASSETS = '/miniroom-assets'
+
 export default function MinihompyPage() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<Tab>('다이어리')
@@ -77,27 +79,6 @@ export default function MinihompyPage() {
 
             {/* 왼쪽 프로필 */}
             <aside className="w-full md:w-56 flex-shrink-0 flex flex-col border-r border-[#8e7164]">
-
-              {/* 미니룸 썸네일 */}
-              <div className="relative" style={{ height: 160, background: 'linear-gradient(to bottom, #d6eaf8 60%, #c4a882)', overflow: 'hidden', cursor: 'pointer' }}
-                onClick={() => navigate('/room')}>
-                {/* 소파 */}
-                <div className="absolute" style={{ left: '50%', bottom: '42%', transform: 'translateX(-50%)' }}>
-                  <div style={{ width: 70, height: 18, background: '#5d4037', border: '2px solid #4e342e', borderRadius: '4px 4px 0 0' }} />
-                  <div style={{ width: 70, height: 12, background: '#795548', border: '2px solid #4e342e' }} />
-                  <div style={{ position: 'absolute', top: 0, left: -6, width: 6, height: 24, background: '#4e342e' }} />
-                  <div style={{ position: 'absolute', top: 0, right: -6, width: 6, height: 24, background: '#4e342e' }} />
-                </div>
-                {/* 미니미 */}
-                <div className="absolute flex flex-col items-center" style={{ left: '50%', bottom: '42%', transform: 'translateX(-50%) translateX(-40px)' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 36, fontVariationSettings: "'FILL' 1", color: '#a33e00' }}>face</span>
-                  <div style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid #ccc', padding: '1px 5px', fontSize: 8, fontFamily: 'Geist, monospace', whiteSpace: 'nowrap' }}>김채린</div>
-                </div>
-                {/* 꾸미기 오버레이 */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity" style={{ background: 'rgba(0,0,0,0.3)' }}>
-                  <span className="font-[Geist,monospace] text-[12px] font-bold text-white">미니룸 꾸미기</span>
-                </div>
-              </div>
 
               {/* 프로필 정보 */}
               <div className="p-3 flex flex-col gap-2 border-b border-[#e3bfb1]">
@@ -299,6 +280,78 @@ export default function MinihompyPage() {
                   </div>
                 )}
               </div>
+
+              {/* 메인 하단 미니룸 */}
+              <section className="p-3 border-t border-[#8e7164] bg-[#f9f9f9]">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-['Bricolage_Grotesque',sans-serif] text-[20px] font-bold text-[#55a6c8]">
+                    Mini Room
+                  </h3>
+                  <button
+                    className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold px-3 py-1 flex items-center gap-1"
+                    onClick={() => navigate('/room')}
+                  >
+                    <span className="material-symbols-outlined text-sm">edit</span>
+                    꾸미기
+                  </button>
+                </div>
+                <div
+                  className="relative window-inset overflow-hidden cursor-pointer"
+                  style={{ aspectRatio: '750 / 606', maxHeight: 320, background: '#f8fbff' }}
+                  onClick={() => navigate('/room')}
+                >
+                  <img
+                    src={`${MINIROOM_ASSETS}/rooms/room-pink.svg`}
+                    alt="미니룸"
+                    className="absolute inset-0 w-full h-full"
+                    style={{ objectFit: 'cover' }}
+                  />
+                  <img
+                    src={`${MINIROOM_ASSETS}/items/rug_striped.png`}
+                    alt=""
+                    className="absolute"
+                    style={{ width: '22%', left: '38%', top: '69%', transform: 'translate(-50%, -50%)' }}
+                  />
+                  <img
+                    src={`${MINIROOM_ASSETS}/items/sofa_blue.png`}
+                    alt=""
+                    className="absolute"
+                    style={{ width: '20%', left: '64%', top: '61%', transform: 'translate(-50%, -50%)' }}
+                  />
+                  <img
+                    src={`${MINIROOM_ASSETS}/kenney/isometric/desk_SE.png`}
+                    alt=""
+                    className="absolute"
+                    style={{ width: '13%', left: '42%', top: '63%', transform: 'translate(-50%, -50%)' }}
+                  />
+                  <img
+                    src={`${MINIROOM_ASSETS}/items/floor_lamp_orange.png`}
+                    alt=""
+                    className="absolute"
+                    style={{ width: '13%', left: '79%', top: '53%', transform: 'translate(-50%, -50%)' }}
+                  />
+                  <img
+                    src={`${MINIROOM_ASSETS}/items/shelf_wood.png`}
+                    alt=""
+                    className="absolute"
+                    style={{ width: '16%', left: '25%', top: '54%', transform: 'translate(-50%, -50%)' }}
+                  />
+                  <img
+                    src={`${MINIROOM_ASSETS}/avatars-grafxkid/grafxkid_avatar_01.png`}
+                    alt=""
+                    className="absolute"
+                    style={{ width: '7%', left: '52%', top: '65%', transform: 'translate(-50%, -50%)', imageRendering: 'pixelated' }}
+                  />
+                  <div
+                    className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+                    style={{ background: 'rgba(0,0,0,0.24)' }}
+                  >
+                    <span className="window-frame px-3 py-2 font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">
+                      미니룸 꾸미러 가기
+                    </span>
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
 

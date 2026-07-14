@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { itemApi } from '../../api/item'
+import type { InventoryItemResponse, ItemResponse } from '../../types'
 
 interface CartItem {
   id: number
+  itemId: number
   name: string
   price: number
 }
@@ -12,6 +15,7 @@ interface ShopItem {
   price: number
   icon: string
   iconColor: string
+  assetUrl?: string | null
   bg: string
   category: string
   badge?: string
@@ -31,19 +35,77 @@ const SHOP_ITEMS: ShopItem[] = [
 
 const CATEGORIES = ['전체', '🎨 스킨', '🏠 미니룸', '🎵 BGM', '🎁 아이템', '👤 미니미']
 
+const categoryLabel = (category: string) => {
+  const labels: Record<string, string> = {
+    MINIROOM: '미니룸',
+    AVATAR: '미니미',
+    SKIN: '스킨',
+    BGM: 'BGM',
+    ITEM: '아이템',
+  }
+  return labels[category] ?? category
+}
+
+const decorateItem = (item: ItemResponse): ShopItem => {
+  const category = categoryLabel(item.category)
+  const iconMap: Record<string, { icon: string; iconColor: string; bg: string }> = {
+    MINIROOM: { icon: 'chair', iconColor: '#8B4513', bg: '#fff9e6' },
+    AVATAR: { icon: 'face', iconColor: '#e91e63', bg: '#fce4ec' },
+    SKIN: { icon: 'palette', iconColor: '#0c6780', bg: '#e8f4fb' },
+    BGM: { icon: 'music_note', iconColor: '#a33e00', bg: '#f0f8ff' },
+    ITEM: { icon: 'favorite', iconColor: '#ba1a1a', bg: '#fef3f3' },
+  }
+  const visual = iconMap[item.category] ?? { icon: 'inventory_2', iconColor: '#5a4136', bg: '#f3f3f3' }
+  return {
+    id: item.itemId,
+    name: item.name,
+    price: item.price,
+    category,
+    assetUrl: item.assetUrl,
+    badge: item.salesCount > 0 ? '인기' : undefined,
+    badgeColor: '#0c6780',
+    ...visual,
+  }
+}
+
 export default function ShopPage() {
   const [activeCategory, setActiveCategory] = useState('전체')
-  const [cart, setCart] = useState<CartItem[]>([{ id: 1, name: '봄벚꽃 스킨', price: 500 }])
+  const [shopItems, setShopItems] = useState<ShopItem[]>(SHOP_ITEMS)
+  const [inventory, setInventory] = useState<InventoryItemResponse[]>([])
+  const [cart, setCart] = useState<CartItem[]>([])
   const [nextId, setNextId] = useState(100)
   const [showPayment, setShowPayment] = useState(false)
   const [toast, setToast] = useState(false)
-  const [acorns] = useState(2400)
+  const [acorns, setAcorns] = useState(2400)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0)
 
-  const addCart = (e: React.MouseEvent, name: string, price: number) => {
+  useEffect(() => {
+    const loadShop = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const [itemsResponse, inventoryResponse] = await Promise.all([
+          itemApi.getItems(),
+          itemApi.getInventory(),
+        ])
+        setShopItems(itemsResponse.data.data.map(decorateItem))
+        setInventory(inventoryResponse.data.data)
+      } catch {
+        setError('상점 정보를 불러오지 못했습니다.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    void loadShop()
+  }, [])
+
+  const addCart = (e: React.MouseEvent, item: ShopItem) => {
     e.stopPropagation()
-    setCart(prev => [...prev, { id: nextId, name, price }])
+    setCart(prev => [...prev, { id: nextId, itemId: item.id, name: item.name, price: item.price }])
     setNextId(n => n + 1)
   }
 
@@ -51,16 +113,29 @@ export default function ShopPage() {
     setCart(prev => prev.filter(item => item.id !== id))
   }
 
-  const confirmPayment = () => {
-    setShowPayment(false)
-    setCart([])
-    setToast(true)
-    setTimeout(() => setToast(false), 2500)
+  const confirmPayment = async () => {
+    try {
+      let remainingAcorns = acorns
+      for (const item of cart) {
+        const response = await itemApi.purchaseItem(item.itemId)
+        remainingAcorns = response.data.data.remainingAcorns
+      }
+      const inventoryResponse = await itemApi.getInventory()
+      setInventory(inventoryResponse.data.data)
+      setAcorns(remainingAcorns)
+      setShowPayment(false)
+      setCart([])
+      setToast(true)
+      setTimeout(() => setToast(false), 2500)
+    } catch {
+      setShowPayment(false)
+      setError('구매에 실패했습니다.')
+    }
   }
 
   const filtered = activeCategory === '전체'
-    ? SHOP_ITEMS
-    : SHOP_ITEMS.filter(item => activeCategory.includes(item.category) || item.category === activeCategory.replace(/^[^\s]+\s/, ''))
+    ? shopItems
+    : shopItems.filter(item => activeCategory.includes(item.category) || item.category === activeCategory.replace(/^[^\s]+\s/, ''))
 
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
@@ -121,7 +196,7 @@ export default function ShopPage() {
               {/* 정렬 */}
               <div className="flex items-center justify-between">
                 <div className="font-[Geist,monospace] text-[12px] text-[#5a4136]">
-                  총 <span className="text-[#a33e00] font-bold">{filtered.length}</span>개 아이템
+                  {loading ? '불러오는 중...' : <>총 <span className="text-[#a33e00] font-bold">{filtered.length}</span>개 아이템</>}
                 </div>
                 <select className="window-inset font-[Geist,monospace] text-[12px] text-[#1a1c1c] px-1 py-1 focus:outline-none bg-white">
                   <option>최신순</option>
@@ -141,10 +216,14 @@ export default function ShopPage() {
                     >
                       <div className="w-full aspect-square flex items-center justify-center border border-[#e3bfb1] relative"
                         style={{ background: item.bg }}>
-                        <span className="material-symbols-outlined text-[40px]"
-                          style={{ fontVariationSettings: "'FILL' 1", color: item.iconColor }}>
-                          {item.icon}
-                        </span>
+                        {item.assetUrl ? (
+                          <img src={item.assetUrl} alt="" className="max-w-[78%] max-h-[78%] object-contain" />
+                        ) : (
+                          <span className="material-symbols-outlined text-[40px]"
+                            style={{ fontVariationSettings: "'FILL' 1", color: item.iconColor }}>
+                            {item.icon}
+                          </span>
+                        )}
                         {item.badge && (
                           <div className="absolute top-0 right-0 text-white text-[9px] px-1"
                             style={{ background: item.badgeColor, fontFamily: 'Geist, monospace' }}>
@@ -161,7 +240,7 @@ export default function ShopPage() {
                         <button className="retro-btn flex-1 font-[Geist,monospace] text-[10px] font-semibold py-1">미리보기</button>
                         <button
                           className="retro-btn retro-btn-primary flex-1 font-[Geist,monospace] text-[10px] font-semibold py-1"
-                          onClick={(e) => addCart(e, item.name, item.price)}
+                          onClick={(e) => addCart(e, item)}
                         >담기</button>
                       </div>
                     </div>
@@ -232,17 +311,32 @@ export default function ShopPage() {
                   보유 아이템
                 </div>
                 <div className="p-2 flex flex-col gap-1">
-                  {[
-                    { icon: 'music_note', color: '#0c6780', name: 'Y (Please Tell Me Why)', cat: 'BGM' },
-                    { icon: 'chair', color: '#a33e00', name: '나무 책상', cat: '미니룸' },
-                    { icon: 'palette', color: '#e91e63', name: '블루 기본 스킨', cat: '스킨' },
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center gap-1 py-1 border-b border-[#e3bfb1] last:border-0">
-                      <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1", color: item.color }}>{item.icon}</span>
+                  {inventory.map(item => {
+                    const decorated = decorateItem({
+                      itemId: item.itemId,
+                      category: item.category,
+                      name: item.name,
+                      description: item.description,
+                      price: item.price,
+                      status: 'ACTIVE',
+                      salesCount: 0,
+    creatorId: null,
+    assetKey: null,
+    assetUrl: null,
+    assetWidth: null,
+    assetHeight: null,
+    placementType: null,
+  })
+                    return (
+                    <div key={item.inventoryId} className="flex items-center gap-1 py-1 border-b border-[#e3bfb1] last:border-0">
+                      <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1", color: decorated.iconColor }}>{decorated.icon}</span>
                       <span className="font-[Geist,monospace] text-[12px] text-[#1a1c1c] flex-1">{item.name}</span>
-                      <span className="text-[10px] text-[#5a4136]" style={{ fontFamily: 'Geist, monospace' }}>{item.cat}</span>
+                      <span className="text-[10px] text-[#5a4136]" style={{ fontFamily: 'Geist, monospace' }}>{categoryLabel(item.category)}</span>
                     </div>
-                  ))}
+                  )})}
+                  {inventory.length === 0 && (
+                    <p className="text-[12px] text-[#5a4136] text-center py-2" style={{ fontFamily: 'Geist, monospace' }}>보유 아이템이 없습니다</p>
+                  )}
                 </div>
               </div>
 
@@ -325,6 +419,12 @@ export default function ShopPage() {
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] window-frame px-4 py-2 font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c] flex items-center gap-1">
           <span className="material-symbols-outlined text-base text-[#0c6780]">check_circle</span>
           구매가 완료되었습니다!
+        </div>
+      )}
+      {error && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] window-frame px-4 py-2 font-[Geist,monospace] text-[12px] font-semibold text-[#ba1a1a] flex items-center gap-1">
+          <span className="material-symbols-outlined text-base">error</span>
+          {error}
         </div>
       )}
     </div>

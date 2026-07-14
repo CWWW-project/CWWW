@@ -46,3 +46,107 @@ export interface FriendResponse {
   createdAt: string
   acceptedAt: string | null
 }
+
+export interface ItemResponse {
+  itemId: number
+  category: string
+  name: string
+  description: string | null
+  price: number
+  status: string
+  salesCount: number
+  creatorId: number | null
+  assetKey: string | null
+  assetUrl: string | null
+  assetWidth: number | null
+  assetHeight: number | null
+  placementType: string | null
+}
+
+export interface InventoryItemResponse {
+  inventoryId: number
+  itemId: number
+  category: string
+  name: string
+  description: string | null
+  price: number
+  assetKey: string | null
+  assetUrl: string | null
+  assetWidth: number | null
+  assetHeight: number | null
+  placementType: string | null
+  acquiredAt: string
+}
+
+export interface PurchaseResponse {
+  purchaseId: number
+  inventoryId: number
+  remainingAcorns: number
+}
+
+export interface AvatarResponse {
+  avatarId: number
+  avatarInventoryId: number | null
+  posX: number | null
+  posY: number | null
+  scale: number | null
+  flipped: boolean | null
+}
+
+export interface RoomItemResponse {
+  roomItemId: number
+  userInventoryId: number
+  itemId: number
+  category: string
+  name: string
+  description: string | null
+  assetKey: string | null
+  assetUrl: string | null
+  assetWidth: number | null
+  assetHeight: number | null
+  placementType: string | null
+  posX: number
+  posY: number
+  rotation: number
+  flipped: boolean
+  scale: number
+  sortOrder: number
+  locked: boolean
+}
+
+export interface RoomResponse {
+  roomId: number
+  userId: number
+  backgroundInventoryId: number | null
+  backgroundAssetKey: string | null
+  backgroundAssetUrl: string | null
+  maxItemCount: number
+  layoutVersion: number
+  avatar: AvatarResponse | null
+  items: RoomItemResponse[]
+}
+
+export interface SaveRoomItemRequest {
+  userInventoryId: number
+  posX: number
+  posY: number
+  rotation?: number
+  flipped?: boolean
+  scale?: number
+  sortOrder?: number
+  locked?: boolean
+}
+
+export interface SaveRoomRequest {
+  backgroundInventoryId?: number | null
+  backgroundAssetKey?: string | null
+  backgroundAssetUrl?: string | null
+  avatar?: {
+    avatarInventoryId?: number | null
+    posX?: number | null
+    posY?: number | null
+    scale?: number | null
+    flipped?: boolean | null
+  } | null
+  items: SaveRoomItemRequest[]
+}

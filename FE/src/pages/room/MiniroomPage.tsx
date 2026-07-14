@@ -1,402 +1,505 @@
-import { useState, useRef, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { itemApi } from '../../api/item'
+import { roomApi } from '../../api/room'
+import type { InventoryItemResponse, RoomItemResponse } from '../../types'
+
+const ASSET_ROOT = '/miniroom-assets'
+const ROOM_WIDTH = 750
+const ROOM_HEIGHT = 606
+
+type Placement = 'floor' | 'wall'
+type PaletteTab = 'owned' | 'furniture' | 'wall' | 'background'
+
+interface BackgroundDef {
+  id: string
+  name: string
+  src: string
+  width: number
+  height: number
+}
+
+interface CatalogItem {
+  key: string
+  name: string
+  src: string
+  width: number
+  height: number
+  placement: Placement
+  inventoryId?: number
+  category?: string
+  sample?: boolean
+}
 
 interface PlacedItem {
-  id: number
-  name: string
-  icon: string
-  color: string
+  id: string
+  catalogKey: string
+  userInventoryId?: number
   x: number
   y: number
-  size: number
+  scale: number
+  rotation: number
   flipped: boolean
-  zIndex: number
-  visible: boolean
+  sortOrder: number
+  locked: boolean
+  sample?: boolean
 }
 
-interface InvItem {
-  name: string
-  icon: string
-  color: string
-}
-
-const INVENTORY: Record<string, InvItem[]> = {
-  가구: [
-    { name: '소파', icon: 'weekend', color: '#5d4037' },
-    { name: '책상', icon: 'table_bar', color: '#6d4c41' },
-    { name: '침대', icon: 'bed', color: '#7b3fe4' },
-    { name: '옷장', icon: 'door_sliding', color: '#455a64' },
-    { name: 'TV', icon: 'tv', color: '#212121' },
-    { name: '화분', icon: 'potted_plant', color: '#388e3c' },
-    { name: '책장', icon: 'menu_book', color: '#a33e00' },
-    { name: '의자', icon: 'chair', color: '#e91e63' },
-    { name: '컴퓨터', icon: 'computer', color: '#0c6780' },
-  ],
-  조명: [
-    { name: '무드등', icon: 'light', color: '#f59e0b' },
-    { name: '스탠드', icon: 'lamp', color: '#ff8c00' },
-    { name: '전등', icon: 'emoji_objects', color: '#ffd700' },
-  ],
-  소품: [
-    { name: '액자', icon: 'image', color: '#795548' },
-    { name: '시계', icon: 'watch', color: '#607d8b' },
-    { name: '화병', icon: 'local_florist', color: '#e91e63' },
-  ],
-  아바타: [
-    { name: '미니미', icon: 'face', color: '#a33e00' },
-    { name: '고양이', icon: 'pets', color: '#ff8f00' },
-  ],
-}
-
-const BG_OPTIONS = [
-  { gradient: 'linear-gradient(to bottom, #d6eaf8 60%, #c4a882)', title: '기본' },
-  { gradient: 'linear-gradient(to bottom, #fce4ec 60%, #f8bbd0)', title: '핑크' },
-  { gradient: 'linear-gradient(to bottom, #e8f5e9 60%, #a5d6a7)', title: '그린' },
-  { gradient: 'linear-gradient(to bottom, #fff8e1 60%, #ffecb3)', title: '옐로우' },
-  { gradient: 'linear-gradient(to bottom, #ede7f6 60%, #ce93d8)', title: '퍼플' },
-  { gradient: 'linear-gradient(to bottom, #212121 60%, #424242)', title: '다크' },
+const backgrounds: BackgroundDef[] = [
+  { id: 'pink', name: '핑크룸', src: `${ASSET_ROOT}/rooms/room-pink.svg`, width: 750, height: 606 },
+  { id: 'blue', name: '블루룸', src: `${ASSET_ROOT}/rooms/room-blue.svg`, width: 750, height: 606 },
+  { id: 'green', name: '그린룸', src: `${ASSET_ROOT}/rooms/room-green.svg`, width: 750, height: 606 },
+  { id: 'lab', name: '랩룸', src: `${ASSET_ROOT}/rooms/room-lab.svg`, width: 750, height: 606 },
+  { id: 'classic', name: '클래식', src: `${ASSET_ROOT}/backgrounds/bg_room.png`, width: 750, height: 606 },
+  { id: 'grass', name: '잔디', src: `${ASSET_ROOT}/backgrounds/bg_grass.png`, width: 750, height: 612 },
+  { id: 'space', name: '우주', src: `${ASSET_ROOT}/backgrounds/bg_universe.png`, width: 750, height: 606 },
 ]
 
-const DEFAULT_ITEMS: PlacedItem[] = [
-  { id: 1, name: '미니미', icon: 'face', color: '#a33e00', x: 45, y: 38, size: 48, flipped: false, zIndex: 1, visible: true },
-  { id: 2, name: 'TV', icon: 'tv', color: '#212121', x: 10, y: 36, size: 40, flipped: false, zIndex: 1, visible: true },
-  { id: 3, name: '소파', icon: 'weekend', color: '#5d4037', x: 60, y: 35, size: 48, flipped: false, zIndex: 1, visible: true },
-  { id: 4, name: '화분', icon: 'potted_plant', color: '#388e3c', x: 85, y: 36, size: 32, flipped: false, zIndex: 1, visible: true },
+const showcaseCatalog: CatalogItem[] = [
+  { key: 'avatar-basic', name: '미니미', src: `${ASSET_ROOT}/avatars-grafxkid/grafxkid_avatar_01.png`, width: 36, height: 56, placement: 'floor', category: 'AVATAR', sample: true },
+  { key: 'sofa-blue', name: '블루 소파', src: `${ASSET_ROOT}/items/sofa_blue.png`, width: 126, height: 126, placement: 'floor', category: 'MINIROOM', sample: true },
+  { key: 'wood-desk', name: '원목 책상', src: `${ASSET_ROOT}/kenney/isometric/desk_SE.png`, width: 85, height: 88, placement: 'floor', category: 'MINIROOM', sample: true },
+  { key: 'desk-chair', name: '책상 의자', src: `${ASSET_ROOT}/kenney/isometric/chairDesk_SE.png`, width: 57, height: 72, placement: 'floor', category: 'MINIROOM', sample: true },
+  { key: 'computer', name: '컴퓨터', src: `${ASSET_ROOT}/kenney/isometric/computerScreen_SE.png`, width: 43, height: 49, placement: 'floor', category: 'MINIROOM', sample: true },
+  { key: 'keyboard', name: '키보드', src: `${ASSET_ROOT}/kenney/isometric/computerKeyboard_SE.png`, width: 40, height: 18, placement: 'floor', category: 'MINIROOM', sample: true },
+  { key: 'bed-blue', name: '블루 침대', src: `${ASSET_ROOT}/items/bed_blue_dots.png`, width: 126, height: 126, placement: 'floor', category: 'MINIROOM', sample: true },
+  { key: 'bear', name: '곰인형', src: `${ASSET_ROOT}/kenney/isometric/bear_SW.png`, width: 52, height: 71, placement: 'floor', category: 'MINIROOM', sample: true },
+  { key: 'bookcase', name: '책장', src: `${ASSET_ROOT}/kenney/isometric/bookcaseOpen_SE.png`, width: 69, height: 113, placement: 'floor', category: 'MINIROOM', sample: true },
+  { key: 'floor-lamp', name: '스탠드', src: `${ASSET_ROOT}/items/floor_lamp_orange.png`, width: 126, height: 126, placement: 'floor', category: 'MINIROOM', sample: true },
+  { key: 'rug', name: '러그', src: `${ASSET_ROOT}/items/rug_striped.png`, width: 126, height: 126, placement: 'floor', category: 'MINIROOM', sample: true },
+  { key: 'plant', name: '화분', src: `${ASSET_ROOT}/kenney/isometric/plantSmall2_SE.png`, width: 41, height: 52, placement: 'floor', category: 'MINIROOM', sample: true },
+  { key: 'window', name: '창문', src: `${ASSET_ROOT}/kenney/isometric/wallWindow_SE.png`, width: 78, height: 90, placement: 'wall', category: 'MINIROOM', sample: true },
+  { key: 'door', name: '문', src: `${ASSET_ROOT}/kenney/isometric/doorway_SE.png`, width: 60, height: 113, placement: 'wall', category: 'MINIROOM', sample: true },
+  { key: 'wall-frame', name: '벽 액자', src: `${ASSET_ROOT}/items/wall_frame_leaf.png`, width: 126, height: 126, placement: 'wall', category: 'MINIROOM', sample: true },
+  { key: 'wall-clock', name: '벽시계', src: `${ASSET_ROOT}/items/clock_wall_simple.png`, width: 96, height: 96, placement: 'wall', category: 'MINIROOM', sample: true },
 ]
+
+const starterScene: PlacedItem[] = [
+  { id: 'scene-window', catalogKey: 'window', x: 92, y: 96, scale: 1.1, rotation: 0, flipped: false, sortOrder: 5, locked: false, sample: true },
+  { id: 'scene-frame', catalogKey: 'wall-frame', x: 376, y: 42, scale: 0.78, rotation: 0, flipped: false, sortOrder: 6, locked: false, sample: true },
+  { id: 'scene-door', catalogKey: 'door', x: 650, y: 250, scale: 1.05, rotation: 0, flipped: false, sortOrder: 7, locked: false, sample: true },
+  { id: 'scene-desk', catalogKey: 'wood-desk', x: 128, y: 338, scale: 1.25, rotation: 0, flipped: false, sortOrder: 20, locked: false, sample: true },
+  { id: 'scene-computer', catalogKey: 'computer', x: 160, y: 303, scale: 1.12, rotation: 0, flipped: false, sortOrder: 21, locked: false, sample: true },
+  { id: 'scene-keyboard', catalogKey: 'keyboard', x: 175, y: 350, scale: 1, rotation: 0, flipped: false, sortOrder: 22, locked: false, sample: true },
+  { id: 'scene-chair', catalogKey: 'desk-chair', x: 232, y: 378, scale: 1.05, rotation: 0, flipped: false, sortOrder: 24, locked: false, sample: true },
+  { id: 'scene-bookcase', catalogKey: 'bookcase', x: 354, y: 206, scale: 1.2, rotation: 0, flipped: false, sortOrder: 25, locked: false, sample: true },
+  { id: 'scene-rug', catalogKey: 'rug', x: 286, y: 424, scale: 1.28, rotation: 0, flipped: false, sortOrder: 26, locked: false, sample: true },
+  { id: 'scene-bed', catalogKey: 'bed-blue', x: 492, y: 336, scale: 1.28, rotation: 0, flipped: false, sortOrder: 30, locked: false, sample: true },
+  { id: 'scene-bear', catalogKey: 'bear', x: 640, y: 348, scale: 1.22, rotation: 0, flipped: false, sortOrder: 36, locked: false, sample: true },
+  { id: 'scene-lamp', catalogKey: 'floor-lamp', x: 475, y: 255, scale: 0.68, rotation: 0, flipped: false, sortOrder: 37, locked: false, sample: true },
+  { id: 'scene-avatar', catalogKey: 'avatar-basic', x: 318, y: 438, scale: 1.34, rotation: 0, flipped: false, sortOrder: 40, locked: false, sample: true },
+]
+
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+
+const nextId = () => `local-${Date.now()}-${Math.round(Math.random() * 100000)}`
+
+const floorLineAt = (x: number, bg: BackgroundDef) => {
+  const center = bg.width / 2
+  const edgeY = bg.height * 0.73
+  const centerY = bg.height * 0.515
+  const t = Math.min(1, Math.abs(x - center) / center)
+  return centerY + (edgeY - centerY) * t
+}
+
+const sortForRoom = (item: PlacedItem, def?: CatalogItem) => {
+  if (def?.placement === 'wall') return item.sortOrder
+  return Math.round(item.y * 10) + item.sortOrder
+}
+
+const visualForInventory = (item: InventoryItemResponse): CatalogItem => {
+  if (item.assetUrl) {
+    return {
+      key: item.assetKey ? `owned-${item.inventoryId}-${item.assetKey}` : `owned-${item.inventoryId}`,
+      name: item.name,
+      src: item.assetUrl,
+      width: item.assetWidth ?? 126,
+      height: item.assetHeight ?? 126,
+      placement: item.placementType === 'WALL' || item.placementType === 'BACKGROUND' ? 'wall' : 'floor',
+      inventoryId: item.inventoryId,
+      category: item.category,
+    }
+  }
+
+  const name = item.name.toLowerCase()
+  if (item.category === 'AVATAR' || name.includes('minime')) {
+    return { key: `owned-${item.inventoryId}`, name: item.name, src: `${ASSET_ROOT}/avatars-grafxkid/grafxkid_avatar_01.png`, width: 36, height: 56, placement: 'floor', inventoryId: item.inventoryId, category: item.category }
+  }
+  if (name.includes('sofa')) {
+    return { key: `owned-${item.inventoryId}`, name: item.name, src: `${ASSET_ROOT}/items/sofa_blue.png`, width: 126, height: 126, placement: 'floor', inventoryId: item.inventoryId, category: item.category }
+  }
+  if (name.includes('desk')) {
+    return { key: `owned-${item.inventoryId}`, name: item.name, src: `${ASSET_ROOT}/kenney/isometric/desk_SE.png`, width: 85, height: 88, placement: 'floor', inventoryId: item.inventoryId, category: item.category }
+  }
+  if (name.includes('lamp')) {
+    return { key: `owned-${item.inventoryId}`, name: item.name, src: `${ASSET_ROOT}/items/floor_lamp_orange.png`, width: 126, height: 126, placement: 'floor', inventoryId: item.inventoryId, category: item.category }
+  }
+  return { key: `owned-${item.inventoryId}`, name: item.name, src: `${ASSET_ROOT}/kenney/isometric/cardboardBoxClosed_SE.png`, width: 32, height: 39, placement: 'floor', inventoryId: item.inventoryId, category: item.category }
+}
+
+const normalizePosition = (item: RoomItemResponse) => {
+  if (item.posX <= 100 && item.posY <= 100) {
+    return {
+      x: Math.round((item.posX / 100) * ROOM_WIDTH),
+      y: Math.round((item.posY / 100) * ROOM_HEIGHT),
+    }
+  }
+  return { x: item.posX, y: item.posY }
+}
 
 export default function MiniroomPage() {
-  const [items, setItems] = useState<PlacedItem[]>(DEFAULT_ITEMS)
-  const [nextId, setNextId] = useState(10)
-  const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [invTab, setInvTab] = useState('가구')
-  const [bg, setBg] = useState(BG_OPTIONS[0].gradient)
-  const [selectedBg, setSelectedBg] = useState(0)
-  const [tool, setTool] = useState<'select' | 'move'>('select')
-  const [size, setSize] = useState(48)
-  const [toast, setToast] = useState(false)
-  const [isDragOver, setIsDragOver] = useState(false)
-  const [draggingInv, setDraggingInv] = useState<InvItem | null>(null)
-
   const canvasRef = useRef<HTMLDivElement>(null)
-  const draggingItemRef = useRef<{ id: number; startX: number; startY: number; startLeft: number; startTop: number } | null>(null)
+  const dragRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null)
+  const [backgroundId, setBackgroundId] = useState('pink')
+  const [ownedCatalog, setOwnedCatalog] = useState<CatalogItem[]>([])
+  const [items, setItems] = useState<PlacedItem[]>(starterScene)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<PaletteTab>('furniture')
+  const [savedAt, setSavedAt] = useState('아직 저장 전')
+  const [notice, setNotice] = useState<string | null>(null)
 
-  const selectedItem = items.find(i => i.id === selectedId)
+  const background = backgrounds.find(bg => bg.id === backgroundId) ?? backgrounds[0]
+  const catalog = useMemo(() => {
+    const map = new Map<string, CatalogItem>()
+    showcaseCatalog.forEach(item => map.set(item.key, item))
+    ownedCatalog.forEach(item => map.set(item.key, item))
+    return [...map.values()]
+  }, [ownedCatalog])
+  const itemMap = useMemo(() => new Map(catalog.map(item => [item.key, item])), [catalog])
+  const selected = items.find(item => item.id === selectedId) ?? null
+  const selectedDef = selected ? itemMap.get(selected.catalogKey) : null
 
-  const handleItemMouseDown = useCallback((e: React.MouseEvent, id: number) => {
-    e.stopPropagation()
-    setSelectedId(id)
-    const item = items.find(i => i.id === id)
-    if (!item || !canvasRef.current) return
-    const rect = canvasRef.current.getBoundingClientRect()
-    draggingItemRef.current = { id, startX: e.clientX, startY: e.clientY, startLeft: item.x, startTop: item.y }
+  const ownedItems = ownedCatalog.filter(item => item.category !== 'BACKGROUND')
+  const furnitureItems = showcaseCatalog.filter(item => item.placement === 'floor' && item.category !== 'AVATAR')
+  const wallItems = showcaseCatalog.filter(item => item.placement === 'wall')
 
-    const onMove = (mv: MouseEvent) => {
-      const drag = draggingItemRef.current
-      if (!drag || !canvasRef.current) return
-      const r = canvasRef.current.getBoundingClientRect()
-      const dx = ((mv.clientX - drag.startX) / r.width) * 100
-      const dy = ((mv.clientY - drag.startY) / r.height) * 100
-      setItems(prev => prev.map(i =>
-        i.id === drag.id
-          ? { ...i, x: Math.max(0, Math.min(90, drag.startLeft + dx)), y: Math.max(0, Math.min(90, drag.startTop + dy)) }
-          : i
-      ))
+  const constrainPosition = useCallback((rawX: number, rawY: number, placed: PlacedItem, def: CatalogItem) => {
+    const scaledW = def.width * placed.scale
+    const scaledH = def.height * placed.scale
+    const x = clamp(rawX, 8, background.width - scaledW - 8)
+    const centerX = x + scaledW / 2
+    const line = floorLineAt(centerX, background)
+
+    if (def.placement === 'wall') {
+      return {
+        x,
+        y: clamp(rawY, 18, Math.max(26, line - scaledH - 20)),
+      }
     }
-    const onUp = () => {
-      draggingItemRef.current = null
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+
+    return {
+      x,
+      y: clamp(rawY, line - scaledH + 8, background.height - scaledH - 8),
     }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-    // suppress unused warning
-    void rect
-  }, [items])
+  }, [background])
 
-  const placeItem = useCallback((inv: InvItem, x: number, y: number) => {
-    const id = nextId
-    setItems(prev => [...prev, { id, name: inv.name, icon: inv.icon, color: inv.color, x, y, size: 40, flipped: false, zIndex: 1, visible: true }])
+  useEffect(() => {
+    const loadRoom = async () => {
+      try {
+        const inventoryResponse = await itemApi.getInventory()
+        const nextOwned = inventoryResponse.data.data.map(visualForInventory)
+        setOwnedCatalog(nextOwned)
+
+        try {
+          const roomResponse = await roomApi.getMyRoom()
+          const ownedByInventory = new Map(nextOwned.map(item => [item.inventoryId, item]))
+          const serverItems = roomResponse.data.data.items.map(roomItem => {
+            const def = ownedByInventory.get(roomItem.userInventoryId) ?? visualForInventory({
+              inventoryId: roomItem.userInventoryId,
+              itemId: roomItem.itemId,
+              category: roomItem.category,
+              name: roomItem.name,
+              description: roomItem.description,
+              price: 0,
+              assetKey: roomItem.assetKey,
+              assetUrl: roomItem.assetUrl,
+              assetWidth: roomItem.assetWidth,
+              assetHeight: roomItem.assetHeight,
+              placementType: roomItem.placementType,
+              acquiredAt: '',
+            })
+            const position = normalizePosition(roomItem)
+            return {
+              id: `room-${roomItem.roomItemId}`,
+              catalogKey: def.key,
+              userInventoryId: roomItem.userInventoryId,
+              x: position.x,
+              y: position.y,
+              scale: Number(roomItem.scale ?? 1),
+              rotation: roomItem.rotation ?? 0,
+              flipped: roomItem.flipped ?? false,
+              sortOrder: roomItem.sortOrder ?? 1,
+              locked: roomItem.locked ?? false,
+            }
+          })
+
+          const roomBackground = backgrounds.find(bg => bg.src === roomResponse.data.data.backgroundAssetUrl || bg.id === roomResponse.data.data.backgroundAssetKey)
+          if (roomBackground) setBackgroundId(roomBackground.id)
+
+          if (serverItems.length > 0) {
+            setItems([...starterScene.filter(item => item.sample), ...serverItems])
+          }
+        } catch {
+          setItems(starterScene)
+        }
+      } catch {
+        setOwnedCatalog([])
+        setItems(starterScene)
+        setNotice('로그인 토큰이 없어서 쇼케이스 방으로 표시 중입니다.')
+      }
+    }
+
+    void loadRoom()
+  }, [])
+
+  const focusItem = (id: string) => {
     setSelectedId(id)
-    setNextId(n => n + 1)
-  }, [nextId])
+    setItems(prev => {
+      const maxOrder = prev.reduce((max, item) => Math.max(max, item.sortOrder), 0)
+      return prev.map(item => item.id === id ? { ...item, sortOrder: maxOrder + 1 } : item)
+    })
+  }
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
-    if (!draggingInv || !canvasRef.current) return
+  const updateSelected = (patch: Partial<PlacedItem>) => {
+    if (!selectedId) return
+    setItems(prev => prev.map(item => item.id === selectedId ? { ...item, ...patch } : item))
+  }
+
+  const addItem = (def: CatalogItem) => {
+    const nextOrder = items.reduce((max, item) => Math.max(max, item.sortOrder), 0) + 1
+    const draft: PlacedItem = {
+      id: nextId(),
+      catalogKey: def.key,
+      userInventoryId: def.inventoryId,
+      x: def.placement === 'wall' ? 350 : 320,
+      y: def.placement === 'wall' ? 100 : 410,
+      scale: def.width > 100 ? 0.95 : 1.15,
+      rotation: 0,
+      flipped: false,
+      sortOrder: nextOrder,
+      locked: false,
+      sample: def.sample || !def.inventoryId,
+    }
+    const next = { ...draft, ...constrainPosition(draft.x + Math.random() * 70, draft.y + Math.random() * 35, draft, def) }
+    setItems(prev => [...prev, next])
+    setSelectedId(next.id)
+  }
+
+  const startDrag = (event: React.PointerEvent, placed: PlacedItem) => {
+    if (!canvasRef.current) return
+    const def = itemMap.get(placed.catalogKey)
+    if (!def) return
     const rect = canvasRef.current.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width) * 100
-    const y = ((e.clientY - rect.top) / rect.height) * 100
-    placeItem(draggingInv, x, y)
-    setDraggingInv(null)
-  }, [draggingInv, placeItem])
+    const scaleX = background.width / rect.width
+    const scaleY = background.height / rect.height
+    focusItem(placed.id)
+    dragRef.current = {
+      id: placed.id,
+      offsetX: (event.clientX - rect.left) * scaleX - placed.x,
+      offsetY: (event.clientY - rect.top) * scaleY - placed.y,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const moveDrag = (event: React.PointerEvent) => {
+    if (!dragRef.current || !canvasRef.current) return
+    const rect = canvasRef.current.getBoundingClientRect()
+    const scaleX = background.width / rect.width
+    const scaleY = background.height / rect.height
+    const placed = items.find(item => item.id === dragRef.current?.id)
+    const def = placed ? itemMap.get(placed.catalogKey) : null
+    if (!placed || !def) return
+    const rawX = (event.clientX - rect.left) * scaleX - dragRef.current.offsetX
+    const rawY = (event.clientY - rect.top) * scaleY - dragRef.current.offsetY
+    const position = constrainPosition(rawX, rawY, placed, def)
+    setItems(prev => prev.map(item => item.id === placed.id ? { ...item, ...position } : item))
+  }
+
+  const setSelectedScale = (scale: number) => {
+    if (!selected || !selectedDef) return
+    const next = { ...selected, scale: clamp(scale, 0.35, 2.4) }
+    updateSelected({ scale: next.scale, ...constrainPosition(next.x, next.y, next, selectedDef) })
+  }
 
   const deleteSelected = () => {
-    if (!selectedId) return
-    setItems(prev => prev.filter(i => i.id !== selectedId))
+    if (!selected || selected.locked) return
+    setItems(prev => prev.filter(item => item.id !== selected.id))
     setSelectedId(null)
   }
 
-  const flipSelected = () => {
-    if (!selectedId) return
-    setItems(prev => prev.map(i => i.id === selectedId ? { ...i, flipped: !i.flipped } : i))
+  const resetScene = () => {
+    setItems(starterScene)
+    setSelectedId(null)
+    setNotice('기본 미니룸 배치로 되돌렸습니다.')
   }
 
-  const bringForward = () => {
-    if (!selectedId) return
-    setItems(prev => prev.map(i => i.id === selectedId ? { ...i, zIndex: i.zIndex + 1 } : i))
+  const saveRoom = async () => {
+    const persistentItems = items.filter(item => item.userInventoryId && !item.sample)
+    try {
+      await roomApi.saveMyRoom({
+        backgroundInventoryId: null,
+        backgroundAssetKey: background.id,
+        backgroundAssetUrl: background.src,
+        items: persistentItems.map(item => ({
+          userInventoryId: item.userInventoryId as number,
+          posX: Math.round(item.x),
+          posY: Math.round(item.y),
+          rotation: item.rotation,
+          flipped: item.flipped,
+          scale: Number(item.scale.toFixed(2)),
+          sortOrder: item.sortOrder,
+          locked: item.locked,
+        })),
+      })
+      setSavedAt(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }))
+      setNotice('보유 아이템 배치를 저장했습니다. 쇼케이스 장식은 화면 연출용입니다.')
+    } catch {
+      setNotice('저장에 실패했습니다. 로그인 토큰과 백엔드 실행 상태를 확인해주세요.')
+    }
   }
 
-  const sendBackward = () => {
-    if (!selectedId) return
-    setItems(prev => prev.map(i => i.id === selectedId ? { ...i, zIndex: Math.max(0, i.zIndex - 1) } : i))
-  }
-
-  const toggleVisibility = (id: number) => {
-    setItems(prev => prev.map(i => i.id === id ? { ...i, visible: !i.visible } : i))
-  }
-
-  const resizeSelected = (val: number) => {
-    setSize(val)
-    if (!selectedId) return
-    setItems(prev => prev.map(i => i.id === selectedId ? { ...i, size: val } : i))
-  }
-
-  const saveRoom = () => {
-    setToast(true)
-    setTimeout(() => setToast(false), 2500)
-  }
+  const renderPalette = (list: CatalogItem[]) => (
+    <div className="cy-bottom-palette-grid">
+      {list.map(item => (
+        <button key={item.key} onClick={() => addItem(item)} title={item.name}>
+          <span className="cy-palette-thumb"><img src={item.src} alt="" /></span>
+          <strong>{item.name}</strong>
+          <em>{item.inventoryId ? '보유' : '연출'}</em>
+        </button>
+      ))}
+    </div>
+  )
 
   return (
-    <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
-      <div className="max-w-[1100px] w-full mx-auto flex gap-0 relative z-10 px-2 md:px-0">
-
-        <div className="window-frame p-0 w-full flex flex-col border border-[#8e7164] relative overflow-hidden">
-
-          {/* 타이틀바 */}
-          <div className="retro-title-bar">
-            <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>house</span>
-            홍길동의 미니룸 꾸미기 편집기
-            <div className="ml-auto flex gap-2 items-center">
-              <div className="title-btn">_</div>
-              <div className="title-btn">□</div>
-              <div className="title-btn">✕</div>
-            </div>
+    <div className="cy-room-editor-shell">
+      <section className="cy-room-editor-window cy-isometric-editor">
+        <header className="cy-room-editor-header">
+          <div>
+            <p>Mini Room Editor</p>
+            <h1>내 미니룸 꾸미기</h1>
           </div>
-
-          {/* 도구 모음 */}
-          <div className="window-frame p-1 flex items-center gap-1 flex-wrap border-b border-[#8e7164]" style={{ borderRadius: 0 }}>
-            <button className={`retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1${tool === 'select' ? ' retro-btn-primary' : ''}`} onClick={() => setTool('select')}>
-              <span className="material-symbols-outlined text-sm">cursor</span> 선택
-            </button>
-            <button className={`retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1${tool === 'move' ? ' retro-btn-primary' : ''}`} onClick={() => setTool('move')}>
-              <span className="material-symbols-outlined text-sm">open_with</span> 이동
-            </button>
-            <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1" onClick={deleteSelected}>
-              <span className="material-symbols-outlined text-sm">delete</span> 삭제
-            </button>
-            <div className="w-px h-4 bg-[#e3bfb1] mx-1" />
-            <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1" onClick={flipSelected}>
-              <span className="material-symbols-outlined text-sm">flip</span> 반전
-            </button>
-            <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1" onClick={bringForward}>
-              <span className="material-symbols-outlined text-sm">flip_to_front</span> 앞으로
-            </button>
-            <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1" onClick={sendBackward}>
-              <span className="material-symbols-outlined text-sm">flip_to_back</span> 뒤로
-            </button>
-            <div className="ml-auto flex gap-2">
-              <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1">취소</button>
-              <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold px-4 py-1 flex items-center gap-1" onClick={saveRoom}>
-                <span className="material-symbols-outlined text-sm">save</span> 저장
-              </button>
-            </div>
+          <div className="cy-room-editor-actions">
+            <span>마지막 저장 {savedAt}</span>
+            <button onClick={resetScene}>기본 배치</button>
+            <button className="primary" onClick={saveRoom}>저장</button>
           </div>
+        </header>
 
-          {/* 본문 */}
-          <div className="flex flex-col md:flex-row" style={{ minHeight: 520 }}>
-
-            {/* 인벤토리 */}
-            <div className="w-full md:w-52 flex-shrink-0 flex flex-col window-frame border-r border-[#8e7164]" style={{ borderRadius: 0, borderTop: 'none' }}>
-              <div className="flex gap-1 p-1 border-b border-[#e3bfb1] flex-wrap">
-                {Object.keys(INVENTORY).map(tab => (
-                  <button key={tab} className={`inv-tab${invTab === tab ? ' active' : ''}`} onClick={() => setInvTab(tab)}>{tab}</button>
-                ))}
-              </div>
-              <div className="p-1 grid grid-cols-3 gap-1 overflow-y-auto flex-1">
-                {INVENTORY[invTab]?.map(inv => (
-                  <div
-                    key={inv.name}
-                    className="inv-item"
-                    draggable
-                    onDragStart={() => setDraggingInv(inv)}
-                    onDragEnd={() => setDraggingInv(null)}
-                    onClick={() => placeItem(inv, 40 + Math.random() * 20, 30 + Math.random() * 20)}
+        <div className="cy-room-editor-layout cy-isometric-layout">
+          <main className="cy-room-stage cy-isometric-stage">
+            <div className="cy-stage-caption">
+              <span>ROOM</span>
+              <strong>가구를 드래그해서 배치하세요</strong>
+            </div>
+            <div
+              ref={canvasRef}
+              className="cy-room-canvas cy-isometric-canvas is-editing"
+              onPointerMove={moveDrag}
+              onPointerUp={() => { dragRef.current = null }}
+              onPointerLeave={() => { dragRef.current = null }}
+              onPointerDown={(event) => {
+                if (event.target === event.currentTarget) setSelectedId(null)
+              }}
+              style={{ aspectRatio: `${background.width} / ${background.height}` }}
+            >
+              <img className="cy-room-bg" src={background.src} alt="" />
+              <div className="cy-wall-decor-grid" />
+              <div className="cy-floor-guide" />
+              {[...items].sort((a, b) => sortForRoom(a, itemMap.get(a.catalogKey)) - sortForRoom(b, itemMap.get(b.catalogKey))).map(placed => {
+                const def = itemMap.get(placed.catalogKey)
+                if (!def) return null
+                const active = selectedId === placed.id
+                return (
+                  <button
+                    key={placed.id}
+                    className={`cy-placed-item ${active ? 'selected' : ''} ${def.placement === 'wall' ? 'wall-item' : ''} ${placed.sample ? 'sample-item' : ''}`}
+                    title={def.name}
+                    onPointerDown={(event) => startDrag(event, placed)}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      focusItem(placed.id)
+                    }}
+                    style={{
+                      left: `${(placed.x / background.width) * 100}%`,
+                      top: `${(placed.y / background.height) * 100}%`,
+                      width: `${(def.width / background.width) * 100}%`,
+                      zIndex: active ? 999 : sortForRoom(placed, def),
+                      transform: `scale(${placed.scale}) rotate(${placed.rotation}deg)`,
+                    }}
                   >
-                    <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1", color: inv.color }}>{inv.icon}</span>
-                    <span style={{ fontSize: 9, fontFamily: 'Geist, monospace', textAlign: 'center' }}>{inv.name}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* 배경 선택 */}
-              <div className="border-t border-[#e3bfb1] p-1">
-                <div className="font-[Geist,monospace] text-[12px] text-[#5a4136] mb-1">배경 선택</div>
-                <div className="flex gap-1 flex-wrap">
-                  {BG_OPTIONS.map((opt, i) => (
-                    <div
-                      key={i}
-                      className={`bg-option${selectedBg === i ? ' selected-bg' : ''}`}
-                      style={{ background: opt.gradient }}
-                      title={opt.title}
-                      onClick={() => { setBg(opt.gradient); setSelectedBg(i) }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {selectedItem && (
-                <div className="border-t border-[#e3bfb1] p-1 window-inset">
-                  <div className="font-[Geist,monospace] text-[12px] text-[#5a4136] mb-1">선택된 아이템</div>
-                  <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">{selectedItem.name}</div>
-                  <div className="flex gap-1 mt-1">
-                    <button className="retro-btn font-[Geist,monospace] text-[10px] font-semibold px-1 py-1" onClick={flipSelected}>반전</button>
-                    <button className="retro-btn font-[Geist,monospace] text-[10px] font-semibold px-1 py-1" onClick={deleteSelected}>삭제</button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 캔버스 */}
-            <div className="flex-1 flex flex-col">
-              <div
-                ref={canvasRef}
-                className="flex-1 relative"
-                style={{
-                  minHeight: 480,
-                  background: bg,
-                  backgroundImage: 'linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)',
-                  backgroundSize: '40px 40px',
-                  cursor: 'crosshair',
-                  overflow: 'hidden',
-                }}
-                onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
-                onDragLeave={() => setIsDragOver(false)}
-                onDrop={handleDrop}
-                onClick={() => setSelectedId(null)}
-              >
-                <div style={{ position: 'absolute', bottom: '35%', left: 0, right: 0, height: 2, background: 'rgba(0,0,0,0.1)', pointerEvents: 'none' }} />
-                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '35%', background: 'linear-gradient(to bottom, transparent, rgba(180,140,90,0.25))', pointerEvents: 'none' }} />
-
-                {items.map(item => (
-                  item.visible && (
-                    <div
-                      key={item.id}
-                      className={`placed-item${item.id === selectedId ? ' selected-item' : ''}`}
-                      style={{ left: `${item.x}%`, top: `${item.y}%`, zIndex: item.zIndex }}
-                      onMouseDown={(e) => handleItemMouseDown(e, item.id)}
-                      onClick={(e) => { e.stopPropagation(); setSelectedId(item.id) }}
-                    >
-                      <span
-                        className="material-symbols-outlined"
-                        style={{ fontVariationSettings: "'FILL' 1", color: item.color, fontSize: item.size, transform: item.flipped ? 'scaleX(-1)' : undefined }}
-                      >{item.icon}</span>
-                      <span className="item-label">{item.name}</span>
-                    </div>
-                  )
-                ))}
-
-                {isDragOver && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ background: 'rgba(255,102,0,0.05)', border: '2px dashed #ff6600' }}>
-                    <div className="font-[Geist,monospace] text-[12px] font-semibold text-[#a33e00] bg-white px-2 py-1 window-inset">
-                      여기에 아이템을 놓으세요
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="window-inset px-2 py-1 flex items-center justify-between" style={{ borderRadius: 0 }}>
-                <div className="font-[Geist,monospace] text-[12px] text-[#5a4136] flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm">{tool === 'select' ? 'cursor' : 'open_with'}</span>
-                  {tool === 'select' ? '선택 모드' : '이동 모드'}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-[Geist,monospace] text-[12px] text-[#5a4136]">배치: <span className="text-[#a33e00] font-bold">{items.filter(i => i.visible).length}</span>개</span>
-                  <button className="retro-btn font-[Geist,monospace] text-[10px] font-semibold px-1 py-1"
-                    onClick={() => { if (confirm('모든 아이템을 제거하시겠습니까?')) { setItems([]); setSelectedId(null) } }}>
-                    전체 제거
+                    <img src={def.src} alt={def.name} style={{ transform: `scaleX(${placed.flipped ? -1 : 1})` }} />
                   </button>
-                </div>
-              </div>
+                )
+              })}
             </div>
+          </main>
 
-            {/* 레이어 패널 */}
-            <div className="w-full md:w-44 flex-shrink-0 flex flex-col window-frame border-l border-[#8e7164]" style={{ borderRadius: 0, borderTop: 'none' }}>
-              <div className="p-1 border-b border-[#e3bfb1]">
-                <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">레이어 목록</div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-1 flex flex-col gap-1">
-                {[...items].reverse().map(item => (
-                  <div
-                    key={item.id}
-                    className={`flex items-center gap-1 py-1 border-b border-[#e3bfb1] cursor-pointer${item.id === selectedId ? ' bg-[#baeaff]' : ''}`}
-                    onClick={() => setSelectedId(item.id)}
-                  >
-                    <span className="material-symbols-outlined text-sm text-[#5a4136] cursor-pointer" onClick={(e) => { e.stopPropagation(); toggleVisibility(item.id) }}>
-                      {item.visible ? 'visibility' : 'visibility_off'}
-                    </span>
-                    <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1", color: item.color }}>{item.icon}</span>
-                    <span className="font-[Geist,monospace] text-[12px] flex-1 truncate">{item.name}</span>
-                    <span className="material-symbols-outlined text-[12px] text-[#5a4136]">drag_indicator</span>
+          <aside className="cy-quick-tools">
+            {selected && selectedDef ? (
+              <div className="cy-selection-toolbar">
+                <div className="cy-selection-title">
+                  <img src={selectedDef.src} alt="" />
+                  <div>
+                    <strong>{selectedDef.name}</strong>
+                    <span>{selected.sample ? '쇼케이스 장식' : '저장 가능한 보유 아이템'}</span>
                   </div>
-                ))}
-              </div>
-
-              <div className="border-t border-[#e3bfb1] p-1">
-                <div className="font-[Geist,monospace] text-[12px] text-[#5a4136] mb-1">크기 조절</div>
-                <input type="range" min={20} max={100} value={size} onChange={(e) => resizeSelected(Number(e.target.value))} className="w-full" style={{ accentColor: '#ff6600' }} />
-                <div className="flex justify-between font-[Geist,monospace] text-[12px] text-[#5a4136] mt-1">
-                  <span>작게</span><span>크게</span>
+                </div>
+                <div className="cy-slider-row">
+                  <label>
+                    크기 <b>{Math.round(selected.scale * 100)}%</b>
+                    <input type="range" min="0.35" max="2.4" step="0.05" value={selected.scale} onChange={event => setSelectedScale(Number(event.target.value))} />
+                  </label>
+                  <label>
+                    회전 <b>{selected.rotation}도</b>
+                    <input type="range" min="-180" max="180" step="5" value={selected.rotation} onChange={event => updateSelected({ rotation: Number(event.target.value) })} />
+                  </label>
+                </div>
+                <div className="cy-toolbar-actions">
+                  <button onClick={() => updateSelected({ rotation: 0 })}>0도</button>
+                  <button onClick={() => updateSelected({ flipped: !selected.flipped })}>좌우반전</button>
+                  <button onClick={() => updateSelected({ sortOrder: selected.sortOrder + 1000 })}>앞으로</button>
+                  <button onClick={() => updateSelected({ sortOrder: selected.sortOrder - 1000 })}>뒤로</button>
+                  <button className="danger" disabled={selected.locked} onClick={deleteSelected}>삭제</button>
                 </div>
               </div>
-
-              <div className="border-t border-[#e3bfb1] p-1 flex flex-col gap-1">
-                <button className="retro-btn retro-btn-primary w-full font-[Geist,monospace] text-[12px] font-semibold py-2 flex items-center justify-center gap-1" onClick={saveRoom}>
-                  <span className="material-symbols-outlined text-sm">save</span> 저장하기
-                </button>
-                <button className="retro-btn w-full font-[Geist,monospace] text-[12px] font-semibold py-2 flex items-center justify-center gap-1">
-                  <span className="material-symbols-outlined text-sm">preview</span> 미리보기
-                </button>
+            ) : (
+              <div className="cy-empty-selection">
+                아이템을 선택하면 크기, 회전, 레이어를 조절할 수 있습니다.
               </div>
-
-              <div className="border-t border-[#e3bfb1] p-1 text-center font-[Geist,monospace] text-[10px] text-[#5a4136]">
-                담당: 정용혁 · ROOM 도메인
-              </div>
-            </div>
-          </div>
+            )}
+          </aside>
         </div>
 
-        {/* 우측 탭 */}
-        <nav className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
-          {[
-            { icon: 'home', label: '홈', active: true },
-            { icon: 'edit_note', label: '다이어리' },
-            { icon: 'photo_library', label: '사진첩' },
-            { icon: 'forum', label: '방명록' },
-            { icon: 'storefront', label: '상점' },
-          ].map(tab => (
-            <div key={tab.label}
-              className={`tab-item${tab.active ? ' tab-active' : ' bg-[#f3f3f3] text-[#5a4136] hover:bg-[#e2e2e2]'} py-2 px-1 text-center font-[Geist,monospace] text-[12px] font-semibold flex flex-col items-center gap-1`}>
-              <span className="material-symbols-outlined text-lg">{tab.icon}</span>
-              {tab.label}
-            </div>
-          ))}
-        </nav>
-      </div>
+        <section className="cy-bottom-palette">
+          <div className="cy-editor-tabs">
+            <button className={activeTab === 'owned' ? 'active' : ''} onClick={() => setActiveTab('owned')}>보유 아이템</button>
+            <button className={activeTab === 'furniture' ? 'active' : ''} onClick={() => setActiveTab('furniture')}>가구 연출</button>
+            <button className={activeTab === 'wall' ? 'active' : ''} onClick={() => setActiveTab('wall')}>벽 장식</button>
+            <button className={activeTab === 'background' ? 'active' : ''} onClick={() => setActiveTab('background')}>배경</button>
+          </div>
 
-      {toast && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] window-frame px-4 py-2 font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c] flex items-center gap-1">
-          <span className="material-symbols-outlined text-base text-[#0c6780]">check_circle</span>
-          미니룸이 저장되었습니다!
+          {activeTab === 'owned' && (
+            ownedItems.length > 0 ? renderPalette(ownedItems) : (
+              <div className="cy-empty-palette">보유 아이템을 불러오지 못했습니다. 로그인 후 다시 확인해주세요.</div>
+            )
+          )}
+          {activeTab === 'furniture' && renderPalette(furnitureItems)}
+          {activeTab === 'wall' && renderPalette(wallItems)}
+          {activeTab === 'background' && (
+            <div className="cy-background-grid cy-bottom-backgrounds">
+              {backgrounds.map(bg => (
+                <button className={backgroundId === bg.id ? 'active' : ''} key={bg.id} onClick={() => setBackgroundId(bg.id)}>
+                  <img src={bg.src} alt="" />
+                  <span>{bg.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      </section>
+
+      {notice && (
+        <div className="cy-mini-toast">
+          {notice}
         </div>
       )}
     </div>

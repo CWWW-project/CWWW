@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.cwww.item.mapper.ItemMapper">
+
+    <select id="selectItems" resultType="com.cwww.item.domain.Item">
+        SELECT
+            item_id,
+            category,
+            name,
+            description,
+            price,
+            status,
+            reject_reason,
+            sales_count,
+            creator_id,
+            asset_key,
+            asset_url,
+            asset_width,
+            asset_height,
+            placement_type,
+            created_at,
+            updated_at
+        FROM item
+        WHERE (status IS NULL OR status = 'ACTIVE')
+        <if test="category != null and category != ''">
+            AND category = #{category}
+        </if>
+        ORDER BY created_at DESC NULLS LAST, item_id DESC
+    </select>
+
+    <select id="selectItemById" resultType="com.cwww.item.domain.Item">
+        SELECT
+            item_id,
+            category,
+            name,
+            description,
+            price,
+            status,
+            reject_reason,
+            sales_count,
+            creator_id,
+            asset_key,
+            asset_url,
+            asset_width,
+            asset_height,
+            placement_type,
+            created_at,
+            updated_at
+        FROM item
+        WHERE item_id = #{itemId}
+          AND (status IS NULL OR status = 'ACTIVE')
+    </select>
+
+    <select id="selectInventoryByUserId" resultType="com.cwww.item.dto.InventoryItemResponse">
+        SELECT
+            ui.id AS inventory_id,
+            i.item_id,
+            i.category,
+            i.name,
+            i.description,
+            i.price,
+            i.asset_key,
+            i.asset_url,
+            i.asset_width,
+            i.asset_height,
+            i.placement_type,
+            ui.acquired_at
+        FROM user_inventory ui
+        JOIN item i ON i.item_id = ui.item_id
+        WHERE ui.user_id = #{userId}
+        ORDER BY ui.acquired_at DESC, ui.id DESC
+    </select>
+
+    <select id="selectAcornBalance" resultType="java.lang.Integer">
+        SELECT acorn_balance
+        FROM users
+        WHERE user_id = #{userId}
+    </select>
+
+    <update id="decreaseAcornBalance">
+        UPDATE users
+        SET acorn_balance = acorn_balance - #{price},
+            updated_at = NOW()
+        WHERE user_id = #{userId}
+          AND acorn_balance >= #{price}
+    </update>
+
+    <insert id="insertItemPurchase" parameterType="com.cwww.item.domain.ItemPurchase"
+            useGeneratedKeys="true" keyProperty="purchaseId" keyColumn="purchase_id">
+        INSERT INTO item_purchase (
+            user_id,
+            item_id,
+            payment_id,
+            acorn_price,
+            status,
+            created_at
+        )
+        VALUES (
+            #{userId},
+            #{itemId},
+            #{paymentId},
+            #{acornPrice},
+            #{status},
+            NOW()
+        )
+    </insert>
+
+    <insert id="insertUserInventory" parameterType="com.cwww.item.domain.UserInventory"
+            useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO user_inventory (
+            user_id,
+            item_id,
+            acquired_at
+        )
+        VALUES (
+            #{userId},
+            #{itemId},
+            NOW()
+        )
+    </insert>
+
+    <update id="increaseSalesCount">
+        UPDATE item
+        SET sales_count = sales_count + 1,
+            updated_at = NOW()
+        WHERE item_id = #{itemId}
+    </update>
+</mapper>
