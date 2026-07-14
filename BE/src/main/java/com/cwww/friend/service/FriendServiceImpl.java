@@ -5,17 +5,22 @@ import com.cwww.friend.dto.response.FriendResponse;
 import com.cwww.friend.mapper.FriendMapper;
 import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
+import com.cwww.user.domain.User;
+import com.cwww.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class FriendServiceImpl implements FriendService {
 
     private final FriendMapper friendMapper;
+    private final UserMapper userMapper;
 
     @Override
     @Transactional
@@ -72,9 +77,52 @@ public class FriendServiceImpl implements FriendService {
     @Override
     @Transactional(readOnly = true)
     public List<FriendResponse> getFriends(Long userId) {
-        return friendMapper.findAcceptedByUserId(userId).stream()
-                .map(FriendResponse::from)
+        List<Friend> friends = friendMapper.findAcceptedByUserId(userId);
+        if (friends.isEmpty()) return List.of();
+
+        List<Long> opponentIds = friends.stream()
+                .map(f -> f.getRequesterId().equals(userId) ? f.getReceiverId() : f.getRequesterId())
                 .toList();
+        Map<Long, String> nicknameMap = userMapper.findByIds(opponentIds).stream()
+                .collect(Collectors.toMap(User::getUserId, User::getNickname));
+
+        return friends.stream()
+                .map(f -> {
+                    Long opponentId = f.getRequesterId().equals(userId) ? f.getReceiverId() : f.getRequesterId();
+                    return FriendResponse.from(f, nicknameMap.getOrDefault(opponentId, ""));
+                })
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FriendResponse> getPendingRequests(Long userId) {
+        List<Friend> pending = friendMapper.findPendingByReceiverId(userId);
+        if (pending.isEmpty()) return List.of();
+
+        List<Long> requesterIds = pending.stream()
+                .map(Friend::getRequesterId)
+                .toList();
+        Map<Long, String> nicknameMap = userMapper.findByIds(requesterIds).stream()
+                .collect(Collectors.toMap(User::getUserId, User::getNickname));
+
+        return pending.stream()
+                .map(f -> FriendResponse.from(f, nicknameMap.getOrDefault(f.getRequesterId(), "")))
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public void setAlias(Long userId, Long friendId, String alias) {
+        Friend friend = friendMapper.findById(friendId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FRIEND_NOT_FOUND));
+        if (!"ACCEPTED".equals(friend.getStatus())) {
+            throw new BusinessException(ErrorCode.FRIEND_NOT_FOUND);
+        }
+        int updated = friendMapper.updateAlias(friendId, userId, alias);
+        if (updated == 0) {
+            throw new BusinessException(ErrorCode.FRIEND_FORBIDDEN);
+        }
     }
 
     @Override
