@@ -37,6 +37,7 @@ export default function FeedPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const searchRequestIdRef = useRef(0)
 
   const [posts, setPosts] = useState<PostResponse[]>([])
   const [cursor, setCursor] = useState<number | undefined>(undefined)
@@ -59,6 +60,7 @@ export default function FeedPage() {
   const [searchPosts, setSearchPosts] = useState<PostResponse[]>([])
   const [searchCursor, setSearchCursor] = useState<number | undefined>(undefined)
   const [searchHasNext, setSearchHasNext] = useState(false)
+  const [searchError, setSearchError] = useState(false)
 
   // 다이어리 작성 모달
   const [showModal, setShowModal] = useState(false)
@@ -100,9 +102,12 @@ export default function FeedPage() {
       liked ? next.delete(postId) : next.add(postId)
       return next
     })
-    setPosts(prev => prev.map(p =>
-      p.postId === postId ? { ...p, likeCount: liked ? p.likeCount - 1 : p.likeCount + 1 } : p
-    ))
+    const applyLikeCount = (delta: number) => {
+      const updater = (p: PostResponse) => p.postId === postId ? { ...p, likeCount: p.likeCount + delta } : p
+      setPosts(prev => prev.map(updater))
+      setSearchPosts(prev => prev.map(updater))
+    }
+    applyLikeCount(liked ? -1 : 1)
     try {
       if (liked) await postApi.unlikePost(postId)
       else await postApi.likePost(postId)
@@ -112,9 +117,7 @@ export default function FeedPage() {
         liked ? next.add(postId) : next.delete(postId)
         return next
       })
-      setPosts(prev => prev.map(p =>
-        p.postId === postId ? { ...p, likeCount: liked ? p.likeCount + 1 : p.likeCount - 1 } : p
-      ))
+      applyLikeCount(liked ? 1 : -1)
     } finally {
       setPendingLikeIds(prev => {
         const next = new Set(prev)
@@ -277,7 +280,9 @@ export default function FeedPage() {
     try {
       await commentApi.createComment(postId, { content })
       setCommentInputs(prev => ({ ...prev, [postId]: '' }))
-      setPosts(prev => prev.map(p => p.postId === postId ? { ...p, commentCount: p.commentCount + 1 } : p))
+      const incComment = (p: PostResponse) => p.postId === postId ? { ...p, commentCount: p.commentCount + 1 } : p
+      setPosts(prev => prev.map(incComment))
+      setSearchPosts(prev => prev.map(incComment))
       try {
         const res = await commentApi.getComments(postId)
         setPostComments(prev => ({ ...prev, [postId]: res.data.data }))
@@ -298,28 +303,41 @@ export default function FeedPage() {
         ...prev,
         [postId]: (prev[postId] ?? []).filter(c => c.commentId !== commentId),
       }))
-      setPosts(prev => prev.map(p => p.postId === postId ? { ...p, commentCount: Math.max(0, p.commentCount - 1) } : p))
+      const decComment = (p: PostResponse) => p.postId === postId ? { ...p, commentCount: Math.max(0, p.commentCount - 1) } : p
+      setPosts(prev => prev.map(decComment))
+      setSearchPosts(prev => prev.map(decComment))
     } catch {
       // 조용히 실패
     }
   }
 
   const loadSearch = useCallback(async (tag: string, cursorParam?: number) => {
+    const reqId = ++searchRequestIdRef.current
     setLoading(true)
+    setSearchError(false)
     try {
       const res = await postApi.searchByHashtag(tag, cursorParam)
+      if (reqId !== searchRequestIdRef.current) return
       const { posts: newPosts, nextCursor, hasNext: more } = res.data.data
       setSearchPosts(prev => cursorParam !== undefined ? [...prev, ...newPosts] : newPosts)
       setSearchCursor(nextCursor ?? undefined)
       setSearchHasNext(more)
-      const liked = new Set(newPosts.filter(p => p.isLiked).map(p => p.postId))
-      setLikedPostIds(prev => new Set([...prev, ...liked]))
-      const bookmarked = new Set(newPosts.filter(p => p.isBookmarked).map(p => p.postId))
-      setBookmarkedPostIds(prev => new Set([...prev, ...bookmarked]))
+      setLikedPostIds(prev => {
+        const next = new Set(prev)
+        newPosts.forEach(p => p.isLiked ? next.add(p.postId) : next.delete(p.postId))
+        return next
+      })
+      setBookmarkedPostIds(prev => {
+        const next = new Set(prev)
+        newPosts.forEach(p => p.isBookmarked ? next.add(p.postId) : next.delete(p.postId))
+        return next
+      })
     } catch (e) {
+      if (reqId !== searchRequestIdRef.current) return
       console.error('해시태그 검색 실패', e)
+      setSearchError(true)
     } finally {
-      setLoading(false)
+      if (reqId === searchRequestIdRef.current) setLoading(false)
     }
   }, [])
 
@@ -334,6 +352,7 @@ export default function FeedPage() {
   const clearTag = () => {
     setSelectedTag(null)
     setSearchPosts([])
+    setSearchError(false)
   }
 
   const filteredPosts = posts.filter(p => {
@@ -678,11 +697,13 @@ export default function FeedPage() {
               <div className="flex flex-col overflow-y-auto" style={{ maxHeight: 520 }}>
                 {displayPosts.length === 0 && !loading && (
                   <div className="p-8 text-center font-[Geist,monospace] text-[12px] text-[#5a4136]">
-                    {selectedTag
-                      ? `#${selectedTag} 태그가 달린 게시물이 없어요.`
-                      : filter === '북마크'
-                        ? '북마크한 게시물이 없어요.'
-                        : '아직 피드가 없어요. 일촌을 추가해보세요!'}
+                    {selectedTag && searchError
+                      ? <span className="text-[#ba1a1a]">검색에 실패했어요. <button className="underline" onClick={() => loadSearch(selectedTag)}>다시 시도</button></span>
+                      : selectedTag
+                        ? `#${selectedTag} 태그가 달린 게시물이 없어요.`
+                        : filter === '북마크'
+                          ? '북마크한 게시물이 없어요.'
+                          : '아직 피드가 없어요. 일촌을 추가해보세요!'}
                   </div>
                 )}
 
@@ -706,11 +727,12 @@ export default function FeedPage() {
                           {post.hashtags.length > 0 && (
                             <div className="flex gap-1 mt-1 flex-wrap">
                               {post.hashtags.map(tag => (
-                                <span
+                                <button
                                   key={tag}
-                                  className="font-[Geist,monospace] text-[10px] text-[#0c6780] cursor-pointer hover:underline"
+                                  type="button"
+                                  className="font-[Geist,monospace] text-[10px] text-[#0c6780] hover:underline"
                                   onClick={() => selectTag(tag)}
-                                >#{tag}</span>
+                                >#{tag}</button>
                               ))}
                             </div>
                           )}
