@@ -15,6 +15,7 @@ export interface PostResponse {
   viewCount: number
   likeCount: number
   commentCount: number
+  isLiked: boolean
   hashtags: string[]
   mediaUrls: string[]
   createdAt: string
@@ -31,6 +32,7 @@ export interface CommentResponse {
   commentId: number
   postId: number
   userId: number
+  nickname: string
   parentCommentId: number | null
   content: string
   createdAt: string
