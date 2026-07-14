@@ -51,7 +51,9 @@
                   )
               )
           )
-          AND (#{cursor} IS NULL OR p.post_id &lt; #{cursor})
+          <if test="cursor != null">
+            <![CDATA[AND p.post_id < #{cursor}]]>
+          </if>
         ORDER BY p.post_id DESC
         LIMIT #{size} + 1
     </select>
