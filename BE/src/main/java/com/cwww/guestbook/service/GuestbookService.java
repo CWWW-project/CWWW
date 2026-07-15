@@ -160,9 +160,10 @@ public class GuestbookService {
     @Transactional
     public void deleteGuestbook(Long userId, Long ownerId, Long guestbookId) {
 
-        // 미니홈피 자체가 없는 경우 (방명록이 없는 경우와 구분하기 위해)
+        // minihompyId 찾아오기
         Long minihompyId = guestbookMapper.selectMinihompyIdByOwnerId(ownerId);
 
+        // 미니홈피 자체가 없는 경우 (방명록이 없는 경우와 구분하기 위해)
         if(minihompyId == null) {
             throw new BusinessException(ErrorCode.MINIHOMPY_NOT_FOUND);
         }

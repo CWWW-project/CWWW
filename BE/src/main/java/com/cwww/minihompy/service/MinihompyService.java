@@ -86,6 +86,7 @@ public class MinihompyService {
 
 			checkAccessPermission(response.getAccessLevel(), ownerId, viewerId);
 
+			// 로그인한 유저일 경우
 			if(viewerId != null) {
 
 				try {
