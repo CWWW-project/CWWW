@@ -16,7 +16,12 @@ public class GuestbookUpdateRequest {
     @Size(max = 500)
     private String content;
 
-    @JsonProperty("isSecret") // JSON 키는 isSecret 유지, 자바 필드명은 secret (Lombok/MyBatis boolean 명명 호환용)
-    private boolean secret;
+    /*
+    * JSON 키는 isSecret 유지.
+    * 자바 필드명은 secret (Lombok/MyBatis boolean 명명 호환용)
+    * Boolean(wrapper)이라 안 보내면 null - "값 안 바꿈"으로 처리
+     */
+    @JsonProperty("isSecret")
+    private Boolean secret;
 
 }

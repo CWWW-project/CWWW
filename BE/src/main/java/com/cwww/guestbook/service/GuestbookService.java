@@ -143,7 +143,10 @@ public class GuestbookService {
             throw new BusinessException(ErrorCode.GUESTBOOK_FORBIDDEN);
         }
 
-        int updated = guestbookMapper.updateGuestbook(guestbookId, request.getContent(), request.isSecret());
+        // isSecret을 안 보냈으면(null) 기존 값 유지, 보냈으면 그 값으로 변경
+        boolean secretToSave = (request.getSecret() != null) ? request.getSecret() : guestbook.isSecret();
+
+        int updated = guestbookMapper.updateGuestbook(guestbookId, request.getContent(), secretToSave);
 
         // 수정 실패한 경우
         if(updated == 0) {
@@ -164,9 +167,14 @@ public class GuestbookService {
             throw new BusinessException(ErrorCode.MINIHOMPY_NOT_FOUND);
         }
 
-        // 방명록이 없는 경우
-        Guestbook guestbook = guestbookMapper.findById(guestbookId)
+        /*
+         * guestbookId가 실제로 이 미니홈피(minihompyId) 소속인지까지 검증
+         * (그냥 findById만 쓰면, 본인 홈피의 ownerId로 요청하면서 다른 홈피의 guestbookId를 넣어
+         * 삭제해버리는 취약점이 생김 - 반드시 minihompyId까지 같이 확인해야 함)
+         */
+        Guestbook guestbook = guestbookMapper.findByIdAndMinihompyId(guestbookId, minihompyId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.GUESTBOOK_NOT_FOUND));
+
 
         // 작성자 본인인 경우
         boolean isWriter = guestbook.getWriterId().equals(userId);

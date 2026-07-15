@@ -4,6 +4,7 @@ import com.cwww.guestbook.domain.Guestbook;
 import com.cwww.guestbook.dto.response.GuestbookResponse;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.springframework.security.core.parameters.P;
 
 import java.util.List;
 import java.util.Optional;
@@ -35,5 +36,11 @@ public interface GuestbookMapper {
 
     // 방명록 소프트 삭제 (작성자 본인, 홈피 주인 가능)
     int deleteGuestbook(@Param("guestbookId") Long guestbookId);
+
+
+    // 삭제 전용 - guestbookId가 실제로 그 minihompyId 소속인지까지 검증 (다른 홈피 방명록 삭제 방지)
+    Optional<Guestbook> findByIdAndMinihompyId(
+            @Param("guestbookId") Long guestbookId,
+            @Param("minihompyId") Long minihompyId);
 
 }

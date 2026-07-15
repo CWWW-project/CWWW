@@ -100,4 +100,22 @@
         AND deleted_at IS NULL
     </update>
 
+
+    <!-- 삭제 전용 - guestbookId가 실제로 그 minihompyId 소속인지까지 검증 -->
+    <select id="findByIdAndMinihompyId" resultMap="guestbookMap">
+        SELECT
+            guestbook_id,
+            minihompy_id,
+            writer_id,
+            content,
+            is_secret,
+            created_at,
+            updated_at,
+            deleted_at
+        FROM guestbook
+        WHERE guestbook_id = #{guestbookId}
+        AND minihompy_id = #{minihompyId}
+        AND deleted_at IS NULL
+    </select>
+
 </mapper>
