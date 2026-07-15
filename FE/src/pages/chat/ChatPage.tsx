@@ -41,7 +41,7 @@ interface ChatListUpdatePayload {
   userId: number
   chatId: number
   type: 'PRIVATE' | 'GROUP'
-  roomName: string | null
+  displayName: string | null
   lastMessage: string | null
   lastMessageCreatedAt: string | null
   unreadCount: number
@@ -266,6 +266,18 @@ export default function ChatPage() {
     }
   }
 
+  const syncDeletedMessageInState = (chatId: number, messageId: number) => {
+    setMessagesByRoom((prev) => {
+      const currentMessages = prev[chatId] ?? []
+      const nextMessages = currentMessages.filter((message) => message.id !== messageId)
+
+      return {
+        ...prev,
+        [chatId]: nextMessages,
+      }
+    })
+  }
+
   const leaveChatRoom = async (chatId: number) => {
     const response = await fetch(`/api/chat/rooms/${chatId}/leave`, {
       method: 'PATCH',
@@ -430,7 +442,7 @@ export default function ChatPage() {
             const nextRoom: ChatRoomSummary = {
               id: payload.chatId,
               type: payload.type,
-              name: payload.roomName ?? (payload.type === 'PRIVATE' ? '개인 채팅방' : '이름 없는 그룹 채팅방'),
+              name: payload.displayName ?? (payload.type === 'PRIVATE' ? '개인 채팅방' : '이름 없는 그룹 채팅방'),
               lastMsg: payload.lastMessage ?? '',
               time: payload.lastMessageCreatedAt ? formatChatTime(payload.lastMessageCreatedAt) : '',
               online: previousRoom?.online ?? false,
@@ -603,8 +615,7 @@ export default function ChatPage() {
 
     try {
       await deleteMessage(activeId, messageId)
-      await fetchMessages(selectedUserId, activeId)
-      await fetchChatRooms(selectedUserId)
+      syncDeletedMessageInState(activeId, messageId)
       await markChatRoomAsRead(selectedUserId, activeId)
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : '메시지 삭제에 실패했습니다.')

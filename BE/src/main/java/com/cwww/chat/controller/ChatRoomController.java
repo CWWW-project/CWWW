@@ -40,11 +40,12 @@ public class ChatRoomController {
                    @Valid @RequestBody CreateChatRoomRequest request) {
         CreateChatRoomResponse response = chatRoomService.createChatRoom(userId, request);
 
-        for (Long participantUserId : request.getParticipantUserIds()) {
-            ChatListUpdateResponse chatListUpdateResponse = chatRoomService.createChatListUpdateResponse(
-                    participantUserId,
-                    response.getChatId()
-            );
+        List<ChatListUpdateResponse> chatListUpdateResponses = chatRoomService.createChatListUpdateResponses(
+                request.getParticipantUserIds(),
+                response.getChatId()
+        );
+
+        for (ChatListUpdateResponse chatListUpdateResponse : chatListUpdateResponses) {
             redisPublisher.publishChatList(chatListUpdateResponse);
         }
 
@@ -81,8 +82,12 @@ public class ChatRoomController {
         redisPublisher.publishMessage(systemMessage);
 
         List<Long> activeUserIds = chatRoomService.getActiveParticipantUserIds(chatId);
-        for (Long activeUserId : activeUserIds) {
-            ChatListUpdateResponse chatListUpdateResponse = chatRoomService.createChatListUpdateResponse(activeUserId, chatId);
+        List<ChatListUpdateResponse> chatListUpdateResponses = chatRoomService.createChatListUpdateResponses(
+                activeUserIds,
+                chatId
+        );
+
+        for (ChatListUpdateResponse chatListUpdateResponse : chatListUpdateResponses) {
             redisPublisher.publishChatList(chatListUpdateResponse);
         }
 
@@ -101,8 +106,12 @@ public class ChatRoomController {
         }
 
         List<Long> activeUserIds = chatRoomService.getActiveParticipantUserIds(chatId);
-        for (Long activeUserId : activeUserIds) {
-            ChatListUpdateResponse chatListUpdateResponse = chatRoomService.createChatListUpdateResponse(activeUserId, chatId);
+        List<ChatListUpdateResponse> chatListUpdateResponses = chatRoomService.createChatListUpdateResponses(
+                activeUserIds,
+                chatId
+        );
+
+        for (ChatListUpdateResponse chatListUpdateResponse : chatListUpdateResponses) {
             redisPublisher.publishChatList(chatListUpdateResponse);
         }
 

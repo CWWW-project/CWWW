@@ -44,12 +44,18 @@ public class ChatMessageController {
 
         ChatRoom room = chatRoomMapper.findById(savedMessage.getChatId());
         List<ChatParticipant> participants = chatParticipantMapper.findByChatId(savedMessage.getChatId());
+        List<Long> participantUserIds = new java.util.ArrayList<>();
 
         for (ChatParticipant participant : participants) {
-            ChatListUpdateResponse chatListUpdate = chatRoomService.createChatListUpdateResponse(
-                    participant.getUserId(),
-                    room.getChatId()
-            );
+            participantUserIds.add(participant.getUserId());
+        }
+
+        List<ChatListUpdateResponse> chatListUpdates = chatRoomService.createChatListUpdateResponses(
+                participantUserIds,
+                room.getChatId()
+        );
+
+        for (ChatListUpdateResponse chatListUpdate : chatListUpdates) {
             redisPublisher.publishChatList(chatListUpdate);
         }
     }

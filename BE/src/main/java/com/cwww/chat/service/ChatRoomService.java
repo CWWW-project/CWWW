@@ -243,6 +243,18 @@ public class ChatRoomService {
         return userIds;
     }
 
+    @Transactional(readOnly = true)
+    public List<ChatListUpdateResponse> createChatListUpdateResponses(List<Long> userIds, Long chatId) {
+        List<ChatListUpdateResponse> responses = new ArrayList<>();
+
+        for (Long userId : userIds) {
+            ChatListUpdateResponse response = createChatListUpdateResponse(userId, chatId);
+            responses.add(response);
+        }
+
+        return responses;
+    }
+
     private void validateParticipants(CreateChatRoomRequest request) {
         List<Long> participantUserIds = request.getParticipantUserIds();
 
