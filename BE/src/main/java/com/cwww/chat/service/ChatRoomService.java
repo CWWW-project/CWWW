@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -374,7 +375,7 @@ public class ChatRoomService {
                 chatMessage.getSenderId()
         );
 
-        return ChatMessageResponse.from(chatMessage, unreadMemberCount);
+        return ChatMessageResponse.from(chatMessage, unreadMemberCount, "MESSAGE", Collections.emptyList());
     }
 
     private String resolveCreateDisplayName(Long userId,
