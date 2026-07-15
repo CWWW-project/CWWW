@@ -6,10 +6,7 @@ import com.cwww.payment.client.TossConfirmResponse;
 import com.cwww.payment.client.TossPaymentClient;
 import com.cwww.payment.domain.AcornWallet;
 import com.cwww.payment.domain.Order;
-import com.cwww.payment.dto.AcornHistoryResponse;
-import com.cwww.payment.dto.OrderCreateResponse;
-import com.cwww.payment.dto.PaymentConfirmRequest;
-import com.cwww.payment.dto.PaymentConfirmResponse;
+import com.cwww.payment.dto.*;
 import com.cwww.payment.mapper.PaymentMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -116,4 +113,12 @@ public class PaymentServiceImpl implements PaymentService {
         long offset = (long) (page - 1) * size;
         return paymentMapper.findAcornHistory(userId, size, offset);
     }
+
+    @Override
+    public AcornBalanceResponse getBalance(Long userId) {
+        AcornWallet wallet = paymentMapper.findWalletByUserId(userId);
+        int balance = (wallet == null) ? 0 : wallet.getBalance();
+        return AcornBalanceResponse.builder().balance(balance).build();
+    }
+
 }
