@@ -12,11 +12,14 @@ import com.cwww.item.domain.UserInventory;
 import com.cwww.item.dto.PurchaseResponse;
 import com.cwww.item.mapper.ItemMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -47,7 +50,11 @@ public class CartServiceImpl implements CartService {
         CartItem cartItem = new CartItem();
         cartItem.setUserId(userId);
         cartItem.setItemId(itemId);
-        cartMapper.insertCartItem(cartItem);
+        try {
+            cartMapper.insertCartItem(cartItem);
+        } catch (DuplicateKeyException e) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
+        }
         return cartMapper.selectCartItems(userId);
     }
 
@@ -78,7 +85,11 @@ public class CartServiceImpl implements CartService {
 
         int totalPrice = 0;
         List<Item> items = new ArrayList<>();
+        Set<Long> itemIds = new HashSet<>();
         for (CartItemResponse cartItem : cartItems) {
+            if (!itemIds.add(cartItem.getItemId())) {
+                throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
+            }
             Item item = getActiveItem(cartItem.getItemId());
             validatePurchasable(userId, item);
             totalPrice += item.getPrice();
@@ -135,7 +146,11 @@ public class CartServiceImpl implements CartService {
         UserInventory inventory = new UserInventory();
         inventory.setUserId(userId);
         inventory.setItemId(item.getItemId());
-        itemMapper.insertUserInventory(inventory);
+        try {
+            itemMapper.insertUserInventory(inventory);
+        } catch (DuplicateKeyException e) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
+        }
 
         itemMapper.increaseSalesCount(item.getItemId());
 

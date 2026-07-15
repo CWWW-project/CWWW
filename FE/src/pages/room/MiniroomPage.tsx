@@ -4,8 +4,6 @@ import { roomApi } from '../../api/room'
 import type { InventoryItemResponse, RoomItemResponse } from '../../types'
 
 const ASSET_ROOT = '/miniroom-assets'
-const ROOM_WIDTH = 750
-const ROOM_HEIGHT = 606
 
 type Placement = 'floor' | 'wall'
 type PaletteTab = 'owned' | 'furniture' | 'wall' | 'background'
@@ -137,12 +135,6 @@ const visualForInventory = (item: InventoryItemResponse): CatalogItem => {
 }
 
 const normalizePosition = (item: RoomItemResponse) => {
-  if (item.posX <= 100 && item.posY <= 100) {
-    return {
-      x: Math.round((item.posX / 100) * ROOM_WIDTH),
-      y: Math.round((item.posY / 100) * ROOM_HEIGHT),
-    }
-  }
   return { x: item.posX, y: item.posY }
 }
 
@@ -168,7 +160,7 @@ export default function MiniroomPage() {
   const selected = items.find(item => item.id === selectedId) ?? null
   const selectedDef = selected ? itemMap.get(selected.catalogKey) : null
 
-  const ownedItems = ownedCatalog.filter(item => item.category !== 'BACKGROUND')
+  const ownedItems = ownedCatalog.filter(item => item.category !== 'BACKGROUND' && item.category !== 'MINIROOM_BACKGROUND')
   const furnitureItems = showcaseCatalog.filter(item => item.placement === 'floor' && item.category !== 'AVATAR')
   const wallItems = showcaseCatalog.filter(item => item.placement === 'wall')
 
@@ -255,12 +247,12 @@ export default function MiniroomPage() {
     setSelectedId(id)
     setItems(prev => {
       const maxOrder = prev.reduce((max, item) => Math.max(max, item.sortOrder), 0)
-      return prev.map(item => item.id === id ? { ...item, sortOrder: maxOrder + 1 } : item)
+      return prev.map(item => item.id === id && !item.locked ? { ...item, sortOrder: maxOrder + 1 } : item)
     })
   }
 
   const updateSelected = (patch: Partial<PlacedItem>) => {
-    if (!selectedId) return
+    if (!selectedId || selected?.locked) return
     setItems(prev => prev.map(item => item.id === selectedId ? { ...item, ...patch } : item))
   }
 
@@ -287,7 +279,7 @@ export default function MiniroomPage() {
   const startDrag = (event: React.PointerEvent, placed: PlacedItem) => {
     if (!canvasRef.current) return
     const def = itemMap.get(placed.catalogKey)
-    if (!def) return
+    if (!def || placed.locked) return
     const rect = canvasRef.current.getBoundingClientRect()
     const scaleX = background.width / rect.width
     const scaleY = background.height / rect.height

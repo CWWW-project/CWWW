@@ -3,8 +3,8 @@ package com.cwww.item.controller;
 import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
 import com.cwww.global.response.ApiResponse;
-import com.cwww.item.domain.Item;
 import com.cwww.item.dto.InventoryItemResponse;
+import com.cwww.item.dto.ItemResponse;
 import com.cwww.item.dto.PurchaseResponse;
 import com.cwww.item.service.ItemService;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,7 @@ public class ItemController {
     private final ItemService itemService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Item>>> getItems(
+    public ResponseEntity<ApiResponse<List<ItemResponse>>> getItems(
             @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -37,7 +37,7 @@ public class ItemController {
     }
 
     @GetMapping("/{itemId}")
-    public ResponseEntity<ApiResponse<Item>> getItem(@PathVariable Long itemId) {
+    public ResponseEntity<ApiResponse<ItemResponse>> getItem(@PathVariable Long itemId) {
         return ResponseEntity.ok(ApiResponse.success(itemService.findById(itemId)));
     }
 

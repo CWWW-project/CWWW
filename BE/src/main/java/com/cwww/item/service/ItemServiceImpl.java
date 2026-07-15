@@ -6,13 +6,16 @@ import com.cwww.item.domain.Item;
 import com.cwww.item.domain.ItemPurchase;
 import com.cwww.item.domain.UserInventory;
 import com.cwww.item.dto.InventoryItemResponse;
+import com.cwww.item.dto.ItemResponse;
 import com.cwww.item.dto.PurchaseResponse;
 import com.cwww.item.mapper.ItemMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,20 +27,28 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Item> getItems() {
-        return itemMapper.findAll();
+    public List<ItemResponse> getItems() {
+        return itemMapper.findAll().stream()
+                .map(ItemResponse::from)
+                .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<Item> find(String category, int page, int size) {
+    public List<ItemResponse> find(String category, int page, int size) {
         long offset = (long) (page - 1) * size;
-        return itemMapper.find(normalizeCategory(category), size, offset);
+        return itemMapper.find(normalizeCategory(category), size, offset).stream()
+                .map(ItemResponse::from)
+                .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Item findById(Long itemId) {
+    public ItemResponse findById(Long itemId) {
+        return ItemResponse.from(getItemOrThrow(itemId));
+    }
+
+    private Item getItemOrThrow(Long itemId) {
         Item item = itemMapper.findById(itemId);
         if (item == null) {
             throw new BusinessException(ErrorCode.ITEM_NOT_FOUND);
@@ -56,7 +67,7 @@ public class ItemServiceImpl implements ItemService {
     @Transactional
     public PurchaseResponse purchaseItem(Long userId, Long itemId) {
         validateUserId(userId);
-        Item item = findById(itemId);
+        Item item = getItemOrThrow(itemId);
         validatePurchasable(userId, item);
 
         int updatedRows = itemMapper.decreaseAcornBalance(userId, item.getPrice());
@@ -74,7 +85,11 @@ public class ItemServiceImpl implements ItemService {
         UserInventory inventory = new UserInventory();
         inventory.setUserId(userId);
         inventory.setItemId(item.getItemId());
-        itemMapper.insertUserInventory(inventory);
+        try {
+            itemMapper.insertUserInventory(inventory);
+        } catch (DuplicateKeyException e) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
+        }
 
         itemMapper.increaseSalesCount(item.getItemId());
 

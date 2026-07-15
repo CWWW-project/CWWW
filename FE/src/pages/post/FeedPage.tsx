@@ -42,6 +42,8 @@ function MiniroomFeedPreview({ room, nickname }: { room: RoomResponse | null; ni
   const backgroundUrl = room?.backgroundAssetUrl ?? `${MINIROOM_ASSET_ROOT}/rooms/room-pink.svg`
   const savedItems = [...(room?.items ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)
   const hasSavedItems = savedItems.length > 0
+  const avatar = room?.avatar
+  const hasRoomContent = hasSavedItems || Boolean(avatar?.avatarInventoryId)
   const shouldShowFallbackItems = room == null
 
   return (
@@ -53,39 +55,63 @@ function MiniroomFeedPreview({ room, nickname }: { room: RoomResponse | null; ni
         style={{ imageRendering: 'auto' }}
       />
 
-      {hasSavedItems ? (
-        savedItems.map(item => (
-          <div
-            key={item.roomItemId}
-            className="absolute"
-            title={item.name}
-            style={{
-              left: `${(item.posX / MINIROOM_WIDTH) * 100}%`,
-              top: `${(item.posY / MINIROOM_HEIGHT) * 100}%`,
-              width: `${((item.assetWidth ?? 80) / MINIROOM_WIDTH) * 100}%`,
-              zIndex: item.sortOrder,
-              transform: `scale(${item.scale ?? 1}) rotate(${item.rotation ?? 0}deg)`,
-              transformOrigin: 'center bottom',
-              filter: 'drop-shadow(2px 5px 2px rgba(44, 58, 65, 0.16))',
-            }}
-          >
-            {item.assetUrl ? (
+      {hasRoomContent ? (
+        <>
+          {savedItems.map(item => (
+            <div
+              key={item.roomItemId}
+              className="absolute"
+              title={item.name}
+              style={{
+                left: `${(item.posX / MINIROOM_WIDTH) * 100}%`,
+                top: `${(item.posY / MINIROOM_HEIGHT) * 100}%`,
+                width: `${((item.assetWidth ?? 80) / MINIROOM_WIDTH) * 100}%`,
+                zIndex: item.sortOrder,
+                transform: `scale(${item.scale ?? 1}) rotate(${item.rotation ?? 0}deg)`,
+                transformOrigin: 'center bottom',
+                filter: 'drop-shadow(2px 5px 2px rgba(44, 58, 65, 0.16))',
+              }}
+            >
+              {item.assetUrl ? (
+                <img
+                  src={item.assetUrl}
+                  alt=""
+                  className="block w-full"
+                  style={{
+                    imageRendering: 'pixelated',
+                    transform: `scaleX(${item.flipped ? -1 : 1})`,
+                  }}
+                />
+              ) : (
+                <span className="material-symbols-outlined text-[#a33e00]" style={{ fontSize: 42, fontVariationSettings: "'FILL' 1" }}>
+                  {item.category === 'AVATAR' ? 'face' : 'inventory_2'}
+                </span>
+              )}
+            </div>
+          ))}
+          {avatar?.avatarInventoryId ? (
+            <div
+              className="absolute flex flex-col items-center"
+              style={{
+                left: `${((avatar.posX ?? 318) / MINIROOM_WIDTH) * 100}%`,
+                top: `${((avatar.posY ?? 438) / MINIROOM_HEIGHT) * 100}%`,
+                zIndex: 10000,
+                transform: `scale(${avatar.scale ?? 1})`,
+                transformOrigin: 'center bottom',
+              }}
+            >
               <img
-                src={item.assetUrl}
+                src={`${MINIROOM_ASSET_ROOT}/avatars-grafxkid/grafxkid_avatar_01.png`}
                 alt=""
-                className="block w-full"
                 style={{
+                  width: 36,
                   imageRendering: 'pixelated',
-                  transform: `scaleX(${item.flipped ? -1 : 1})`,
+                  transform: `scaleX(${avatar.flipped ? -1 : 1})`,
                 }}
               />
-            ) : (
-              <span className="material-symbols-outlined text-[#a33e00]" style={{ fontSize: 42, fontVariationSettings: "'FILL' 1" }}>
-                {item.category === 'AVATAR' ? 'face' : 'inventory_2'}
-              </span>
-            )}
-          </div>
-        ))
+            </div>
+          ) : null}
+        </>
       ) : shouldShowFallbackItems ? (
         <>
           <div className="absolute" style={{ left: '50%', top: '52%', transform: 'translate(-50%, -50%)' }}>
@@ -187,10 +213,19 @@ export default function FeedPage() {
       return
     }
 
+    let ignore = false
     roomApi.getMyRoom()
-      .then(response => setRoomPreview(response.data.data))
-      .catch(() => setRoomPreview(null))
-  }, [])
+      .then(response => {
+        if (!ignore) setRoomPreview(response.data.data)
+      })
+      .catch(() => {
+        if (!ignore) setRoomPreview(null)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [user?.id])
 
   const toggleLike = async (postId: number) => {
     if (pendingLikeIds.has(postId)) return

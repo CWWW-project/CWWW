@@ -39,7 +39,7 @@ class ItemServiceTest {
         given(itemMapper.find("MINIROOM", 100, 0)).willReturn(List.of(item));
 
         // Act
-        List<ItemResponse> response = itemService.getItems("MINIROOM", 1, 100);
+        List<ItemResponse> response = itemService.find("MINIROOM", 1, 100);
 
         // Assert
         assertThat(response).hasSize(1);
