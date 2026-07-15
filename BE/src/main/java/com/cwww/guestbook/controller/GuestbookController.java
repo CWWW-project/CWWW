@@ -2,6 +2,7 @@ package com.cwww.guestbook.controller;
 
 import com.cwww.global.response.ApiResponse;
 import com.cwww.guestbook.dto.request.GuestbookCreateRequest;
+import com.cwww.guestbook.dto.request.GuestbookUpdateRequest;
 import com.cwww.guestbook.dto.response.GuestbookFeedResponse;
 import com.cwww.guestbook.service.GuestbookService;
 import jakarta.validation.Valid;
@@ -44,6 +45,33 @@ public class GuestbookController {
 
         GuestbookFeedResponse response = guestbookService.getGuestbooks(ownerId, viewerId, cursor, size);
         return ApiResponse.success(response);
+
+    }
+
+
+    // 방명록 수정 (작성자 본인만 가능)
+    @PatchMapping("/{guestbookId}")
+    public ApiResponse<Void> updateGuestbook(
+            @PathVariable Long guestbookId,
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody GuestbookUpdateRequest request
+    ) {
+
+        guestbookService.updateGuestbook(userId, guestbookId, request);
+        return ApiResponse.success(null);
+
+    }
+
+
+    @DeleteMapping("/{ownerId}/{guestbookId}")
+    public ApiResponse<Void> deleteGuestbook(
+            @PathVariable Long ownerId,
+            @PathVariable Long guestbookId,
+            @AuthenticationPrincipal Long userId
+    ) {
+
+        guestbookService.deleteGuestbook(userId, ownerId, guestbookId);
+        return ApiResponse.success(null);
 
     }
 

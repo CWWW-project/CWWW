@@ -80,4 +80,24 @@
         LIMIT #{size}
     </select>
 
+
+    <!-- 방명록 수정 (content, is_secret 둘 다 변경), 소프트 삭제된 건 대상 아님 -->
+    <update id="updateGuestbook">
+        UPDATE guestbook
+        SET content = #{content},
+            is_secret = #{secret},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE guestbook_id = #{guestbookId}
+        AND deleted_at IS NULL
+    </update>
+
+
+    <!-- 방명록 소프트 삭제 -->
+    <update id="deleteGuestbook">
+        UPDATE guestbook
+        SET deleted_at = CURRENT_TIMESTAMP
+        WHERE guestbook_id = #{guestbookId}
+        AND deleted_at IS NULL
+    </update>
+
 </mapper>

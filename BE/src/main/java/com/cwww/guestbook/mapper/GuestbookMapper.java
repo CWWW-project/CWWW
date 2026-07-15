@@ -26,4 +26,14 @@ public interface GuestbookMapper {
             @Param("cursor") Long cursor,
             @Param("size") int size);
 
+    // 수정 (content, isSecret 둘 다 변경)
+    int updateGuestbook(
+            @Param("guestbookId") Long guestbookId,
+            @Param("content") String content,
+            @Param("secret") boolean secret);
+
+
+    // 방명록 소프트 삭제 (작성자 본인, 홈피 주인 가능)
+    int deleteGuestbook(@Param("guestbookId") Long guestbookId);
+
 }

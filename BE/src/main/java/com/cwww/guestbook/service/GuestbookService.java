@@ -4,6 +4,7 @@ import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
 import com.cwww.guestbook.domain.Guestbook;
 import com.cwww.guestbook.dto.request.GuestbookCreateRequest;
+import com.cwww.guestbook.dto.request.GuestbookUpdateRequest;
 import com.cwww.guestbook.dto.response.GuestbookFeedResponse;
 import com.cwww.guestbook.dto.response.GuestbookResponse;
 import com.cwww.guestbook.mapper.GuestbookMapper;
@@ -125,6 +126,64 @@ public class GuestbookService {
                 .canEdit(canEdit)
                 .canDelete(canDelete)
                 .build();
+
+    }
+
+
+    // 방명록 수정 (작성자 본인만 가능)
+    @Transactional
+    public void updateGuestbook(Long userId, Long guestbookId, GuestbookUpdateRequest request) {
+
+        // 방명록 존재 확인
+        Guestbook guestbook = guestbookMapper.findById(guestbookId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.GUESTBOOK_NOT_FOUND)); // 방명록 못 찾은 경우
+
+        // 작성자 본인이 아닐 경우
+        if(!guestbook.getWriterId().equals(userId)) {
+            throw new BusinessException(ErrorCode.GUESTBOOK_FORBIDDEN);
+        }
+
+        int updated = guestbookMapper.updateGuestbook(guestbookId, request.getContent(), request.isSecret());
+
+        // 수정 실패한 경우
+        if(updated == 0) {
+            throw new BusinessException(ErrorCode.GUESTBOOK_NOT_FOUND);
+        }
+
+    }
+
+
+    // 방명록 소프트 삭제 (작성자 본인, 홈피 주인 가능)
+    @Transactional
+    public void deleteGuestbook(Long userId, Long ownerId, Long guestbookId) {
+
+        // 미니홈피 자체가 없는 경우 (방명록이 없는 경우와 구분하기 위해)
+        Long minihompyId = guestbookMapper.selectMinihompyIdByOwnerId(ownerId);
+
+        if(minihompyId == null) {
+            throw new BusinessException(ErrorCode.MINIHOMPY_NOT_FOUND);
+        }
+
+        // 방명록이 없는 경우
+        Guestbook guestbook = guestbookMapper.findById(guestbookId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.GUESTBOOK_NOT_FOUND));
+
+        // 작성자 본인인 경우
+        boolean isWriter = guestbook.getWriterId().equals(userId);
+        // 홈피 주인인 경우
+        boolean isHompiOwner = ownerId.equals(userId);
+
+        // 작성자 본인도 아니고 홈피 주인도 아닌 경우
+        if(!isWriter && !isHompiOwner) {
+            throw new BusinessException(ErrorCode.GUESTBOOK_FORBIDDEN);
+        }
+
+        int deleted = guestbookMapper.deleteGuestbook(guestbookId);
+
+        // 삭제 실패한 경우
+        if(deleted == 0) {
+            throw new BusinessException(ErrorCode.GUESTBOOK_NOT_FOUND);
+        }
 
     }
 
