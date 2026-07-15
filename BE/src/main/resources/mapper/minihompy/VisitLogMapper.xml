@@ -6,7 +6,7 @@
 <mapper namespace="com.cwww.minihompy.mapper.VisitLogMapper">
 
     <resultMap id="visitorLogMap" type="com.cwww.minihompy.dto.response.VisitorLogResponse">
-        <result property="nickname"  column="nickname"/>
+        <result property="nickname" column="nickname"/>
         <result property="visitedAt" column="visited_at"/>
     </resultMap>
 
