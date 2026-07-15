@@ -1,3 +1,4 @@
+// PR 테스트용 주석
 package com.cwww.friend.service;
 
 import com.cwww.friend.domain.Friend;
