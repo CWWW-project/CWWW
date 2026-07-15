@@ -36,7 +36,7 @@ public class BgmSyncService {
     @Value("${jamendo.api-url}")
     private String jamendoApiUrl;
 
-    private static final int DEFAULT_PRICE = 100; // 도토리 가격, 실제 정책 확인 필요
+    private static final int DEFAULT_PRICE = 200; // 도토리 가격, 실제 정책 확인 필요
 
     private final RestClient restClient = RestClient.create();
 
@@ -88,7 +88,7 @@ public class BgmSyncService {
     private List<JamendoTrack> searchJamendoTracks(int limit) {
 
         JamendoResponse response = restClient.get()
-                .uri(jamendoApiUrl + "?client_id={clientId}&format=json&limit={limit}&ccnc=false&include=licenses&audioformat=mp32",
+                .uri(jamendoApiUrl + "?client_id={clientId}&format=json&limit={limit}&ccnc=false&include=licenses+musicinfo&audioformat=mp32",
                         jamendoClientId, limit)
                 .retrieve()
                 .body(JamendoResponse.class);
@@ -115,9 +115,12 @@ public class BgmSyncService {
 
         }
 
+        // 아이템 소개
+        String description = buildDescription(track);
+
         // 1. item 테이블에 등록
         BgmItemMapper.BgmItemInsertParam itemParam =
-                new BgmItemMapper.BgmItemInsertParam(itemName, "Jamendo 무료 BGM", DEFAULT_PRICE);
+                new BgmItemMapper.BgmItemInsertParam(itemName, description, DEFAULT_PRICE);
 
         bgmItemMapper.insertBgmItem(itemParam);
         Long itemId = itemParam.getItemId();
@@ -134,6 +137,17 @@ public class BgmSyncService {
         log.info("BGM 등록 완료: itemId={}, name={}", itemId, itemName);
 
         return true;
+
+    }
+
+
+    // 재생시간 + 태그(장르/무드)를 조합해서 description 문자열 생성
+    private String buildDescription(JamendoTrack track) {
+
+        String tags = track.tagsAsString();
+        String base = "재생시간 : " + track.formattedDuration();
+
+        return tags.isEmpty() ? base : base + " · " + tags;
 
     }
 
