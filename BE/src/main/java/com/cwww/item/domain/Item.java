@@ -1,10 +1,12 @@
 package com.cwww.item.domain;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Getter
+@Setter
 public class Item {
 
     private Long itemId;
@@ -16,6 +18,11 @@ public class Item {
     private String rejectReason;
     private Integer salesCount;
     private Long creatorId;
+    private String assetKey;
+    private String assetUrl;
+    private Integer assetWidth;
+    private Integer assetHeight;
+    private String placementType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
