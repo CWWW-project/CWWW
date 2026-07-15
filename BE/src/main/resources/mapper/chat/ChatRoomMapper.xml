@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.cwww.chat.mapper.ChatRoomMapper">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="chatId">
+        INSERT INTO chat_room (type, name, created_at, updated_at)
+        VALUES (#{type}, #{name}, NOW(), NOW())
+    </insert>
+
+    <select id="findById" resultType="com.cwww.chat.domain.ChatRoom">
+        SELECT chat_id, type, name, last_message_id, created_at, updated_at
+        FROM chat_room
+        WHERE chat_id = #{chatId}
+    </select>
+
+    <update id="updateLastMessage">
+        UPDATE chat_room
+        SET last_message_id = #{lastMessageId},
+            updated_at = NOW()
+        WHERE chat_id = #{chatId}
+    </update>
+
+    <update id="updateLastMessageForDelete">
+        UPDATE chat_room
+        SET last_message_id = #{lastMessageId}
+        WHERE chat_id = #{chatId}
+    </update>
+
+    <select id="findAllOrderByUpdatedAtDesc"
+            resultType="com.cwww.chat.domain.ChatRoom">
+        SELECT chat_id, type, name, last_message_id, created_at, updated_at
+        FROM chat_room
+        ORDER BY updated_at DESC
+    </select>
+</mapper>

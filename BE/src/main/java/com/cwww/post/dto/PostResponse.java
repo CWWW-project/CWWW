@@ -22,12 +22,13 @@ public class PostResponse {
     private int likeCount;
     private int commentCount;
     private boolean isLiked;
+    private boolean isBookmarked;
     private List<String> hashtags;
     private List<String> mediaUrls;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public static PostResponse from(Post post, String nickname, boolean isLiked, List<String> hashtags, List<String> mediaUrls) {
+    public static PostResponse from(Post post, String nickname, boolean isLiked, boolean isBookmarked, List<String> hashtags, List<String> mediaUrls) {
         return PostResponse.builder()
                 .postId(post.getPostId())
                 .userId(post.getUserId())
@@ -40,6 +41,7 @@ public class PostResponse {
                 .likeCount(post.getLikeCount())
                 .commentCount(post.getCommentCount())
                 .isLiked(isLiked)
+                .isBookmarked(isBookmarked)
                 .hashtags(hashtags)
                 .mediaUrls(mediaUrls)
                 .createdAt(post.getCreatedAt())

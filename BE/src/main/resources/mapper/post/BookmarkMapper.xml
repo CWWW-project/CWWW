@@ -15,6 +15,15 @@
         WHERE post_id = #{postId} AND user_id = #{userId}
     </delete>
 
+    <select id="findBookmarkedPostIds" resultType="java.lang.Long">
+        SELECT post_id FROM post_bookmark
+        WHERE user_id = #{userId}
+          AND post_id IN
+          <foreach item="id" collection="postIds" open="(" separator="," close=")">
+              #{id}
+          </foreach>
+    </select>
+
     <select id="findBookmarkedPosts" resultType="com.cwww.post.domain.Post">
         SELECT p.post_id, p.user_id, p.minihompy_id, p.title, p.content,
                p.visibility, p.view_count, p.like_count, p.comment_count,

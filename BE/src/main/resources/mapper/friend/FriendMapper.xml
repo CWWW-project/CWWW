@@ -60,4 +60,22 @@
           AND status = 'ACCEPTED'
     </update>
 
+    <select id="findPendingByReceiverId" resultType="com.cwww.friend.domain.Friend">
+        SELECT friend_id, requester_id, receiver_id, status,
+               requester_alias, receiver_alias, created_at, accepted_at, terminated_at
+        FROM friend
+        WHERE status = 'PENDING'
+          AND receiver_id = #{receiverId}
+        ORDER BY created_at DESC
+    </select>
+
+    <update id="updateAlias">
+        UPDATE friend
+        SET requester_alias = CASE WHEN requester_id = #{requesterId} THEN #{alias} ELSE requester_alias END,
+            receiver_alias  = CASE WHEN receiver_id  = #{requesterId} THEN #{alias} ELSE receiver_alias  END
+        WHERE friend_id = #{friendId}
+          AND (requester_id = #{requesterId} OR receiver_id = #{requesterId})
+          AND status = 'ACCEPTED'
+    </update>
+
 </mapper>

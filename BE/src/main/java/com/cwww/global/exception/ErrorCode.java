@@ -29,6 +29,10 @@ public enum ErrorCode {
     FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "M002", "파일 크기가 10MB를 초과합니다."),
     FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "M003", "파일 업로드에 실패했습니다."),
 
+    // Redis
+    REDIS_PUBLISH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "R001", "Redis 메시지 발행에 실패했습니다."),
+    REDIS_SUBSCRIBE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "R002", "Redis 메시지 처리에 실패했습니다."),
+
     // Post
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "게시글을 찾을 수 없습니다."),
     POST_FORBIDDEN(HttpStatus.FORBIDDEN, "P002", "게시글에 대한 권한이 없습니다."),
@@ -48,6 +52,15 @@ public enum ErrorCode {
     FRIEND_NOT_FOUND(HttpStatus.NOT_FOUND, "F003", "일촌 관계를 찾을 수 없습니다."),
     FRIEND_FORBIDDEN(HttpStatus.FORBIDDEN, "F004", "일촌 요청에 대한 권한이 없습니다."),
 
+    // Minihompy
+    MINIHOMPY_NOT_FOUND(HttpStatus.NOT_FOUND, "H001", "미니홈피를 찾을 수 없습니다."),
+    MINIHOMPY_FORBIDDEN(HttpStatus.FORBIDDEN, "H002", "미니홈피에 대한 접근 권한이 없습니다."),
+    PROFILE_IMAGE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "H003", "파일 크기가 5MB를 초과합니다."),
+
+    // Guestbook
+    GUESTBOOK_NOT_FOUND(HttpStatus.NOT_FOUND, "H004", "방명록을 찾을 수 없습니다."),
+    GUESTBOOK_FORBIDDEN(HttpStatus.FORBIDDEN, "H005", "방명록에 대한 권한이 없습니다."),
+
     // Item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "I001", "아이템을 찾을 수 없습니다."),
 
@@ -56,6 +69,7 @@ public enum ErrorCode {
     AMOUNT_MISMATCH(HttpStatus.BAD_REQUEST, "PAY002", "결제 금액이 주문 금액과 일치하지 않습니다."),
     ALREADY_PROCESSED_ORDER(HttpStatus.CONFLICT, "PAY003", "이미 처리된 주문입니다."),
     PAYMENT_CONFIRM_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "PAY004", "결제 승인에 실패했습니다.");
+
 
     private final HttpStatus httpStatus;
     private final String code;

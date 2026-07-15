@@ -7,6 +7,7 @@ import ChatPage from './pages/chat/ChatPage'
 import ShopPage from './pages/pay/ShopPage'
 import MiniroomPage from './pages/room/MiniroomPage'
 import MinihompyPage from './pages/home/MinihompyPage'
+import FriendsPage from './pages/friend/FriendsPage'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
 
         {/* POST - 송경용 */}
         <Route path="/" element={<FeedPage />} />
+        <Route path="/friends" element={<FriendsPage />} />
 
         {/* HOME - 김채린 */}
         <Route path="/home/:userId" element={<MinihompyPage />} />

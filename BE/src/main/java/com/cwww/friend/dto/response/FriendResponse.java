@@ -16,10 +16,11 @@ public class FriendResponse {
     private String status;
     private String requesterAlias;
     private String receiverAlias;
+    private String opponentNickname;
     private LocalDateTime createdAt;
     private LocalDateTime acceptedAt;
 
-    public static FriendResponse from(Friend friend) {
+    public static FriendResponse from(Friend friend, String opponentNickname) {
         return FriendResponse.builder()
                 .friendId(friend.getFriendId())
                 .requesterId(friend.getRequesterId())
@@ -27,6 +28,7 @@ public class FriendResponse {
                 .status(friend.getStatus())
                 .requesterAlias(friend.getRequesterAlias())
                 .receiverAlias(friend.getReceiverAlias())
+                .opponentNickname(opponentNickname)
                 .createdAt(friend.getCreatedAt())
                 .acceptedAt(friend.getAcceptedAt())
                 .build();

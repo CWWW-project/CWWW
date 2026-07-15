@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.cwww.minihompy.mapper.VisitLogMapper">
+
+    <resultMap id="visitorLogMap" type="com.cwww.minihompy.dto.response.VisitorLogResponse">
+        <result property="nickname" column="nickname"/>
+        <result property="visitedAt" column="visited_at"/>
+    </resultMap>
+
+
+    <!-- ownerId(=user_id) 기준 minihompyId 조회 -->
+    <select id="selectMinihompyIdByOwnerId" resultType="Long">
+        SELECT minihompy_id
+        FROM minihompy
+        WHERE user_id = #{ownerId}
+    </select>
+
+
+    <!--
+        VisitLog domain 객체를 그대로 insert
+        같은 유저가 같은 날 이미 방문 기록이 있으면 ON CONFLICT로 조용히 무시 (uq_visit_log_daily 인덱스 활용)
+    -->
+    <insert id="insertVisit" parameterType="com.cwww.minihompy.domain.VisitLog">
+        INSERT INTO visit_log (visitor_id, minihompy_id, visited_at)
+        VALUES (#{visitorId}, #{minihompyId}, #{visitedAt})
+        ON CONFLICT (minihompy_id, visitor_id, (visited_at::date)) WHERE visitor_id IS NOT NULL
+        DO NOTHING
+    </insert>
+
+
+    <!--
+        오늘(CURRENT_DATE) 하루 동안의 방문자 수 카운트
+        visit_log와 minihompy를 조인해서 ownerId(=user_id) 기준으로 필터링
+        visited_at::date로 시각을 날짜만 추출해서 오늘 날짜와 비교 (PostgreSQL 문법)
+    -->
+    <select id="countToday" resultType="long">
+        SELECT COUNT(*)
+        FROM visit_log v
+        JOIN minihompy m ON m.minihompy_id = v.minihompy_id
+        WHERE m.user_id = #{ownerId}
+        AND v.visited_at::date = CURRENT_DATE
+    </select>
+
+
+    <!--
+        누적(전체) 방문자 수 카운트
+        visit_log와 minihompy를 조인해서 ownerId(=user_id) 소유의 미니홈피 방문 기록만 필터링
+        날짜 조건 없이 전체 기간 COUNT
+    -->
+    <select id="countTotal" resultType="long">
+        SELECT COUNT(*)
+        FROM visit_log v
+        JOIN minihompy m ON m.minihompy_id = v.minihompy_id
+        WHERE m.user_id = #{ownerId}
+    </select>
+
+
+    <!--
+        최근 방문자 목록 조회 (홈피 주인 전용)
+        users 테이블 조인으로 닉네임 조회
+        방문 시각(visited_at)으로 최신순 정렬 후 상위 limit개만 조회
+    -->
+    <select id="selectRecentVisitors" resultMap="visitorLogMap">
+        SELECT u.nickname, v.visited_at
+        FROM visit_log v
+        JOIN minihompy m ON m.minihompy_id = v.minihompy_id
+        JOIN users u ON u.user_id = v.visitor_id
+        WHERE m.user_id = #{ownerId}
+        ORDER BY v.visited_at DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>
