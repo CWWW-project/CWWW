@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cwww.chat.mapper.ChatParticipantMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="participantId">
+        INSERT INTO chat_participant (chat_id, user_id, last_read_message_id, is_alarm, left_at)
+        VALUES (#{chatId}, #{userId}, NULL, TRUE, NULL)
+    </insert>
+
+    <update id="updateLastReadMessageId">
+        UPDATE chat_participant
+        SET last_read_message_id = #{lastReadMessageId}
+        WHERE chat_id = #{chatId}
+          AND user_id = #{userId}
+    </update>
+
+    <update id="updateLeftAt">
+        UPDATE chat_participant
+        SET left_at = NOW()
+        WHERE chat_id = #{chatId}
+          AND user_id = #{userId}
+    </update>
+
+    <update id="reactivateParticipant">
+        UPDATE chat_participant
+        SET left_at = NULL,
+            is_alarm = TRUE
+        WHERE chat_id = #{chatId}
+          AND user_id = #{userId}
+    </update>
+
+    <select id="findByUserId" resultType="com.cwww.chat.domain.ChatParticipant">
+        SELECT participant_id, chat_id, user_id, last_read_message_id, is_alarm, left_at
+        FROM chat_participant
+        WHERE user_id = #{userId}
+          AND left_at IS NULL
+    </select>
+
+    <select id="findByChatId" resultType="com.cwww.chat.domain.ChatParticipant">
+        SELECT participant_id, chat_id, user_id, last_read_message_id, is_alarm, left_at
+        FROM chat_participant
+        WHERE chat_id = #{chatId}
+          AND left_at IS NULL
+    </select>
+
+    <select id="findByChatIdAndUserId" resultType="com.cwww.chat.domain.ChatParticipant">
+        SELECT participant_id, chat_id, user_id, last_read_message_id, is_alarm, left_at
+        FROM chat_participant
+        WHERE chat_id = #{chatId}
+          AND user_id = #{userId}
+          AND left_at IS NULL
+    </select>
+
+    <select id="findAnyByChatIdAndUserId" resultType="com.cwww.chat.domain.ChatParticipant">
+        SELECT participant_id, chat_id, user_id, last_read_message_id, is_alarm, left_at
+        FROM chat_participant
+        WHERE chat_id = #{chatId}
+          AND user_id = #{userId}
+    </select>
+
+</mapper>

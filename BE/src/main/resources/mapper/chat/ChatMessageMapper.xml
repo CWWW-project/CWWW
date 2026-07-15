@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cwww.chat.mapper.ChatMessageMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="messageId">
+        INSERT INTO chat_message (chat_id, sender_id, message_type, content, is_deleted, created_at)
+        VALUES (#{chatId}, #{senderId}, #{messageType}, #{content}, FALSE, #{createdAt})
+    </insert>
+
+    <update id="softDelete">
+        UPDATE chat_message
+        SET is_deleted = TRUE
+        WHERE message_id = #{messageId}
+    </update>
+
+    <select id="findById" resultType="com.cwww.chat.domain.ChatMessage">
+        SELECT message_id,
+               chat_id,
+               sender_id,
+               message_type,
+               content,
+               is_deleted,
+               created_at
+        FROM chat_message
+        WHERE message_id = #{messageId}
+    </select>
+
+    <select id="findLatestVisibleByChatId" resultType="com.cwww.chat.domain.ChatMessage">
+        SELECT message_id,
+               chat_id,
+               sender_id,
+               message_type,
+               content,
+               is_deleted,
+               created_at
+        FROM chat_message
+        WHERE chat_id = #{chatId}
+          AND is_deleted = FALSE
+        ORDER BY created_at DESC
+        LIMIT 1
+    </select>
+
+    <select id="findByChatIdOrderByCreatedAtAsc"
+            resultType="com.cwww.chat.domain.ChatMessage">
+        SELECT message_id,
+               chat_id,
+               sender_id,
+               message_type,
+               content,
+               is_deleted,
+               created_at
+        FROM (
+            SELECT message_id,
+                   chat_id,
+                   sender_id,
+                   message_type,
+                   content,
+                   is_deleted,
+                   created_at
+            FROM chat_message
+            WHERE chat_id = #{chatId}
+              AND is_deleted = FALSE
+            <if test="beforeMessageId != null">
+                AND message_id &lt; #{beforeMessageId}
+            </if>
+            ORDER BY created_at DESC
+            LIMIT 30
+        ) recent_messages
+        ORDER BY created_at ASC
+    </select>
+
+    <select id="countUnreadMessages" resultType="int">
+        SELECT COUNT(*)
+        FROM chat_message
+        WHERE chat_id = #{chatId}
+          AND is_deleted = FALSE
+          AND sender_id != #{userId}
+          AND message_id > COALESCE(#{lastReadMessageId}, 0)
+    </select>
+
+    <select id="countUnreadParticipants" resultType="int">
+        SELECT COUNT(*)
+        FROM chat_participant
+        WHERE chat_id = #{chatId}
+          AND user_id != #{senderId}
+          AND left_at IS NULL
+          AND COALESCE(last_read_message_id, 0) &lt; #{messageId}
+    </select>
+
+</mapper>

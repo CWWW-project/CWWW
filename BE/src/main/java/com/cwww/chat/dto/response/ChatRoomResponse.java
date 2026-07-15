@@ -1,0 +1,37 @@
+package com.cwww.chat.dto.response;
+
+import com.cwww.chat.domain.ChatRoom;
+import com.cwww.chat.domain.ChatRoomType;
+import lombok.Builder;
+import lombok.Getter;
+
+import java.time.LocalDateTime;
+
+@Getter
+@Builder
+public class ChatRoomResponse {
+    private Long chatId;
+    private ChatRoomType type;
+    private String name;
+    private String displayName;
+    private String lastMessage;
+    private LocalDateTime lastMessageCreatedAt;
+    private Integer unreadCount;
+
+    public static ChatRoomResponse from(ChatRoom chatRoom,
+                                        String displayName,
+                                        String lastMessage,
+                                        LocalDateTime lastMessageCreatedAt,
+                                        Integer unreadCount) {
+        return ChatRoomResponse.builder()
+                .chatId(chatRoom.getChatId())
+                .type(chatRoom.getType())
+                .name(chatRoom.getName())
+                .displayName(displayName)
+                .lastMessage(lastMessage)
+                .lastMessageCreatedAt(lastMessageCreatedAt)
+                .unreadCount(unreadCount)
+                .build();
+
+    }
+}
