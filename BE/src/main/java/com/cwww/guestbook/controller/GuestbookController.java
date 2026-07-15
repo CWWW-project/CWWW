@@ -63,6 +63,7 @@ public class GuestbookController {
     }
 
 
+    // 방명록 삭제 (작성자 본인과 홈피 주인만 가능)
     @DeleteMapping("/{ownerId}/{guestbookId}")
     public ApiResponse<Void> deleteGuestbook(
             @PathVariable Long ownerId,
