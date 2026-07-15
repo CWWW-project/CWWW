@@ -3,6 +3,10 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.cwww.user.mapper.UserMapper">
 
+    <update id="activateUser">
+        UPDATE users SET status = 'ACTIVE', updated_at = NOW() WHERE email = #{email}
+    </update>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="userId">
         INSERT INTO users (email, password, nickname, role, status, created_at, updated_at)
         VALUES (#{email}, #{password}, #{nickname}, #{role}, 'ACTIVE', NOW(), NOW())
