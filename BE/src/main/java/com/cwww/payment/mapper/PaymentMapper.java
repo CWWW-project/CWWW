@@ -40,4 +40,7 @@ public interface PaymentMapper {
                                                 @Param("size") int size,
                                                 @Param("offset") long offset);
 
+
+    AcornWallet findWalletByUserId(@Param("userId") Long userId);
+
 }

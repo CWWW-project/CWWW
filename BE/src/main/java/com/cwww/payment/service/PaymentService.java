@@ -1,9 +1,6 @@
 package com.cwww.payment.service;
 
-import com.cwww.payment.dto.AcornHistoryResponse;
-import com.cwww.payment.dto.OrderCreateResponse;
-import com.cwww.payment.dto.PaymentConfirmRequest;
-import com.cwww.payment.dto.PaymentConfirmResponse;
+import com.cwww.payment.dto.*;
 
 import java.util.List;
 
@@ -15,4 +12,7 @@ public interface PaymentService {
     PaymentConfirmResponse confirmPayment(Long userId, PaymentConfirmRequest request);
 
     List<AcornHistoryResponse> getAcornHistory(Long userId, int page, int size);
+
+    AcornBalanceResponse getBalance(Long userId);
+
 }

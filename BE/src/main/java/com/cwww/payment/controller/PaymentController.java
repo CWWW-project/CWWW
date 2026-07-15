@@ -41,4 +41,11 @@ public class PaymentController {
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(ApiResponse.success(paymentService.getAcornHistory(userId, page, size)));
     }
+
+    @GetMapping("/balance")
+    public ResponseEntity<ApiResponse<AcornBalanceResponse>> getBalance(
+            @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(paymentService.getBalance(userId)));
+    }
+
 }

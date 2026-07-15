@@ -1,8 +1,10 @@
 package com.cwww.payment.dto;
 
+import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+
 
 @Getter
 public class AcornHistoryResponse {
@@ -10,4 +12,5 @@ public class AcornHistoryResponse {
     private int balanceAfter;
     private String reason;
     private LocalDateTime createdAt;
+
 }

@@ -55,4 +55,10 @@
             LIMIT #{size} OFFSET #{offset}
     </select>
 
+    <select id="findWalletByUserId" resultType="com.cwww.payment.domain.AcornWallet">
+        SELECT wallet_id, user_id, balance
+        FROM acorn_wallet
+        WHERE user_id = #{userId}
+    </select>
+
 </mapper>
