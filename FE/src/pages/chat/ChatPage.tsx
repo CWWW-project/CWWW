@@ -35,6 +35,7 @@ interface ChatMessagePayload {
   messageType: 'TEXT' | 'IMAGE' | 'FILE' | 'SYSTEM'
   createdAt: string
   unreadMemberCount: number
+  mediaUrls: string[]
 }
 
 interface ChatListUpdatePayload {
@@ -54,6 +55,14 @@ interface Message {
   messageType: 'TEXT' | 'IMAGE' | 'FILE' | 'SYSTEM'
   time: string
   unreadMemberCount: number
+  mediaUrls: string[]
+}
+
+interface PendingAttachment {
+  id: string
+  file: File
+  previewUrl: string
+  isImage: boolean
 }
 
 interface CreateChatRoomResponse {
@@ -135,9 +144,12 @@ export default function ChatPage() {
   const [loadingMoreRoomId, setLoadingMoreRoomId] = useState<number | null>(null)
   const [openMessageMenuId, setOpenMessageMenuId] = useState<number | null>(null)
   const [inviteUserId, setInviteUserId] = useState<number>(2)
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
   const messageContainerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const socketRef = useRef<WebSocket | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const subscriptionIdRef = useRef<string | null>(null)
   const pendingScrollActionRef = useRef<'bottom' | 'preserve' | null>(null)
   const previousScrollHeightRef = useRef(0)
@@ -211,13 +223,14 @@ export default function ChatPage() {
     }
 
     const fetchedMessages = payload.data.map((message) => ({
-        id: message.messageId,
-        senderId: message.senderId,
-        text: message.content,
-        messageType: message.messageType,
-        time: formatChatTime(message.createdAt),
-        unreadMemberCount: message.unreadMemberCount,
-      }))
+      id: message.messageId,
+      senderId: message.senderId,
+      text: message.content,
+      messageType: message.messageType,
+      time: formatChatTime(message.createdAt),
+      unreadMemberCount: message.unreadMemberCount,
+      mediaUrls: message.mediaUrls ?? [],
+    }))
 
     setMessagesByRoom((prev) => {
       if (beforeMessageId === undefined) {
@@ -345,6 +358,10 @@ export default function ChatPage() {
       }
     }
   }, [inviteUserId, selectedUserId])
+
+  useEffect(() => () => {
+    pendingAttachments.forEach((attachment) => URL.revokeObjectURL(attachment.previewUrl))
+  }, [pendingAttachments])
 
   useEffect(() => {
     fetchChatRooms(selectedUserId)
@@ -483,6 +500,7 @@ export default function ChatPage() {
           messageType: payload.messageType,
           time: formatChatTime(payload.createdAt),
           unreadMemberCount: payload.unreadMemberCount,
+          mediaUrls: payload.mediaUrls ?? [],
         }
 
         if (payload.eventType === 'MESSAGE' && payload.chatId === activeId) {
@@ -588,22 +606,86 @@ export default function ChatPage() {
     }
   }
 
-  const sendMessage = () => {
-    if (!input.trim()) return
+  const uploadChatMedia = async (files: File[]) => {
+    const formData = new FormData()
+    files.forEach((file) => formData.append('files', file))
+
+    const response = await fetch('/api/chat/media/upload', {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!response.ok) {
+      throw new Error('첨부 업로드에 실패했습니다.')
+    }
+
+    const payload = await response.json() as ApiResponse<string[]>
+    return payload.data
+  }
+
+  const handleOpenFilePicker = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFilesSelected = (files: FileList | null) => {
+    if (!files || files.length === 0) {
+      return
+    }
+
+    const nextAttachments = Array.from(files).map((file) => ({
+      id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
+      file,
+      previewUrl: URL.createObjectURL(file),
+      isImage: file.type.startsWith('image/'),
+    }))
+
+    setPendingAttachments((prev) => [...prev, ...nextAttachments])
+    textareaRef.current?.focus()
+  }
+
+  const removePendingAttachment = (attachmentId: string) => {
+    setPendingAttachments((prev) => {
+      const target = prev.find((attachment) => attachment.id === attachmentId)
+      if (target) {
+        URL.revokeObjectURL(target.previewUrl)
+      }
+      return prev.filter((attachment) => attachment.id !== attachmentId)
+    })
+  }
+
+  const sendMessage = async () => {
+    const trimmedInput = input.trim()
+    const hasAttachments = pendingAttachments.length > 0
+
+    if (!trimmedInput && !hasAttachments) return
     if (activeId === null) return
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return
 
-    socketRef.current.send(buildFrame('SEND', {
-      destination: '/pub/chat/message',
-      'content-type': 'application/json',
-      'X-User-Id': String(selectedUserId),
-    }, JSON.stringify({
-      chatId: activeId,
-      content: input.trim(),
-      messageType: 'TEXT',
-    })))
+    try {
+      const mediaUrls = hasAttachments
+        ? await uploadChatMedia(pendingAttachments.map((attachment) => attachment.file))
+        : []
+      const hasOnlyImages = hasAttachments && pendingAttachments.every((attachment) => attachment.isImage)
+      const messageType: 'TEXT' | 'IMAGE' | 'FILE' =
+        hasAttachments ? (hasOnlyImages ? 'IMAGE' : 'FILE') : 'TEXT'
 
-    setInput('')
+      socketRef.current.send(buildFrame('SEND', {
+        destination: '/pub/chat/message',
+        'content-type': 'application/json',
+        'X-User-Id': String(selectedUserId),
+      }, JSON.stringify({
+        chatId: activeId,
+        content: trimmedInput,
+        messageType,
+        mediaUrls,
+      })))
+
+      pendingAttachments.forEach((attachment) => URL.revokeObjectURL(attachment.previewUrl))
+      setPendingAttachments([])
+      setInput('')
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : '메시지 전송에 실패했습니다.')
+    }
   }
 
   const handleDeleteMessage = async (messageId: number) => {
@@ -938,6 +1020,36 @@ export default function ChatPage() {
                     fontSize: 14,
                     whiteSpace: 'pre-wrap',
                   }}>
+                    {msg.mediaUrls.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: msg.text ? 8 : 0 }}>
+                        {msg.mediaUrls.map((mediaUrl) => {
+                          const isImage = /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(mediaUrl)
+
+                          if (isImage) {
+                            return (
+                              <img
+                                key={mediaUrl}
+                                src={mediaUrl}
+                                alt="첨부 이미지"
+                                style={{ maxWidth: 240, maxHeight: 240, objectFit: 'cover', border: '1px solid rgba(0,0,0,0.15)' }}
+                              />
+                            )
+                          }
+
+                          return (
+                            <a
+                              key={mediaUrl}
+                              href={mediaUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ color: 'inherit', textDecoration: 'underline', wordBreak: 'break-all' }}
+                            >
+                              {mediaUrl.split('/').pop() ?? '첨부 파일'}
+                            </a>
+                          )
+                        })}
+                      </div>
+                    ) : null}
                     {msg.text}
                   </div>
                 </div>
@@ -958,17 +1070,60 @@ export default function ChatPage() {
 
           <div style={{ padding: 8, borderTop: '1px solid #e3bfb1', background: '#f9f9f9' }}>
             <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-              {['sentiment_satisfied', 'image', 'attach_file'].map(icon => (
-                <button key={icon} className="retro-btn-gray" style={{ padding: '4px 6px', display: 'flex', alignItems: 'center' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{icon}</span>
-                </button>
-              ))}
+              <button
+                className="retro-btn-gray"
+                onClick={handleOpenFilePicker}
+                disabled={activeId === null}
+                style={{ padding: '4px 6px', display: 'flex', alignItems: 'center', opacity: activeId === null ? 0.6 : 1 }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span>
+              </button>
               <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136', marginLeft: 'auto', alignSelf: 'center' }}>
                 현재 사용자: {selectedUser.nickname}
               </span>
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              hidden
+              onChange={(e) => {
+                handleFilesSelected(e.target.files)
+                e.target.value = ''
+              }}
+            />
+            {pendingAttachments.length > 0 ? (
+              <div className="retro-inner-box" style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: 8, marginBottom: 8 }}>
+                {pendingAttachments.map((attachment) => (
+                  <div key={attachment.id} style={{ position: 'relative', width: 88, flexShrink: 0 }}>
+                    <button
+                      className="retro-btn-gray"
+                      onClick={() => removePendingAttachment(attachment.id)}
+                      style={{ position: 'absolute', top: -4, right: -4, zIndex: 1, width: 20, height: 20, padding: 0 }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 12 }}>close</span>
+                    </button>
+                    {attachment.isImage ? (
+                      <img
+                        src={attachment.previewUrl}
+                        alt={attachment.file.name}
+                        style={{ width: 88, height: 88, objectFit: 'cover', border: '1px solid #e3bfb1', background: '#fff' }}
+                      />
+                    ) : (
+                      <div style={{ width: 88, height: 88, border: '1px solid #e3bfb1', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 8 }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 32, color: '#5a4136' }}>attach_file</span>
+                      </div>
+                    )}
+                    <div style={{ marginTop: 4, fontFamily: 'Be Vietnam Pro', fontSize: 11, color: '#5a4136', wordBreak: 'break-all' }}>
+                      {attachment.file.name}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <div style={{ display: 'flex', gap: 8, height: 80 }}>
               <textarea
+                ref={textareaRef}
                 className="retro-inner-box"
                 value={input}
                 onChange={e => setInput(e.target.value)}
@@ -981,15 +1136,15 @@ export default function ChatPage() {
                     sendMessage()
                   }
                 }}
-                placeholder="메시지를 입력하세요..."
+                placeholder={pendingAttachments.length > 0 ? '첨부와 함께 보낼 메시지를 입력하세요...' : '메시지를 입력하세요...'}
                 style={{ flex: 1, height: '100%', resize: 'none', padding: 8, fontFamily: 'Be Vietnam Pro', fontSize: 14, outline: 'none' }}
                 disabled={activeId === null}
               />
               <button
                 className="retro-btn retro-btn-primary"
                 onClick={sendMessage}
-                disabled={connectionStatus !== 'connected' || activeId === null}
-                style={{ height: '100%', padding: '0 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: connectionStatus === 'connected' ? 1 : 0.6 }}
+                disabled={connectionStatus !== 'connected' || activeId === null || (!input.trim() && pendingAttachments.length === 0)}
+                style={{ height: '100%', padding: '0 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: (connectionStatus === 'connected' && activeId !== null && (input.trim() || pendingAttachments.length > 0)) ? 1 : 0.6 }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 20, fontVariationSettings: "'FILL' 1" }}>send</span>
                 <span>전송</span>
