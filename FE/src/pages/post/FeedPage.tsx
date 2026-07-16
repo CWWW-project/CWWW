@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { postApi } from '../../api/post'
 import { commentApi } from '../../api/comment'
+import { authApi } from '../../api/auth'
 import type { PostResponse, CommentResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
 
@@ -11,13 +12,13 @@ function formatTime(iso: string): string {
   const dd = String(d.getDate()).padStart(2, '0')
   const hh = String(d.getHours()).padStart(2, '0')
   const min = String(d.getMinutes()).padStart(2, '0')
-  return `${mm}.${dd} ${hh}:${min}`
+  return `${mm}.${dd} · ${hh}:${min}`
 }
 
 const ONLINE_FRIENDS = [
-  { name: '윤주원', status: '접속 중', color: 'text-[#0c6780]' },
-  { name: '김채린', status: '5분 전', color: 'text-[#0c6780]' },
-  { name: '김찬호', status: '20분 전', color: 'text-[#5a4136]' },
+  { name: '윤주원', status: '접속 중', online: true },
+  { name: '김채린', status: '5분 전', online: true },
+  { name: '김찬호', status: '20분 전', online: false },
 ]
 
 type Visibility = 'ALL' | 'FRIEND' | 'PRIVATE'
@@ -35,7 +36,6 @@ const EMPTY_FORM: WriteForm = { title: '', content: '', visibility: 'ALL', hasht
 
 export default function FeedPage() {
   const navigate = useNavigate()
-  const location = useLocation()
   const { user, clearAuth } = useAuthStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const searchRequestIdRef = useRef(0)
@@ -63,7 +63,6 @@ export default function FeedPage() {
   const [searchHasNext, setSearchHasNext] = useState(false)
   const [searchError, setSearchError] = useState(false)
 
-  // 다이어리 작성 모달
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState<WriteForm>(EMPTY_FORM)
   const [tagInput, setTagInput] = useState('')
@@ -126,6 +125,12 @@ export default function FeedPage() {
         return next
       })
     }
+  }
+
+  const handleLogout = async () => {
+    try { await authApi.logout() } catch { /* ignore */ }
+    clearAuth()
+    navigate('/auth/login')
   }
 
   const openModal = () => {
@@ -266,7 +271,6 @@ export default function FeedPage() {
         const res = await commentApi.getComments(postId)
         setPostComments(prev => ({ ...prev, [postId]: res.data.data }))
       } catch {
-        // 실패 시 펼침 취소
         setOpenCommentIds(prev => { const next = new Set(prev); next.delete(postId); return next })
       } finally {
         setCommentLoading(prev => { const next = new Set(prev); next.delete(postId); return next })
@@ -288,10 +292,10 @@ export default function FeedPage() {
         const res = await commentApi.getComments(postId)
         setPostComments(prev => ({ ...prev, [postId]: res.data.data }))
       } catch {
-        // 목록 갱신 실패는 조용히 처리 (댓글 작성은 성공)
+        // 목록 갱신 실패는 조용히 처리
       }
     } catch {
-      // 댓글 작성 자체 실패 — 조용히 처리
+      // 댓글 작성 실패 조용히 처리
     } finally {
       setCommentSubmitting(prev => { const next = new Set(prev); next.delete(postId); return next })
     }
@@ -363,57 +367,69 @@ export default function FeedPage() {
   const displayPosts = selectedTag ? searchPosts : filter === '북마크' ? bookmarkPosts : filteredPosts
 
   return (
-    <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
+    <div className="min-h-screen pb-16 md:pb-0">
 
-      {/* 다이어리 작성 모달 */}
+      {/* ── 다이어리 작성 모달 ── */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-2">
-          <div className="window-frame bg-[#f9f9f9] w-full max-w-lg flex flex-col" style={{ maxHeight: '90vh' }}>
-            {/* 모달 타이틀바 */}
-            <div className="bg-[#e2e2e2] px-3 py-2 border-b-2 border-[#8e7164] flex items-center gap-2 flex-shrink-0">
-              <span className="material-symbols-outlined text-sm text-[#a33e00]">edit_note</span>
-              <span className="font-[Geist,monospace] text-[13px] font-bold text-[#1a1c1c]">다이어리 쓰기</span>
-              <button className="ml-auto retro-btn p-1" onClick={closeModal} disabled={isSubmitting}>
-                <span className="material-symbols-outlined text-sm">close</span>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-3">
+          <div className="c-card w-full max-w-lg flex flex-col" style={{ maxHeight: '90vh', overflow: 'hidden' }}>
+            <div className="c-card-header flex-shrink-0">
+              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>edit_note</span>
+              다이어리 쓰기
+              <button
+                onClick={closeModal}
+                disabled={isSubmitting}
+                className="ml-auto flex items-center justify-center w-6 h-6 rounded-full hover:bg-white/20 transition-colors"
+                style={{ color: '#fff', background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
               </button>
             </div>
 
-            <div className="overflow-y-auto flex-1 p-3 flex flex-col gap-3">
-              {/* 제목 */}
+            <div className="overflow-y-auto flex-1 p-4 flex flex-col gap-4 bg-white">
               <div className="flex flex-col gap-1">
-                <label className="font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136]">제목</label>
+                <label className="text-[11px] font-bold" style={{ color: 'var(--c-navy)' }}>제목</label>
                 <input
-                  className="window-inset p-2 text-[14px] focus:outline-none w-full"
+                  className="c-input"
                   type="text"
                   placeholder="제목을 입력하세요 (선택)"
                   maxLength={100}
                   value={form.title}
-                  onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
+                  onChange={e => setForm(prev => ({ ...prev, title: e.target.value }))}
                 />
               </div>
 
-              {/* 내용 */}
               <div className="flex flex-col gap-1">
-                <label className="font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136]">내용 <span className="text-[#ba1a1a]">*</span></label>
+                <label className="text-[11px] font-bold" style={{ color: 'var(--c-navy)' }}>
+                  내용 <span className="text-red-500">*</span>
+                </label>
                 <textarea
-                  className="window-inset p-2 text-[14px] focus:outline-none w-full resize-none"
+                  className="c-input resize-none"
                   placeholder="오늘 어떤 하루였나요?"
                   rows={6}
                   maxLength={2000}
                   value={form.content}
-                  onChange={(e) => setForm(prev => ({ ...prev, content: e.target.value }))}
+                  onChange={e => setForm(prev => ({ ...prev, content: e.target.value }))}
                 />
-                <span className="font-[Geist,monospace] text-[10px] text-[#5a4136] text-right">{form.content.length}/2000</span>
+                <span className="text-right text-[10px]" style={{ color: 'var(--c-sub)', fontFamily: 'IBM Plex Mono' }}>{form.content.length}/2000</span>
               </div>
 
-              {/* 공개범위 */}
               <div className="flex flex-col gap-1">
-                <label className="font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136]">공개범위</label>
-                <div className="flex gap-1">
+                <label className="text-[11px] font-bold" style={{ color: 'var(--c-navy)' }}>공개범위</label>
+                <div className="flex gap-2">
                   {(['ALL', 'FRIEND', 'PRIVATE'] as Visibility[]).map(v => (
                     <button
                       key={v}
-                      className={`retro-btn font-[Geist,monospace] text-[12px] font-semibold px-3 py-1 flex-1${form.visibility === v ? ' retro-btn-primary' : ''}`}
+                      className={`flex-1 py-1.5 rounded-full text-[12px] font-bold border-[1.5px] transition-all ${
+                        form.visibility === v
+                          ? 'text-white'
+                          : 'bg-white hover:bg-[#eef4fb]'
+                      }`}
+                      style={
+                        form.visibility === v
+                          ? { background: 'var(--c-navy)', borderColor: 'var(--c-navy)', color: '#fff' }
+                          : { color: 'var(--c-blue)', borderColor: 'var(--c-card-border)' }
+                      }
                       onClick={() => setForm(prev => ({ ...prev, visibility: v }))}
                     >
                       {VISIBILITY_LABELS[v]}
@@ -422,27 +438,28 @@ export default function FeedPage() {
                 </div>
               </div>
 
-              {/* 해시태그 */}
               <div className="flex flex-col gap-1">
-                <label className="font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136]">해시태그</label>
-                <div className="flex gap-1">
+                <label className="text-[11px] font-bold" style={{ color: 'var(--c-navy)' }}>해시태그</label>
+                <div className="flex gap-2">
                   <input
-                    className="window-inset flex-1 p-2 text-[13px] focus:outline-none"
+                    className="c-input flex-1"
                     type="text"
                     placeholder="#태그 입력 후 Enter"
                     value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
+                    onChange={e => setTagInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
                   />
-                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1" onClick={addTag}>추가</button>
+                  <button className="c-sb-btn c-sb-btn--outline" style={{ width: 'auto', padding: '6px 16px', borderRadius: 8 }} onClick={addTag}>
+                    추가
+                  </button>
                 </div>
                 {form.hashtags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
                     {form.hashtags.map(tag => (
-                      <span key={tag} className="flex items-center gap-1 bg-[#baeaff] text-[#09657f] font-[Geist,monospace] text-[11px] px-2 py-0.5 rounded">
+                      <span key={tag} className="c-p-tag flex items-center gap-1">
                         #{tag}
-                        <button onClick={() => removeTag(tag)} className="hover:text-[#ba1a1a]">
-                          <span className="material-symbols-outlined text-[13px]">close</span>
+                        <button onClick={() => removeTag(tag)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 12 }}>close</span>
                         </button>
                       </span>
                     ))}
@@ -450,35 +467,31 @@ export default function FeedPage() {
                 )}
               </div>
 
-              {/* 이미지 업로드 */}
               <div className="flex flex-col gap-1">
-                <label className="font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136]">사진 첨부 <span className="text-[#5a4136] font-normal">(최대 5장)</span></label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={handleImageSelect}
-                />
+                <label className="text-[11px] font-bold" style={{ color: 'var(--c-navy)' }}>
+                  사진 첨부 <span style={{ fontWeight: 400, color: 'var(--c-sub)' }}>(최대 5장)</span>
+                </label>
+                <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageSelect} />
                 <button
-                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-3 py-2 flex items-center gap-1 self-start"
+                  className="c-sb-btn c-sb-btn--outline"
+                  style={{ width: 'auto', alignSelf: 'flex-start', padding: '6px 16px', borderRadius: 8 }}
                   onClick={() => fileInputRef.current?.click()}
                   disabled={imageFiles.length >= 5}
                 >
-                  <span className="material-symbols-outlined text-sm">image</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>image</span>
                   사진 선택
                 </button>
                 {imagePreviews.length > 0 && (
                   <div className="flex gap-2 flex-wrap mt-1">
                     {imagePreviews.map((url, idx) => (
                       <div key={idx} className="relative">
-                        <img src={url} alt="" className="w-20 h-20 object-cover border border-[#8e7164]" />
+                        <img src={url} alt="" className="w-20 h-20 object-cover rounded-lg" style={{ border: '1.5px solid var(--c-card-border)' }} />
                         <button
-                          className="absolute top-0 right-0 bg-[#ba1a1a] text-white rounded-bl"
+                          className="absolute top-0 right-0 flex items-center justify-center bg-red-500 text-white rounded-tr-lg rounded-bl-lg"
+                          style={{ width: 20, height: 20, border: 'none', cursor: 'pointer' }}
                           onClick={() => removeImage(idx)}
                         >
-                          <span className="material-symbols-outlined text-[14px] leading-none p-0.5">close</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: 13 }}>close</span>
                         </button>
                       </div>
                     ))}
@@ -487,23 +500,22 @@ export default function FeedPage() {
               </div>
             </div>
 
-            {/* 에러 메시지 */}
             {submitError && (
-              <p className="px-3 py-1 font-[Geist,monospace] text-[12px] text-[#ba1a1a] border-t border-[#8e7164]">{submitError}</p>
+              <p className="px-4 py-2 text-[12px] text-red-600 bg-white" style={{ borderTop: '1px solid var(--c-card-border)' }}>{submitError}</p>
             )}
 
-            {/* 버튼 영역 */}
-            <div className="px-3 py-2 border-t border-[#8e7164] flex gap-2 flex-shrink-0">
-              <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-4 py-2 flex-1" onClick={closeModal} disabled={isSubmitting}>취소</button>
+            <div className="px-4 py-3 flex gap-2 flex-shrink-0 bg-white" style={{ borderTop: '1.5px solid var(--c-card-border)' }}>
+              <button className="c-sb-btn c-sb-btn--outline flex-1" style={{ borderRadius: 20 }} onClick={closeModal} disabled={isSubmitting}>취소</button>
               <button
-                className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold px-4 py-2 flex-1 flex items-center justify-center gap-1"
+                className="c-sb-btn c-sb-btn--primary flex-1"
+                style={{ borderRadius: 20 }}
                 onClick={submitPost}
                 disabled={isSubmitting || !form.content.trim()}
               >
                 {isUploading ? (
-                  <><span className="material-symbols-outlined text-sm animate-spin">autorenew</span> 업로드 중...</>
+                  <><span className="material-symbols-outlined animate-spin" style={{ fontSize: 15 }}>autorenew</span> 업로드 중...</>
                 ) : isSubmitting ? (
-                  <><span className="material-symbols-outlined text-sm">hourglass_empty</span> 등록 중...</>
+                  <><span className="material-symbols-outlined" style={{ fontSize: 15 }}>hourglass_empty</span> 등록 중...</>
                 ) : '작성 완료'}
               </button>
             </div>
@@ -511,396 +523,400 @@ export default function FeedPage() {
         </div>
       )}
 
-      {/* 모바일 헤더 */}
-      <header className="md:hidden flex justify-between items-center px-4 h-16 w-full fixed top-0 z-50 bg-[#f9f9f9] border-b-2 border-[#e3bfb1]" style={{ boxShadow: '2px 2px 0px rgba(0,0,0,0.1)' }}>
-        <div className="font-['Bricolage_Grotesque',sans-serif] text-[28px] font-bold text-[#a33e00]">싸이월드</div>
-        <div className="flex gap-2">
-          <span className="material-symbols-outlined text-[#a33e00] cursor-pointer p-2">search</span>
-          <span className="material-symbols-outlined text-[#a33e00] cursor-pointer p-2">notifications</span>
-          <span className="material-symbols-outlined text-[#a33e00] cursor-pointer p-2">person</span>
+      {/* ── Desktop GNB ── */}
+      <nav className="c-gnb hidden md:flex">
+        <div className="c-logo">싸이<span className="c-logo-accent">월드</span></div>
+        <div className="flex gap-1">
+          {[
+            { label: '홈', path: '/', active: true },
+            { label: '내 홈피', path: `/home/${user?.id ?? 'me'}` },
+            { label: '일촌', path: '/friends' },
+            { label: '채팅', path: '/chat' },
+            { label: '상점', path: '/shop' },
+          ].map(item => (
+            <button
+              key={item.label}
+              onClick={() => navigate(item.path)}
+              className={`c-gnb-item${item.active ? ' c-gnb-item--active' : ''}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <div className="c-acorn-pill">🌰 88</div>
+          {user && (
+            <button className="c-user-pill" onClick={() => navigate('/settings')}>
+              {user.nickname} 님
+            </button>
+          )}
+          {!user && (
+            <button className="c-user-pill" onClick={() => navigate('/auth/login')}>
+              로그인
+            </button>
+          )}
+        </div>
+      </nav>
+
+      {/* ── Mobile Header ── */}
+      <header className="c-mobile-header md:hidden">
+        <div className="c-logo" style={{ fontSize: 17 }}>싸이<span className="c-logo-accent">월드</span></div>
+        <div className="flex items-center gap-2">
+          {user && <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: 700 }}>{user.nickname}</span>}
+          <button
+            onClick={() => navigate('/settings')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: 4 }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#fff' }}>settings</span>
+          </button>
         </div>
       </header>
 
-      <div className="max-w-[1024px] w-full mx-auto mt-16 md:mt-0 flex gap-0 relative z-10 px-2 md:px-0">
-        <div className="window-frame p-4 w-full flex flex-col md:flex-row gap-4 border border-[#8e7164] relative">
+      {/* ── Main Layout ── */}
+      <div className="c-layout" style={{ marginTop: '14px' }}>
+        {/* Mobile: push content below fixed header */}
+        <div className="md:hidden" style={{ height: 46 }} />
 
-          {/* 왼쪽 사이드바 */}
-          <aside className="w-full md:w-64 flex-shrink-0 flex flex-col gap-2">
+        {/* ── Sidebar ── */}
+        <aside className="c-sidebar">
 
-            {/* TODAY/TOTAL */}
-            <div className="text-center font-[Geist,monospace] text-[12px] font-semibold text-[#a33e00] bg-[#baeaff] py-2 window-inset">
-              TODAY <span className="text-[#ba1a1a]">42</span> | TOTAL 12,345
-            </div>
-
-            {/* 내 프로필 or 로그인 유도 */}
-            {user ? (
-              <div className="window-inset p-2 flex flex-col items-center gap-2">
-                <div className="w-full aspect-square border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[80px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
-                </div>
-                <div className="w-full text-center">
-                  <h2 className="font-['Bricolage_Grotesque',sans-serif] text-[20px] font-bold text-[#a33e00] mb-1">
-                    {user.nickname}의 홈피
-                  </h2>
-                  <p className="text-[14px] text-[#5a4136] bg-[#eeeeee] p-1 window-inset min-h-[40px] flex items-center justify-center">
-                    열심히 살자 💪
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136] w-full bg-[#f9f9f9] py-1 px-2 window-inset">
-                  <span className="material-symbols-outlined text-[#a33e00] text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>sentiment_satisfied</span>
-                  오늘의 기분: 맑음
-                </div>
-                <div className="flex flex-col gap-1 w-full mt-auto">
-                  <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                    onClick={() => navigate(`/home/${user.id}`)}>
-                    <span className="material-symbols-outlined text-base">home</span> 내 홈피 가기
-                  </button>
-                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                    onClick={openModal}>
-                    <span className="material-symbols-outlined text-base">edit_note</span> 다이어리 쓰기
-                  </button>
-                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ba1a1a]"
-                    onClick={() => { clearAuth(); navigate('/auth/login') }}>
-                    <span className="material-symbols-outlined text-base">logout</span> 로그아웃
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="window-inset p-4 flex flex-col items-center gap-3">
-                <span className="material-symbols-outlined text-[64px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>account_circle</span>
-                <p className="font-[Geist,monospace] text-[12px] text-[#5a4136] text-center">로그인하고 일촌 소식을 확인하세요!</p>
-                <button
-                  className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 w-full flex items-center justify-center gap-1"
-                  onClick={() => navigate('/auth/login')}
-                >
-                  <span className="material-symbols-outlined text-base">login</span> 로그인
-                </button>
-                <button
-                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 w-full flex items-center justify-center gap-1"
-                  onClick={() => navigate('/auth/signup')}
-                >
-                  <span className="material-symbols-outlined text-base">person_add</span> 회원가입
-                </button>
-              </div>
-            )}
-
-            {/* 접속 중인 일촌 + 일촌 관리 — 로그인 유저만 */}
-            {user && (
-              <>
-                <div className="window-inset flex flex-col">
-                  <div className="bg-[#e2e2e2] px-2 py-1 border-b border-[#8e7164] font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c] flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">group</span>
-                    접속 중인 일촌
-                    <span className="ml-auto bg-[#a33e00] text-white font-[Geist,monospace] text-[10px] px-1 rounded-full">3</span>
-                  </div>
-                  <div className="p-2 flex flex-col gap-1">
-                    {ONLINE_FRIENDS.map(f => (
-                      <div key={f.name} className="flex items-center gap-2 cursor-pointer hover:bg-[#eeeeee] p-1 rounded">
-                        <div className="w-7 h-7 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex-shrink-0 flex items-center justify-center">
-                          <span className="material-symbols-outlined text-[20px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c]">{f.name}</p>
-                          <p className={`text-[10px] ${f.color}`}>● {f.status}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                  onClick={() => navigate('/friends')}
-                >
-                  <span className="material-symbols-outlined text-base">group</span> 일촌 관리
-                </button>
-              </>
-            )}
-          </aside>
-
-          {/* 피드 */}
-          <main className="flex-1 flex flex-col gap-2 min-w-0">
-
-            {/* BGM 바 */}
-            <div className="window-frame p-1 bg-[#eeeeee] flex items-center justify-between">
-              <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">홈 피드</div>
-              <div className="flex items-center gap-2 bg-[#f9f9f9] window-inset px-2 py-1">
-                <span className="material-symbols-outlined text-sm text-[#a33e00]">music_note</span>
-                <div className="w-36 overflow-hidden">
-                  <span className="font-[Geist,monospace] text-[12px] text-[#5a4136] inline-block" style={{ animation: 'marquee 10s linear infinite', whiteSpace: 'nowrap' }}>
-                    프리스타일 - Y (Please Tell Me Why)
-                  </span>
-                </div>
-                <div className="flex gap-1">
-                  <button className="retro-btn p-1"><span className="material-symbols-outlined text-[12px]">play_arrow</span></button>
-                  <button className="retro-btn p-1"><span className="material-symbols-outlined text-[12px]">skip_next</span></button>
-                </div>
-              </div>
-            </div>
-
-            {/* 미니룸 프리뷰 */}
-            <div className="window-inset border border-[#8e7164] overflow-hidden bg-white flex flex-col">
-              <div className="bg-[#baeaff] px-2 py-1 border-b border-[#8e7164] font-[Geist,monospace] text-[12px] font-semibold text-[#09657f] flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">house</span>
-                Miniroom
-                <span className="text-[#5a4136] font-normal ml-1">· 프리스타일 - Y</span>
-                <button className="retro-btn font-[Geist,monospace] text-[11px] font-semibold px-2 py-1 ml-auto flex items-center gap-1"
-                  onClick={() => navigate('/room')}>
-                  <span className="material-symbols-outlined text-[13px]">edit</span> 꾸미기
-                </button>
-              </div>
-              <div className="relative w-full" style={{ height: 280, overflow: 'hidden' }}>
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, #c8e6f5 0%, #d9eff8 58%, #c4a882 58%, #b8976e 100%)' }} />
-                <div className="absolute inset-0" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.15) 40px)', height: '58%', top: 0 }} />
-                <div className="absolute left-0 right-0" style={{ top: '58%', bottom: 0, backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 49px, rgba(0,0,0,0.08) 50px)' }} />
-                <div className="absolute left-0 right-0" style={{ top: 'calc(58% - 1px)', height: 2, background: 'rgba(80,50,20,0.3)' }} />
-                <div className="absolute" style={{ left: '3%', top: '8%', width: 80, height: 90 }}>
-                  <div style={{ border: '3px solid #8899aa', background: 'linear-gradient(135deg,#d0eeff,#a8d8f0)', width: '100%', height: '100%', position: 'relative', boxShadow: 'inset 0 0 6px rgba(0,0,0,0.1)' }}>
-                    <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, background: '#8899aa' }} />
-                    <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 2, background: '#8899aa' }} />
-                    <div style={{ position: 'absolute', top: 5, left: 5, width: 20, height: 30, background: 'rgba(255,255,255,0.4)', transform: 'skewX(-10deg)' }} />
-                  </div>
-                </div>
-                <div className="absolute" style={{ left: '50%', bottom: '42%', transform: 'translateX(-50%)' }}>
-                  <div style={{ width: 110, height: 28, background: '#5d4037', border: '2px solid #4e342e', borderRadius: '4px 4px 0 0' }} />
-                  <div style={{ width: 110, height: 18, background: '#795548', border: '2px solid #4e342e', display: 'flex', gap: 4, padding: '2px 4px', boxSizing: 'border-box' }}>
-                    <div style={{ flex: 1, background: '#8d6e63', borderRadius: 2 }} />
-                    <div style={{ flex: 1, background: '#8d6e63', borderRadius: 2 }} />
-                  </div>
-                  <div style={{ position: 'absolute', top: 0, left: -10, width: 10, height: 38, background: '#4e342e' }} />
-                  <div style={{ position: 'absolute', top: 0, right: -10, width: 10, height: 38, background: '#4e342e' }} />
-                </div>
-                <div className="absolute" style={{ left: '38%', bottom: '41%', fontSize: 22 }}>🐱</div>
-                <div className="absolute flex flex-col items-center" style={{ left: '50%', bottom: '42%', transform: 'translateX(-50%) translateX(-60px)' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 52, fontVariationSettings: "'FILL' 1", color: '#a33e00', filter: 'drop-shadow(1px 2px 0 rgba(0,0,0,0.2))' }}>face</span>
-                  <div style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid #ccc', padding: '1px 6px', fontSize: 9, fontFamily: 'Geist, monospace', marginTop: 2, whiteSpace: 'nowrap' }}>
-                    {user?.nickname ?? '나'}
-                  </div>
-                </div>
-                <div className="absolute flex items-center gap-1" style={{ top: 6, left: 8, background: 'rgba(255,255,255,0.85)', border: '1px solid #ccc', padding: '2px 7px' }}>
-                  <span style={{ fontSize: 10, fontFamily: 'Geist, monospace', color: '#5a4136' }}>TODAY <span style={{ color: '#ba1a1a', fontWeight: 700 }}>123</span> | TOTAL 45,678</span>
-                </div>
-                <div className="absolute flex items-center gap-1" style={{ top: 6, right: 8, background: 'rgba(255,255,255,0.85)', border: '1px solid #ccc', padding: '2px 7px' }}>
-                  <span className="material-symbols-outlined text-[#a33e00]" style={{ fontSize: 11 }}>music_note</span>
-                  <span style={{ fontSize: 10, fontFamily: 'Geist, monospace', color: '#5a4136' }}>프리스타일 - Y</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 글쓰기 트리거 */}
+          {/* Miniroom card */}
+          <div className="c-card overflow-hidden">
             <div
-              className="window-inset border border-[#8e7164] bg-white p-2 flex gap-2 items-center cursor-pointer hover:bg-[#f3f3f3]"
-              onClick={openModal}
+              className="relative cursor-pointer group"
+              style={{ height: 130, background: 'linear-gradient(to bottom, #d6eaf8 60%, #c4a882)', overflow: 'hidden' }}
+              onClick={() => navigate('/room')}
             >
-              <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                <span className="material-symbols-outlined text-xl text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+              {/* 바닥 */}
+              <div style={{ position: 'absolute', bottom: '38%', left: 0, right: 0, height: 1, background: 'rgba(0,0,0,0.08)' }} />
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '38%', background: 'linear-gradient(to bottom, transparent, rgba(180,140,90,0.18))', pointerEvents: 'none' }} />
+              {/* TV */}
+              <div className="absolute" style={{ left: '8%', bottom: '40%' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 26, color: '#212121', fontVariationSettings: "'FILL' 1" }}>tv</span>
               </div>
-              <span className="window-inset flex-1 text-[14px] p-1 text-[#8e7164] font-[Geist,monospace]">
-                오늘 어떤 하루였나요? 다이어리 써보세요...
+              {/* 소파 */}
+              <div className="absolute" style={{ left: '50%', bottom: '38%', transform: 'translateX(-50%)' }}>
+                <div style={{ width: 54, height: 13, background: '#5d4037', borderRadius: '4px 4px 0 0' }} />
+                <div style={{ width: 54, height: 9, background: '#795548' }} />
+                <div style={{ position: 'absolute', top: 0, left: -5, width: 5, height: 17, background: '#4e342e' }} />
+                <div style={{ position: 'absolute', top: 0, right: -5, width: 5, height: 17, background: '#4e342e' }} />
+              </div>
+              {/* 화분 */}
+              <div className="absolute" style={{ right: '8%', bottom: '39%' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#388e3c', fontVariationSettings: "'FILL' 1" }}>potted_plant</span>
+              </div>
+              {/* 미니미 */}
+              <div className="absolute flex flex-col items-center" style={{ left: '28%', bottom: '38%', transform: 'translateX(-50%)' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 28, fontVariationSettings: "'FILL' 1", color: 'var(--c-navy)' }}>face</span>
+                <div style={{ background: 'rgba(255,255,255,0.92)', border: '1px solid #ccc', padding: '1px 4px', fontSize: 8, fontFamily: 'IBM Plex Mono, monospace', whiteSpace: 'nowrap', borderRadius: 2 }}>
+                  {user?.nickname ?? '나'}
+                </div>
+              </div>
+              {/* 호버 오버레이 */}
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ background: 'rgba(10,36,106,0.32)' }}>
+                <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, fontWeight: 700, color: '#fff' }}>미니룸 꾸미기</span>
+              </div>
+            </div>
+            <div style={{ padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, fontWeight: 700, color: 'var(--c-navy)' }}>내 미니룸</span>
+              <button
+                className="c-sb-btn c-sb-btn--outline"
+                style={{ padding: '3px 10px', fontSize: 11, borderRadius: 12 }}
+                onClick={() => navigate('/room')}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>open_in_full</span>
+                꾸미기
+              </button>
+            </div>
+          </div>
+
+          {/* Profile card */}
+          <div className="c-card">
+            <div className="c-card-header">
+              <span className="material-symbols-outlined" style={{ fontSize: 14, color: 'var(--c-light)' }}>account_circle</span>
+              내 프로필
+            </div>
+            <div className="c-profile-inner">
+              <div className="c-profile-photo">
+                <span className="material-symbols-outlined" style={{ fontSize: 48, color: 'var(--c-mid)', fontVariationSettings: "'FILL' 1" }}>face</span>
+              </div>
+              <div className="c-profile-name">{user?.nickname ?? '게스트'}의 홈피</div>
+              <div className="c-profile-sub">{user ? '함께해요 싸이월드!' : '로그인하고 시작하세요'}</div>
+              {user && <div className="c-mood-tag">😊 오늘의 기분: 맑음</div>}
+              <div className="c-visit-row">
+                <div className="c-visit-item"><span className="c-visit-num">42</span>오늘</div>
+                <div className="c-visit-item"><span className="c-visit-num">1.2K</span>전체</div>
+                <div className="c-visit-item"><span className="c-visit-num">🌰 88</span>도토리</div>
+              </div>
+
+              {user ? (
+                <>
+                  <button className="c-sb-btn c-sb-btn--primary" onClick={() => navigate(`/home/${user.id}`)}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 15 }}>home</span> 내 홈피 가기
+                  </button>
+                  <button className="c-sb-btn c-sb-btn--outline" onClick={openModal}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 15 }}>edit_note</span> 다이어리 쓰기
+                  </button>
+                  <button className="c-sb-btn c-sb-btn--ghost" onClick={() => navigate('/settings')}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 15 }}>settings</span> 설정
+                  </button>
+                  <button className="c-sb-btn c-sb-btn--danger" onClick={handleLogout}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 15 }}>logout</span> 로그아웃
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="c-sb-btn c-sb-btn--primary" onClick={() => navigate('/auth/login')}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 15 }}>login</span> 로그인
+                  </button>
+                  <button className="c-sb-btn c-sb-btn--outline" onClick={() => navigate('/auth/signup')}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 15 }}>person_add</span> 회원가입
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Friends card */}
+          {user && (
+            <div className="c-card">
+              <div className="c-card-header">
+                <span className="material-symbols-outlined" style={{ fontSize: 14, color: 'var(--c-light)' }}>group</span>
+                접속 중인 일촌
+                <span className="c-header-badge">3</span>
+              </div>
+              <div className="c-friends-inner">
+                {ONLINE_FRIENDS.map(f => (
+                  <div key={f.name} className="c-friend-row">
+                    <div className="c-f-avatar">
+                      <span className="material-symbols-outlined" style={{ fontSize: 17, color: 'var(--c-mid)', fontVariationSettings: "'FILL' 1" }}>face</span>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div className="c-f-name">{f.name}</div>
+                      <div className="c-f-time">{f.status}</div>
+                    </div>
+                    <div className="c-online-dot" style={{ background: f.online ? '#22c55e' : '#d1d5db' }} />
+                  </div>
+                ))}
+                <button className="c-sb-btn c-sb-btn--outline" style={{ marginTop: 4 }} onClick={() => navigate('/friends')}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>people</span> 일촌 관리
+                </button>
+              </div>
+            </div>
+          )}
+        </aside>
+
+        {/* ── Feed ── */}
+        <main className="c-feed">
+
+          {/* Feed header */}
+          <div className="c-card">
+            <div className="c-card-header">
+              <span className="material-symbols-outlined" style={{ fontSize: 14, color: 'var(--c-light)' }}>
+                {selectedTag ? 'tag' : 'auto_stories'}
               </span>
-              <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold px-2 py-1">작성</button>
+              {selectedTag ? (
+                <>
+                  <span style={{ color: 'var(--c-light)' }}>#{selectedTag}</span>
+                  <span style={{ color: '#a8ccee' }}> 검색 결과</span>
+                </>
+              ) : '일촌 다이어리'}
+              {selectedTag ? (
+                <button
+                  onClick={clearTag}
+                  className="flex items-center gap-1 hover:text-white transition-colors"
+                  style={{ marginLeft: 'auto', color: '#a8ccee', fontSize: 11, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 13 }}>close</span>
+                  피드로 돌아가기
+                </button>
+              ) : (
+                <button className="c-write-btn-pill" onClick={openModal}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit_note</span> 새 글
+                </button>
+              )}
             </div>
-
-            {/* 피드 필터 */}
-            <div className="flex gap-1">
-              {(['전체 피드', '일촌만', '사진만', '북마크'] as const).map((label, i) => {
-                const val = (['전체', '일촌만', '사진만', '북마크'] as const)[i]
-                return (
-                  <button
-                    key={label}
-                    className={`retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1${filter === val ? ' retro-btn-primary' : ''}`}
-                    onClick={() => setFilter(val)}
-                  >{label}</button>
-                )
-              })}
+            <div className="c-filter-bar">
+              {(['전체', '일촌만', '사진만', '북마크'] as const).map(f => (
+                <button
+                  key={f}
+                  className={`c-filter-pill${filter === f ? ' c-filter-pill--active' : ''}`}
+                  onClick={() => setFilter(f)}
+                >{f}</button>
+              ))}
             </div>
+          </div>
 
-            {/* 피드 포스트 */}
-            <div className="window-inset border border-[#8e7164] flex-1 flex flex-col bg-white">
-              <div className="bg-[#e2e2e2] px-2 py-1 border-b border-[#8e7164] font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c] flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">{selectedTag ? 'tag' : 'dynamic_feed'}</span>
-                {selectedTag ? (
-                  <>
-                    <span className="text-[#09657f]">#{selectedTag}</span> 검색 결과
-                    <button onClick={clearTag} className="ml-auto flex items-center gap-0.5 text-[#5a4136] hover:text-[#ba1a1a]">
-                      <span className="material-symbols-outlined text-sm">close</span>
-                      <span className="text-[11px]">피드로 돌아가기</span>
-                    </button>
-                  </>
-                ) : '일촌 소식'}
-              </div>
-              <div className="flex flex-col overflow-y-auto" style={{ maxHeight: 520 }}>
-                {displayPosts.length === 0 && !loading && (
-                  <div className="p-8 text-center font-[Geist,monospace] text-[12px] text-[#5a4136]">
-                    {selectedTag && searchError
-                      ? <span className="text-[#ba1a1a]">검색에 실패했어요. <button className="underline" onClick={() => loadSearch(selectedTag)}>다시 시도</button></span>
-                      : selectedTag
-                        ? `#${selectedTag} 태그가 달린 게시물이 없어요.`
-                        : filter === '북마크'
-                          ? '북마크한 게시물이 없어요.'
-                          : '아직 피드가 없어요. 일촌을 추가해보세요!'}
+          {/* Empty state */}
+          {displayPosts.length === 0 && !loading && (
+            <div className="c-card" style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--c-sub)', fontFamily: 'IBM Plex Mono', fontSize: 13 }}>
+              {selectedTag && searchError ? (
+                <span style={{ color: '#ef4444' }}>
+                  검색에 실패했어요.{' '}
+                  <button style={{ textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }} onClick={() => loadSearch(selectedTag)}>다시 시도</button>
+                </span>
+              ) : selectedTag
+                ? `#${selectedTag} 태그가 달린 게시물이 없어요.`
+                : filter === '북마크'
+                  ? '북마크한 게시물이 없어요.'
+                  : '아직 피드가 없어요. 일촌을 추가해보세요!'}
+            </div>
+          )}
+
+          {/* Posts */}
+          {displayPosts.map(post => {
+            const liked = likedPostIds.has(post.postId)
+            const bookmarked = bookmarkedPostIds.has(post.postId)
+            const commentsOpen = openCommentIds.has(post.postId)
+
+            return (
+              <div key={post.postId} className="c-post">
+                <div className="c-post-top">
+                  <div className="c-p-avatar">
+                    <span className="material-symbols-outlined" style={{ fontSize: 22, color: 'var(--c-mid)', fontVariationSettings: "'FILL' 1" }}>face</span>
+                  </div>
+                  <div>
+                    <div className="c-p-author">{post.nickname}</div>
+                    <div className="c-p-time">{formatTime(post.createdAt)}</div>
+                  </div>
+                  <div className="c-vis-chip">{VISIBILITY_LABELS[post.visibility]}</div>
+                </div>
+
+                <div className="c-post-body">
+                  {post.title && <div className="c-post-title">{post.title}</div>}
+                  <div className="c-post-text">{post.content ?? ''}</div>
+                  {post.hashtags.length > 0 && (
+                    <div className="c-tag-row">
+                      {post.hashtags.map(tag => (
+                        <button key={tag} type="button" className="c-p-tag" onClick={() => selectTag(tag)}>
+                          #{tag}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {post.mediaUrls.length > 0 && (
+                  <div className="c-img-row">
+                    {post.mediaUrls.map(url => (
+                      <img
+                        key={url}
+                        src={url}
+                        alt=""
+                        className="object-cover rounded-lg"
+                        style={{ flex: 1, aspectRatio: '4/3', minWidth: 0, border: '1px solid var(--c-card-border)' }}
+                      />
+                    ))}
                   </div>
                 )}
 
-                {displayPosts.map((post, idx) => {
-                  const liked = likedPostIds.has(post.postId)
-                  const bookmarked = bookmarkedPostIds.has(post.postId)
-                  return (
-                    <div key={post.postId} className={`p-2 flex flex-col gap-2${idx < displayPosts.length - 1 ? ' border-b border-[#e3bfb1]' : ''}`}>
-                      <div className="flex gap-2 items-start">
-                        <div className="w-10 h-10 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                          <span className="material-symbols-outlined text-[28px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-baseline gap-1 mb-1">
-                            <span className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00] cursor-pointer">{post.nickname}</span>
-                            <span className="bg-[#baeaff] text-[#09657f] font-[Geist,monospace] text-[10px] px-1 rounded">일촌</span>
-                            <span className="text-[#5a4136] font-[Geist,monospace] text-[12px] ml-auto">{formatTime(post.createdAt)}</span>
-                          </div>
-                          {post.title && <h3 className="font-['Bricolage_Grotesque',sans-serif] text-[16px] font-bold text-[#1a1c1c] mb-1">{post.title}</h3>}
-                          <p className="text-[14px] text-[#1a1c1c] leading-relaxed">{post.content ?? ''}</p>
-                          {post.hashtags.length > 0 && (
-                            <div className="flex gap-1 mt-1 flex-wrap">
-                              {post.hashtags.map(tag => (
-                                <button
-                                  key={tag}
-                                  type="button"
-                                  className="font-[Geist,monospace] text-[10px] text-[#0c6780] hover:underline"
-                                  onClick={() => selectTag(tag)}
-                                >#{tag}</button>
-                              ))}
-                            </div>
-                          )}
-                          {post.mediaUrls.length > 0 && (
-                            <div className="flex gap-1 mt-1 flex-wrap">
-                              {post.mediaUrls.map(url => (
-                                <img key={url} src={url} alt="" className="w-20 h-20 object-cover border border-[#8e7164]" />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-1">
-                        <button
-                          className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1"
-                          onClick={() => toggleLike(post.postId)}
-                        >
-                          <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: liked ? "'FILL' 1" : "'FILL' 0", color: liked ? '#a33e00' : undefined }}>favorite</span>
-                          좋아요 <span className="text-[#a33e00] font-bold">{post.likeCount}</span>
-                        </button>
-                        <button
-                          className={`retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1${openCommentIds.has(post.postId) ? ' retro-btn-primary' : ''}`}
-                          onClick={() => toggleComments(post.postId)}
-                        >
-                          <span className="material-symbols-outlined text-sm">chat_bubble</span>
-                          댓글 {post.commentCount}
-                        </button>
-                        <button
-                          className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1 ml-auto"
-                          onClick={() => toggleBookmark(post.postId)}
-                          disabled={pendingBookmarkIds.has(post.postId)}
-                          aria-label={bookmarked ? '북마크 해제' : '북마크'}
-                        >
-                          <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: bookmarked ? "'FILL' 1" : "'FILL' 0", color: bookmarked ? '#a33e00' : undefined }}>bookmark</span>
-                        </button>
-                        <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-sm">share</span>
-                        </button>
-                      </div>
-
-                      {openCommentIds.has(post.postId) && (
-                        <div className="ml-6 flex flex-col gap-1">
-                          {commentLoading.has(post.postId) ? (
-                            <p className="font-[Geist,monospace] text-[11px] text-[#5a4136] py-1">불러오는 중...</p>
-                          ) : (postComments[post.postId] ?? []).length === 0 ? (
-                            <p className="font-[Geist,monospace] text-[11px] text-[#5a4136] py-1">첫 댓글을 남겨보세요!</p>
-                          ) : (
-                            <div className="flex flex-col gap-1">
-                              {(postComments[post.postId] ?? []).map(c => (
-                                <div key={c.commentId} className={`flex gap-1 items-start py-1${c.parentCommentId ? ' ml-4' : ''}`}>
-                                  {c.parentCommentId && <span className="material-symbols-outlined text-[13px] text-[#5a4136] mt-0.5">subdirectory_arrow_right</span>}
-                                  <span className="font-[Geist,monospace] text-[11px] font-bold text-[#a33e00] shrink-0">{c.nickname}</span>
-                                  <span className="font-[Geist,monospace] text-[11px] text-[#1a1c1c] flex-1">{c.content}</span>
-                                  {user?.id === c.userId && (
-                                    <button
-                                      className="font-[Geist,monospace] text-[10px] text-[#ba1a1a] hover:underline shrink-0"
-                                      onClick={() => deleteComment(post.postId, c.commentId)}
-                                    >삭제</button>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          <div className="flex gap-1 mt-1">
-                            <input
-                              className="window-inset flex-1 text-[12px] p-1 focus:outline-none"
-                              type="text"
-                              placeholder="댓글 달기..."
-                              value={commentInputs[post.postId] ?? ''}
-                              onChange={(e) => setCommentInputs(prev => ({ ...prev, [post.postId]: e.target.value }))}
-                              onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) submitComment(post.postId) }}
-                            />
-                            <button
-                              className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1"
-                              onClick={() => submitComment(post.postId)}
-                              disabled={commentSubmitting.has(post.postId)}
-                            >등록</button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-
-                <div className="p-2 flex justify-center border-t border-[#e3bfb1]">
-                  {(selectedTag ? searchHasNext : filter === '북마크' ? bookmarkHasNext : hasNext) ? (
-                    <button
-                      className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-12 py-2 flex items-center gap-1"
-                      onClick={() => selectedTag ? loadSearch(selectedTag, searchCursor) : filter === '북마크' ? loadBookmarks(bookmarkCursor) : loadFeed(cursor)}
-                      disabled={loading}
-                    >
-                      <span className="material-symbols-outlined text-base">{loading ? 'hourglass_empty' : 'expand_more'}</span>
-                      {loading ? '로딩 중...' : '더 보기'}
-                    </button>
-                  ) : (
-                    loading && (
-                      <span className="font-[Geist,monospace] text-[12px] text-[#5a4136]">로딩 중...</span>
-                    )
-                  )}
+                <div className="c-post-bottom">
+                  <button
+                    className={`c-react-btn${liked ? ' c-react-btn--active' : ''}`}
+                    onClick={() => toggleLike(post.postId)}
+                    disabled={pendingLikeIds.has(post.postId)}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 14, fontVariationSettings: liked ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
+                    {post.likeCount}
+                  </button>
+                  <button
+                    className={`c-react-btn${commentsOpen ? ' c-react-btn--active' : ''}`}
+                    onClick={() => toggleComments(post.postId)}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>comment</span>
+                    {post.commentCount}
+                  </button>
+                  <button
+                    className={`c-react-btn${bookmarked ? ' c-react-btn--saved' : ''}`}
+                    onClick={() => toggleBookmark(post.postId)}
+                    disabled={pendingBookmarkIds.has(post.postId)}
+                    aria-label={bookmarked ? '북마크 해제' : '북마크'}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 14, fontVariationSettings: bookmarked ? "'FILL' 1" : "'FILL' 0" }}>bookmark</span>
+                  </button>
+                  <button className="c-react-btn" style={{ marginLeft: 'auto' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 14 }}>share</span>
+                  </button>
                 </div>
+
+                {/* Comments */}
+                {commentsOpen && (
+                  <div style={{ borderTop: '1px solid #f0f4f8', background: '#fafcfe', padding: '12px 14px' }}>
+                    {commentLoading.has(post.postId) ? (
+                      <p style={{ fontSize: 11, color: 'var(--c-sub)', textAlign: 'center', padding: '8px 0' }}>불러오는 중...</p>
+                    ) : (postComments[post.postId] ?? []).length === 0 ? (
+                      <p style={{ fontSize: 11, color: 'var(--c-sub)', textAlign: 'center', padding: '8px 0' }}>첫 댓글을 남겨보세요!</p>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        {(postComments[post.postId] ?? []).map(c => (
+                          <div
+                            key={c.commentId}
+                            className="flex gap-2 items-start py-1"
+                            style={c.parentCommentId ? { marginLeft: 24 } : undefined}
+                          >
+                            {c.parentCommentId && (
+                              <span className="material-symbols-outlined" style={{ fontSize: 13, color: 'var(--c-sub)', marginTop: 2 }}>subdirectory_arrow_right</span>
+                            )}
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-navy)', flexShrink: 0 }}>{c.nickname}</span>
+                            <span style={{ fontSize: 12, color: 'var(--c-text)', flex: 1, lineHeight: 1.6 }}>{c.content}</span>
+                            {user?.id === c.userId && (
+                              <button
+                                style={{ fontSize: 10, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+                                className="hover:underline"
+                                onClick={() => deleteComment(post.postId, c.commentId)}
+                              >삭제</button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-2 mt-2">
+                      <input
+                        className="c-input flex-1"
+                        style={{ fontSize: 12, padding: '6px 10px' }}
+                        type="text"
+                        placeholder="댓글 달기..."
+                        value={commentInputs[post.postId] ?? ''}
+                        onChange={e => setCommentInputs(prev => ({ ...prev, [post.postId]: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) submitComment(post.postId) }}
+                      />
+                      <button
+                        className="c-sb-btn c-sb-btn--primary"
+                        style={{ width: 'auto', padding: '6px 14px', borderRadius: 20, fontSize: 12 }}
+                        onClick={() => submitComment(post.postId)}
+                        disabled={commentSubmitting.has(post.postId)}
+                      >
+                        등록
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          </main>
-        </div>
+            )
+          })}
 
-        {/* 우측 탭 */}
-        <nav className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
-          {(() => {
-            const tabs = [
-              { icon: 'home', label: '홈', path: '/' },
-              { icon: 'edit_note', label: '다이어리', path: `/home/${user?.id ?? 'me'}` },
-              { icon: 'photo_library', label: '사진첩', path: `/home/${user?.id ?? 'me'}` },
-              { icon: 'forum', label: '방명록', path: `/home/${user?.id ?? 'me'}` },
-              { icon: 'storefront', label: '상점', path: '/shop' },
-            ]
-            // 첫 번째 매칭 탭만 active → 동일 경로 탭 중복 active 방지
-            const activeIndex = tabs.findIndex(t => location.pathname === t.path)
-            return tabs.map((tab, index) => {
-              const active = index === activeIndex
-              return (
-                <button key={tab.label}
-                  onClick={() => navigate(tab.path)}
-                  aria-current={active ? 'page' : undefined}
-                  className={`tab-item${active ? ' tab-active' : ' bg-[#f3f3f3] text-[#5a4136] hover:bg-[#e2e2e2]'} py-2 px-1 text-center font-[Geist,monospace] text-[12px] font-semibold flex flex-col items-center gap-1 cursor-pointer border-none`}>
-                  <span className="material-symbols-outlined text-lg">{tab.icon}</span>
-                  {tab.label}
-                </button>
-              )
-            })
-          })()}
-        </nav>
+          {/* Load more */}
+          <div className="c-card" style={{ padding: '16px', display: 'flex', justifyContent: 'center' }}>
+            {(selectedTag ? searchHasNext : filter === '북마크' ? bookmarkHasNext : hasNext) ? (
+              <button
+                className="c-sb-btn c-sb-btn--outline"
+                style={{ width: 'auto', padding: '8px 32px', borderRadius: 20 }}
+                onClick={() => selectedTag ? loadSearch(selectedTag, searchCursor) : filter === '북마크' ? loadBookmarks(bookmarkCursor) : loadFeed(cursor)}
+                disabled={loading}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{loading ? 'hourglass_empty' : 'expand_more'}</span>
+                {loading ? '로딩 중...' : '더 보기'}
+              </button>
+            ) : (
+              loading
+                ? <span style={{ fontSize: 12, color: 'var(--c-sub)', fontFamily: 'IBM Plex Mono' }}>로딩 중...</span>
+                : <span style={{ fontSize: 11, color: 'var(--c-sub)', fontFamily: 'IBM Plex Mono' }}>모든 글을 불러왔어요.</span>
+            )}
+          </div>
+
+        </main>
       </div>
-
     </div>
   )
 }

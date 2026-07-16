@@ -194,7 +194,7 @@ export default function MiniroomPage() {
             <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1" onClick={deleteSelected}>
               <span className="material-symbols-outlined text-sm">delete</span> 삭제
             </button>
-            <div className="w-px h-4 bg-[#e3bfb1] mx-1" />
+            <div className="w-px h-4 mx-1" style={{ background: 'var(--c-card-border)' }} />
             <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1" onClick={flipSelected}>
               <span className="material-symbols-outlined text-sm">flip</span> 반전
             </button>
@@ -240,7 +240,7 @@ export default function MiniroomPage() {
 
               {/* 배경 선택 */}
               <div className="border-t border-[#e3bfb1] p-1">
-                <div className="font-[Geist,monospace] text-[12px] text-[#5a4136] mb-1">배경 선택</div>
+                <div className="font-[Geist,monospace] text-[12px] mb-1" style={{ color: 'var(--c-sub)' }}>배경 선택</div>
                 <div className="flex gap-1 flex-wrap">
                   {BG_OPTIONS.map((opt, i) => (
                     <div
@@ -256,8 +256,8 @@ export default function MiniroomPage() {
 
               {selectedItem && (
                 <div className="border-t border-[#e3bfb1] p-1 window-inset">
-                  <div className="font-[Geist,monospace] text-[12px] text-[#5a4136] mb-1">선택된 아이템</div>
-                  <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">{selectedItem.name}</div>
+                  <div className="font-[Geist,monospace] text-[12px] mb-1" style={{ color: 'var(--c-sub)' }}>선택된 아이템</div>
+                  <div className="font-[Geist,monospace] text-[12px] font-bold" style={{ color: 'var(--c-navy)' }}>{selectedItem.name}</div>
                   <div className="flex gap-1 mt-1">
                     <button className="retro-btn font-[Geist,monospace] text-[10px] font-semibold px-1 py-1" onClick={flipSelected}>반전</button>
                     <button className="retro-btn font-[Geist,monospace] text-[10px] font-semibold px-1 py-1" onClick={deleteSelected}>삭제</button>
@@ -306,8 +306,8 @@ export default function MiniroomPage() {
                 ))}
 
                 {isDragOver && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ background: 'rgba(255,102,0,0.05)', border: '2px dashed #ff6600' }}>
-                    <div className="font-[Geist,monospace] text-[12px] font-semibold text-[#a33e00] bg-white px-2 py-1 window-inset">
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ background: 'rgba(10,36,106,0.05)', border: '2px dashed var(--c-navy)' }}>
+                    <div className="font-[Geist,monospace] text-[12px] font-semibold bg-white px-2 py-1 window-inset" style={{ color: 'var(--c-navy)' }}>
                       여기에 아이템을 놓으세요
                     </div>
                   </div>
@@ -315,12 +315,12 @@ export default function MiniroomPage() {
               </div>
 
               <div className="window-inset px-2 py-1 flex items-center justify-between" style={{ borderRadius: 0 }}>
-                <div className="font-[Geist,monospace] text-[12px] text-[#5a4136] flex items-center gap-1">
+                <div className="font-[Geist,monospace] text-[12px] flex items-center gap-1" style={{ color: 'var(--c-sub)' }}>
                   <span className="material-symbols-outlined text-sm">{tool === 'select' ? 'cursor' : 'open_with'}</span>
                   {tool === 'select' ? '선택 모드' : '이동 모드'}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-[Geist,monospace] text-[12px] text-[#5a4136]">배치: <span className="text-[#a33e00] font-bold">{items.filter(i => i.visible).length}</span>개</span>
+                  <span className="font-[Geist,monospace] text-[12px]" style={{ color: 'var(--c-sub)' }}>배치: <span className="font-bold" style={{ color: 'var(--c-navy)' }}>{items.filter(i => i.visible).length}</span>개</span>
                   <button className="retro-btn font-[Geist,monospace] text-[10px] font-semibold px-1 py-1"
                     onClick={() => { if (confirm('모든 아이템을 제거하시겠습니까?')) { setItems([]); setSelectedId(null) } }}>
                     전체 제거
@@ -338,23 +338,24 @@ export default function MiniroomPage() {
                 {[...items].reverse().map(item => (
                   <div
                     key={item.id}
-                    className={`flex items-center gap-1 py-1 border-b border-[#e3bfb1] cursor-pointer${item.id === selectedId ? ' bg-[#baeaff]' : ''}`}
+                    className={`flex items-center gap-1 py-1 cursor-pointer`}
+                    style={{ borderBottom: '1px solid var(--c-card-border)', background: item.id === selectedId ? '#eef4fb' : 'transparent' }}
                     onClick={() => setSelectedId(item.id)}
                   >
-                    <span className="material-symbols-outlined text-sm text-[#5a4136] cursor-pointer" onClick={(e) => { e.stopPropagation(); toggleVisibility(item.id) }}>
+                    <span className="material-symbols-outlined text-sm cursor-pointer" style={{ color: 'var(--c-sub)' }} onClick={(e) => { e.stopPropagation(); toggleVisibility(item.id) }}>
                       {item.visible ? 'visibility' : 'visibility_off'}
                     </span>
                     <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1", color: item.color }}>{item.icon}</span>
-                    <span className="font-[Geist,monospace] text-[12px] flex-1 truncate">{item.name}</span>
-                    <span className="material-symbols-outlined text-[12px] text-[#5a4136]">drag_indicator</span>
+                    <span className="font-[Geist,monospace] text-[12px] flex-1 truncate" style={{ color: 'var(--c-text)' }}>{item.name}</span>
+                    <span className="material-symbols-outlined text-[12px]" style={{ color: 'var(--c-sub)' }}>drag_indicator</span>
                   </div>
                 ))}
               </div>
 
               <div className="border-t border-[#e3bfb1] p-1">
-                <div className="font-[Geist,monospace] text-[12px] text-[#5a4136] mb-1">크기 조절</div>
-                <input type="range" min={20} max={100} value={size} onChange={(e) => resizeSelected(Number(e.target.value))} className="w-full" style={{ accentColor: '#ff6600' }} />
-                <div className="flex justify-between font-[Geist,monospace] text-[12px] text-[#5a4136] mt-1">
+                <div className="font-[Geist,monospace] text-[12px] mb-1" style={{ color: 'var(--c-sub)' }}>크기 조절</div>
+                <input type="range" min={20} max={100} value={size} onChange={(e) => resizeSelected(Number(e.target.value))} className="w-full" style={{ accentColor: 'var(--c-navy)' }} />
+                <div className="flex justify-between font-[Geist,monospace] text-[12px] mt-1" style={{ color: 'var(--c-sub)' }}>
                   <span>작게</span><span>크게</span>
                 </div>
               </div>
@@ -368,7 +369,7 @@ export default function MiniroomPage() {
                 </button>
               </div>
 
-              <div className="border-t border-[#e3bfb1] p-1 text-center font-[Geist,monospace] text-[10px] text-[#5a4136]">
+              <div className="p-1 text-center font-[Geist,monospace] text-[10px]" style={{ borderTop: '1px solid var(--c-card-border)', color: 'var(--c-sub)' }}>
                 담당: 정용혁 · ROOM 도메인
               </div>
             </div>
@@ -394,8 +395,8 @@ export default function MiniroomPage() {
       </div>
 
       {toast && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] window-frame px-4 py-2 font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c] flex items-center gap-1">
-          <span className="material-symbols-outlined text-base text-[#0c6780]">check_circle</span>
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] window-frame px-4 py-2 font-[Geist,monospace] text-[12px] font-semibold flex items-center gap-1" style={{ color: 'var(--c-navy)' }}>
+          <span className="material-symbols-outlined text-base" style={{ color: 'var(--c-mid)' }}>check_circle</span>
           미니룸이 저장되었습니다!
         </div>
       )}

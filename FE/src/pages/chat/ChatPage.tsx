@@ -652,7 +652,7 @@ export default function ChatPage() {
             </button>
           </div>
 
-          <div style={{ padding: '6px 8px', borderBottom: '1px solid #e3bfb1' }}>
+          <div style={{ padding: '6px 8px', borderBottom: '1px solid var(--c-card-border)' }}>
             <div className="retro-inner-box" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8 }}>
               <select
                 value={selectedUserId}
@@ -680,7 +680,7 @@ export default function ChatPage() {
                 style={{ background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 12 }}
               />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#5a4136' }}>
+                <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: 'var(--c-sub)' }}>
                   참여자 선택 (현재 유저 포함)
                 </span>
                 {testUsers.map((testUser) => {
@@ -721,13 +721,13 @@ export default function ChatPage() {
             </div>
           </div>
 
-          <div style={{ padding: '6px 8px', borderBottom: '1px solid #e3bfb1', fontFamily: 'Geist, monospace', fontSize: 11, color: '#5a4136' }}>
+          <div style={{ padding: '6px 8px', borderBottom: '1px solid var(--c-card-border)', fontFamily: 'Geist, monospace', fontSize: 11, color: 'var(--c-sub)' }}>
             소켓 상태: {connectionStatus === 'connected' ? '연결됨' : connectionStatus === 'connecting' ? '연결 중' : '연결 끊김'}
           </div>
 
-          <div className="retro-scrollbar" style={{ flex: 1, overflowY: 'auto', background: '#f9f9f9' }}>
+          <div className="retro-scrollbar" style={{ flex: 1, overflowY: 'auto', background: '#f8fafc' }}>
             {chatRooms.length === 0 ? (
-              <div style={{ padding: 16, fontFamily: 'Be Vietnam Pro', fontSize: 12, color: '#5a4136' }}>
+              <div style={{ padding: 16, fontFamily: 'Be Vietnam Pro', fontSize: 12, color: 'var(--c-sub)' }}>
                 현재 사용자 기준으로 보이는 채팅방이 없습니다.
               </div>
             ) : null}
@@ -739,15 +739,15 @@ export default function ChatPage() {
                 }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8, padding: '10px 8px',
-                  borderBottom: '1px solid #e3bfb1', cursor: 'pointer',
-                  background: activeId === room.id ? '#ffdbcd' : 'transparent',
-                  borderLeft: activeId === room.id ? '4px solid #a33e00' : '4px solid transparent',
+                  borderBottom: '1px solid var(--c-card-border)', cursor: 'pointer',
+                  background: activeId === room.id ? '#eef4fb' : 'transparent',
+                  borderLeft: activeId === room.id ? '4px solid var(--c-navy)' : '4px solid transparent',
                   transition: 'background 0.1s',
                 }}
               >
                 <div style={{ position: 'relative', flexShrink: 0 }}>
-                  <div className="retro-inner-box" style={{ width: 40, height: 40, overflow: 'hidden', background: '#eeeeee', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 24, color: '#5a4136', fontVariationSettings: "'FILL' 1" }}>person</span>
+                  <div className="retro-inner-box" style={{ width: 40, height: 40, overflow: 'hidden', background: '#f0f6fb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 24, color: 'var(--c-mid)', fontVariationSettings: "'FILL' 1" }}>person</span>
                   </div>
                   {room.online && (
                     <span style={{ position: 'absolute', bottom: -2, right: -2, width: 10, height: 10, background: '#22c55e', borderRadius: '50%', border: '1px solid white' }} />
@@ -756,9 +756,9 @@ export default function ChatPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
                     <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 700 }}>{room.name}</span>
-                    <span style={{ fontFamily: 'Geist, monospace', fontSize: 10, color: '#5a4136' }}>{room.time}</span>
+                    <span style={{ fontFamily: 'Geist, monospace', fontSize: 10, color: 'var(--c-sub)' }}>{room.time}</span>
                   </div>
-                  <p style={{ fontFamily: 'Be Vietnam Pro', fontSize: 12, color: '#5a4136', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <p style={{ fontFamily: 'Be Vietnam Pro', fontSize: 12, color: 'var(--c-sub)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {room.lastMsg || '메시지 없음'}
                   </p>
                 </div>
@@ -774,8 +774,8 @@ export default function ChatPage() {
           <div className="retro-title-bar" style={{ justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ position: 'relative' }}>
-                <div className="retro-inner-box" style={{ width: 36, height: 36, background: '#eeeeee', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#5a4136', fontVariationSettings: "'FILL' 1" }}>person</span>
+                <div className="retro-inner-box" style={{ width: 36, height: 36, background: '#f0f6fb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 20, color: 'var(--c-mid)', fontVariationSettings: "'FILL' 1" }}>person</span>
                 </div>
                 {activeRoom?.online ? (
                   <span style={{ position: 'absolute', bottom: -2, right: -2, width: 10, height: 10, background: '#22c55e', borderRadius: '50%', border: '1px solid white' }} />
@@ -783,7 +783,7 @@ export default function ChatPage() {
               </div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>{activeRoom?.name ?? '채팅방을 선택하세요'}</div>
-                <div style={{ fontSize: 10, color: activeRoom?.online ? '#15803d' : '#5a4136', fontWeight: 700 }}>
+                <div style={{ fontSize: 10, color: activeRoom?.online ? '#15803d' : 'var(--c-sub)', fontWeight: 700 }}>
                   {activeRoom ? (activeRoom.online ? '● 접속 중' : '● 오프라인') : '● 미선택'}
                 </div>
               </div>
@@ -843,15 +843,15 @@ export default function ChatPage() {
             style={{ flex: 1, padding: 16, margin: 8, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, background: '#fff' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ flex: 1, borderTop: '1px solid #e3bfb1' }} />
-              <span style={{ background: '#e2e2e2', color: '#5a4136', fontFamily: 'Geist, monospace', fontSize: 12, padding: '2px 8px', border: '1px solid #e3bfb1' }}>
+              <div style={{ flex: 1, borderTop: '1px solid var(--c-card-border)' }} />
+              <span style={{ background: '#eef4fb', color: 'var(--c-sub)', fontFamily: 'Geist, monospace', fontSize: 12, padding: '2px 8px', border: '1px solid var(--c-card-border)', borderRadius: 10 }}>
                 실시간 채팅 테스트
               </span>
-              <div style={{ flex: 1, borderTop: '1px solid #e3bfb1' }} />
+              <div style={{ flex: 1, borderTop: '1px solid var(--c-card-border)' }} />
             </div>
 
             {messages.length === 0 ? (
-              <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: 'Be Vietnam Pro', fontSize: 13, color: '#5a4136' }}>
+              <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: 'Be Vietnam Pro', fontSize: 13, color: 'var(--c-sub)' }}>
                 {activeId === null ? '왼쪽에서 채팅방을 생성하거나 선택하세요.' : '아직 메시지가 없습니다.'}
               </div>
             ) : null}
@@ -876,10 +876,11 @@ export default function ChatPage() {
                     style={{
                       fontFamily: 'Be Vietnam Pro',
                       fontSize: 12,
-                      color: '#6f6f6f',
-                      background: '#f2f2f2',
-                      border: '1px solid #e3e3e3',
+                      color: 'var(--c-sub)',
+                      background: '#eef4fb',
+                      border: '1px solid var(--c-card-border)',
                       padding: '4px 10px',
+                      borderRadius: 10,
                     }}
                   >
                     {msg.text}
@@ -905,7 +906,7 @@ export default function ChatPage() {
                   {openMessageMenuId === msg.id ? (
                     <div
                       className="retro-window"
-                      style={{ position: 'absolute', top: 34, left: -40, zIndex: 20, minWidth: 92, padding: 4, background: '#fff7f4' }}
+                      style={{ position: 'absolute', top: 34, left: -40, zIndex: 20, minWidth: 92, padding: 4, background: '#fff' }}
                     >
                       <button
                         className="retro-btn-gray"
@@ -918,12 +919,13 @@ export default function ChatPage() {
                     </div>
                   ) : null}
                   <div style={{
-                    background: msg.senderId === selectedUserId ? '#ff6600' : '#eeeeee',
-                    color: msg.senderId === selectedUserId ? '#fff' : '#1a1c1c',
-                    padding: '8px 10px',
-                    border: msg.senderId === selectedUserId ? '1px solid #a33e00' : '1px solid #e3bfb1',
-                    boxShadow: '1px 1px 0px rgba(0,0,0,0.1)',
-                    fontFamily: 'Be Vietnam Pro',
+                    background: msg.senderId === selectedUserId ? 'var(--c-navy)' : '#eef4fb',
+                    color: msg.senderId === selectedUserId ? '#fff' : 'var(--c-text)',
+                    padding: '8px 12px',
+                    border: msg.senderId === selectedUserId ? 'none' : '1px solid var(--c-card-border)',
+                    borderRadius: msg.senderId === selectedUserId ? '14px 4px 14px 14px' : '4px 14px 14px 14px',
+                    boxShadow: '0 1px 4px rgba(10,36,106,0.08)',
+                    fontFamily: 'Noto Sans KR, sans-serif',
                     fontSize: 14,
                     whiteSpace: 'pre-wrap',
                   }}>
@@ -931,9 +933,9 @@ export default function ChatPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                  <span style={{ fontFamily: 'Geist, monospace', fontSize: 10, color: '#5a4136' }}>{msg.time}</span>
+                  <span style={{ fontFamily: 'Geist, monospace', fontSize: 10, color: 'var(--c-sub)' }}>{msg.time}</span>
                   {msg.unreadMemberCount > 0 && (msg.senderId === selectedUserId || activeRoom?.type === 'GROUP') ? (
-                    <span style={{ fontFamily: 'Geist, monospace', fontSize: 10, color: '#ba1a1a', fontWeight: 700 }}>
+                    <span style={{ fontFamily: 'Geist, monospace', fontSize: 10, color: '#dc2626', fontWeight: 700 }}>
                       {msg.unreadMemberCount}
                     </span>
                   ) : null}
@@ -945,14 +947,14 @@ export default function ChatPage() {
             <div ref={bottomRef} />
           </div>
 
-          <div style={{ padding: 8, borderTop: '1px solid #e3bfb1', background: '#f9f9f9' }}>
+          <div style={{ padding: 8, borderTop: '1px solid var(--c-card-border)', background: '#f8fafc' }}>
             <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
               {['sentiment_satisfied', 'image', 'attach_file'].map(icon => (
                 <button key={icon} className="retro-btn-gray" style={{ padding: '4px 6px', display: 'flex', alignItems: 'center' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{icon}</span>
                 </button>
               ))}
-              <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136', marginLeft: 'auto', alignSelf: 'center' }}>
+              <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, color: 'var(--c-sub)', marginLeft: 'auto', alignSelf: 'center' }}>
                 현재 사용자: {selectedUser.nickname}
               </span>
             </div>

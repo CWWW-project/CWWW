@@ -40,4 +40,7 @@ export const authApi = {
 
   exchangeOAuthCode: (code: string) =>
     api.post<ApiResponse<OAuthTokenResult>>('/auth/oauth/token', { code }),
+
+  logout: () =>
+    api.post<void>('/auth/logout'),
 }

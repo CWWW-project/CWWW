@@ -19,8 +19,8 @@ interface ShopItem {
 }
 
 const SHOP_ITEMS: ShopItem[] = [
-  { id: 1, name: '봄벚꽃 스킨', price: 500, icon: 'palette', iconColor: '#0c6780', bg: '#e8f4fb', category: '스킨', badge: 'NEW', badgeColor: '#ff6600' },
-  { id: 2, name: '클래식 소파', price: 300, icon: 'chair', iconColor: '#8B4513', bg: '#fff9e6', category: '미니룸', badge: '인기', badgeColor: '#0c6780' },
+  { id: 1, name: '봄벚꽃 스킨', price: 500, icon: 'palette', iconColor: '#0c6780', bg: '#e8f4fb', category: '스킨', badge: 'NEW', badgeColor: 'var(--c-navy)' },
+  { id: 2, name: '클래식 소파', price: 300, icon: 'chair', iconColor: '#8B4513', bg: '#fff9e6', category: '미니룸', badge: '인기', badgeColor: 'var(--c-mid)' },
   { id: 3, name: '프리스타일 - Y', price: 100, icon: 'music_note', iconColor: '#a33e00', bg: '#f0f8ff', category: 'BGM' },
   { id: 4, name: '하트 이펙트', price: 200, icon: 'favorite', iconColor: '#ba1a1a', bg: '#fef3f3', category: '아이템' },
   { id: 5, name: '레인보우 침대', price: 450, icon: 'bed', iconColor: '#7b3fe4', bg: '#f5f0ff', category: '미니룸' },
@@ -88,11 +88,11 @@ export default function ShopPage() {
               {/* 도토리 잔액 + 검색 */}
               <div className="window-inset p-2 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 bg-[#8B4513] text-white px-2 py-1 rounded" style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>
+                  <div className="flex items-center gap-1 px-2 py-1 rounded" style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, fontWeight: 600, background: 'var(--c-navy)', color: '#fff' }}>
                     <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>spa</span>
                     내 도토리
                   </div>
-                  <div className="window-frame px-2 py-1 font-bold text-[#a33e00] text-lg">
+                  <div className="window-frame px-2 py-1 font-bold text-lg" style={{ color: 'var(--c-navy)' }}>
                     {acorns.toLocaleString()} 개
                   </div>
                   <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1">
@@ -120,8 +120,8 @@ export default function ShopPage() {
 
               {/* 정렬 */}
               <div className="flex items-center justify-between">
-                <div className="font-[Geist,monospace] text-[12px] text-[#5a4136]">
-                  총 <span className="text-[#a33e00] font-bold">{filtered.length}</span>개 아이템
+                <div className="font-[Geist,monospace] text-[12px]" style={{ color: 'var(--c-sub)' }}>
+                  총 <span className="font-bold" style={{ color: 'var(--c-navy)' }}>{filtered.length}</span>개 아이템
                 </div>
                 <select className="window-inset font-[Geist,monospace] text-[12px] text-[#1a1c1c] px-1 py-1 focus:outline-none bg-white">
                   <option>최신순</option>
@@ -204,8 +204,8 @@ export default function ShopPage() {
                 </div>
                 <div className="p-2 border-t border-[#e3bfb1]">
                   <div className="window-inset p-1 flex justify-between items-center mb-2">
-                    <span className="font-[Geist,monospace] text-[12px] text-[#5a4136]">합계</span>
-                    <span className="font-bold text-[#a33e00] text-lg">🌰 {cartTotal.toLocaleString()}</span>
+                    <span className="font-[Geist,monospace] text-[12px]" style={{ color: 'var(--c-sub)' }}>합계</span>
+                    <span className="font-bold text-lg" style={{ color: 'var(--c-navy)' }}>🌰 {cartTotal.toLocaleString()}</span>
                   </div>
                   <button
                     className="retro-btn retro-btn-primary w-full font-[Geist,monospace] text-[12px] font-semibold py-2 flex items-center justify-center gap-1"
@@ -248,10 +248,9 @@ export default function ShopPage() {
 
               {/* 도토리 충전 배너 */}
               <div className="window-inset p-2 text-center">
-                <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c] mb-1">도토리가 부족한가요?</div>
-                <div className="text-[14px] text-[#5a4136] mb-2">카드/계좌이체로 간편 충전</div>
-                <button className="retro-btn w-full font-[Geist,monospace] text-[12px] font-semibold py-2"
-                  style={{ background: '#8B4513', color: '#fff' }}>
+                <div className="font-[Geist,monospace] text-[12px] font-bold mb-1" style={{ color: 'var(--c-navy)' }}>도토리가 부족한가요?</div>
+                <div className="text-[14px] mb-2" style={{ color: 'var(--c-sub)' }}>카드/계좌이체로 간편 충전</div>
+                <button className="retro-btn retro-btn-primary w-full font-[Geist,monospace] text-[12px] font-semibold py-2">
                   🌰 도토리 충전하기
                 </button>
               </div>
@@ -259,7 +258,7 @@ export default function ShopPage() {
           </div>
 
           {/* 푸터 */}
-          <div className="mt-2 pt-2 border-t border-[#e3bfb1] text-center font-[Geist,monospace] text-[12px] text-[#5a4136]">
+          <div className="mt-2 pt-2 text-center font-[Geist,monospace] text-[12px]" style={{ borderTop: '1px solid var(--c-card-border)', color: 'var(--c-sub)' }}>
             담당: 장수호 · PAY 도메인 · 도토리 결제 / 상점 / 아이템 구매
           </div>
         </div>
@@ -296,16 +295,16 @@ export default function ShopPage() {
             <div className="p-4 flex flex-col gap-2">
               <div className="window-inset p-2">
                 <div className="flex justify-between font-[Geist,monospace] text-[12px] mb-1">
-                  <span className="text-[#5a4136]">보유 도토리</span>
-                  <span className="font-bold text-[#0c6780]">🌰 {acorns.toLocaleString()}</span>
+                  <span style={{ color: 'var(--c-sub)' }}>보유 도토리</span>
+                  <span className="font-bold" style={{ color: 'var(--c-mid)' }}>🌰 {acorns.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between font-[Geist,monospace] text-[12px] mb-1">
-                  <span className="text-[#5a4136]">결제 금액</span>
-                  <span className="font-bold text-[#a33e00]">🌰 {cartTotal.toLocaleString()}</span>
+                  <span style={{ color: 'var(--c-sub)' }}>결제 금액</span>
+                  <span className="font-bold" style={{ color: 'var(--c-navy)' }}>🌰 {cartTotal.toLocaleString()}</span>
                 </div>
-                <div className="border-t border-[#e3bfb1] pt-1 flex justify-between font-[Geist,monospace] text-[12px]">
-                  <span className="text-[#5a4136]">결제 후 잔액</span>
-                  <span className="font-bold text-[#1a1c1c]">🌰 {(acorns - cartTotal).toLocaleString()}</span>
+                <div className="pt-1 flex justify-between font-[Geist,monospace] text-[12px]" style={{ borderTop: '1px solid var(--c-card-border)' }}>
+                  <span style={{ color: 'var(--c-sub)' }}>결제 후 잔액</span>
+                  <span className="font-bold" style={{ color: 'var(--c-text)' }}>🌰 {(acorns - cartTotal).toLocaleString()}</span>
                 </div>
               </div>
               <div className="text-[14px] text-[#5a4136] text-center">
@@ -322,8 +321,8 @@ export default function ShopPage() {
 
       {/* 토스트 */}
       {toast && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] window-frame px-4 py-2 font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c] flex items-center gap-1">
-          <span className="material-symbols-outlined text-base text-[#0c6780]">check_circle</span>
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] window-frame px-4 py-2 font-[Geist,monospace] text-[12px] font-semibold flex items-center gap-1" style={{ color: 'var(--c-navy)' }}>
+          <span className="material-symbols-outlined text-base" style={{ color: 'var(--c-mid)' }}>check_circle</span>
           구매가 완료되었습니다!
         </div>
       )}

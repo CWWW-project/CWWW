@@ -8,6 +8,7 @@ import ShopPage from './pages/pay/ShopPage'
 import MiniroomPage from './pages/room/MiniroomPage'
 import MinihompyPage from './pages/home/MinihompyPage'
 import FriendsPage from './pages/friend/FriendsPage'
+import SettingsPage from './pages/settings/SettingsPage'
 import { useAuthStore } from './store/authStore'
 import OAuthCallbackPage from './pages/auth/OAuthCallbackPage'
 
@@ -24,11 +25,11 @@ function GlobalMobileNav() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
 
-  if (location.pathname.startsWith('/auth/') || location.pathname === '/oauth/callback') return null
+  if (location.pathname.startsWith('/auth/') || location.pathname === '/oauth/callback' || location.pathname === '/settings') return null
 
   const tabs = MOBILE_TABS.map(tab => ({
     ...tab,
-    path: 'pathFn' in tab ? tab.pathFn(user?.id) : (tab as { path: string }).path,
+    path: 'pathFn' in tab && typeof tab.pathFn === 'function' ? tab.pathFn(user?.id) : (tab as { path: string }).path,
   }))
 
   // 오른쪽에서 탐색해 마지막 매칭 탭 우선 (내 홈피 > 다이어리)
@@ -39,7 +40,7 @@ function GlobalMobileNav() {
   }, -1)
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center bg-[#e2e2e2] px-2 border-t-2 border-[#e3bfb1] h-16">
+    <nav className="c-tab-bar md:hidden fixed bottom-0 left-0 right-0 z-50">
       {tabs.map((tab, index) => {
         const active = index === activeIndex
         return (
@@ -47,10 +48,10 @@ function GlobalMobileNav() {
             key={tab.label}
             onClick={() => navigate(tab.path)}
             aria-current={active ? 'page' : undefined}
-            className={`flex flex-col items-center justify-center p-1 flex-1 cursor-pointer bg-transparent border-none${active ? ' bg-[#a33e00] text-white rounded-lg border-t-2 border-l-2 border-white border-r-2 border-b-2 border-[#7c2e00] mx-1' : ' text-[#5a4136]'}`}
+            className={`c-tab-item${active ? ' c-tab-item--active' : ''}`}
           >
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>{tab.icon}</span>
-            <span className="font-[Geist,monospace] text-[12px] font-semibold mt-1">{tab.label}</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 22, fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>{tab.icon}</span>
+            {tab.label}
           </button>
         )
       })}
@@ -71,6 +72,7 @@ function App() {
         {/* POST - 송경용 */}
         <Route path="/" element={<FeedPage />} />
         <Route path="/friends" element={<FriendsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
 
         {/* HOME - 김채린 */}
         <Route path="/home/:userId" element={<MinihompyPage />} />

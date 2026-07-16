@@ -21,8 +21,8 @@ const DIARY_POSTS: DiaryPost[] = [
 ]
 
 const GUESTBOOK = [
-  { id: 1, author: '윤주원', time: '10분 전', message: '홈피 너무 예쁘다!! 미니룸 어디서 샀어? 나도 저 소파 사고 싶다 ㅠ', icon: '#a33e00' },
-  { id: 2, author: '김찬호', time: '어제', message: '들어왔다가요~ 요즘 잘 지내? 나중에 같이 카페가자 ☕', icon: '#0c6780' },
+  { id: 1, author: '윤주원', time: '10분 전', message: '홈피 너무 예쁘다!! 미니룸 어디서 샀어? 나도 저 소파 사고 싶다 ㅠ', icon: 'var(--c-navy)' },
+  { id: 2, author: '김찬호', time: '어제', message: '들어왔다가요~ 요즘 잘 지내? 나중에 같이 카페가자 ☕', icon: 'var(--c-mid)' },
   { id: 3, author: '장수호', time: '2일 전', message: '오 블로그 글 잘 읽었어! 도움 많이 됐다 감사합니다 🙏', icon: '#388e3c' },
 ]
 
@@ -36,10 +36,10 @@ const PHOTOS = [
 ]
 
 const ILCHON = [
-  { name: '윤주원', status: '접속 중', color: '#0c6780' },
-  { name: '김찬호', status: '1시간 전', color: '#5a4136' },
-  { name: '장수호', status: '어제', color: '#5a4136' },
-  { name: '김채린', status: '3일 전', color: '#5a4136' },
+  { name: '윤주원', status: '접속 중', color: 'var(--c-mid)' },
+  { name: '김찬호', status: '1시간 전', color: 'var(--c-sub)' },
+  { name: '장수호', status: '어제', color: 'var(--c-sub)' },
+  { name: '김채린', status: '3일 전', color: 'var(--c-sub)' },
 ]
 
 export default function MinihompyPage() {
@@ -51,7 +51,7 @@ export default function MinihompyPage() {
   const submitGuest = () => {
     if (!guestInput.trim()) return
     setGuestbook(prev => [
-      { id: Date.now(), author: '나', time: '방금', message: guestInput.trim(), icon: '#a33e00' },
+      { id: Date.now(), author: '나', time: '방금', message: guestInput.trim(), icon: 'var(--c-navy)' },
       ...prev,
     ])
     setGuestInput('')
@@ -90,7 +90,7 @@ export default function MinihompyPage() {
                 </div>
                 {/* 미니미 */}
                 <div className="absolute flex flex-col items-center" style={{ left: '50%', bottom: '42%', transform: 'translateX(-50%) translateX(-40px)' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 36, fontVariationSettings: "'FILL' 1", color: '#a33e00' }}>face</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: 36, fontVariationSettings: "'FILL' 1", color: 'var(--c-navy)' }}>face</span>
                   <div style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid #ccc', padding: '1px 5px', fontSize: 8, fontFamily: 'Geist, monospace', whiteSpace: 'nowrap' }}>김채린</div>
                 </div>
                 {/* 꾸미기 오버레이 */}
@@ -102,22 +102,22 @@ export default function MinihompyPage() {
               {/* 프로필 정보 */}
               <div className="p-3 flex flex-col gap-2 border-b border-[#e3bfb1]">
                 <div className="text-center">
-                  <h2 className="font-['Bricolage_Grotesque',sans-serif] text-[20px] font-bold text-[#a33e00]">김채린</h2>
-                  <p className="font-[Geist,monospace] text-[10px] text-[#5a4136] mt-1">HOME 도메인 담당</p>
+                  <h2 className="font-['IBM_Plex_Mono',monospace] text-[20px] font-bold" style={{ color: 'var(--c-navy)' }}>김채린</h2>
+                  <p className="font-[Geist,monospace] text-[10px] mt-1" style={{ color: 'var(--c-sub)' }}>HOME 도메인 담당</p>
                 </div>
                 <div className="window-inset p-2 text-[13px] text-[#1a1c1c] text-center min-h-[48px] flex items-center justify-center">
                   사진 찍는 걸 좋아해요 📷<br />친구들 놀러오세요~
                 </div>
                 <div className="flex items-center gap-1 window-inset px-2 py-1">
-                  <span className="material-symbols-outlined text-[#a33e00] text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>sentiment_satisfied</span>
-                  <span className="font-[Geist,monospace] text-[12px] text-[#5a4136]">기분: 설렘</span>
+                  <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1", color: 'var(--c-mid)' }}>sentiment_satisfied</span>
+                  <span className="font-[Geist,monospace] text-[12px]" style={{ color: 'var(--c-sub)' }}>기분: 설렘</span>
                 </div>
               </div>
 
               {/* 방문자 카운터 */}
               <div className="p-2 border-b border-[#e3bfb1] window-inset text-center">
-                <div className="font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c]">
-                  TODAY <span className="text-[#ba1a1a] font-bold">87</span> &nbsp;|&nbsp; TOTAL <span className="font-bold">23,456</span>
+                <div className="font-[Geist,monospace] text-[12px] font-semibold" style={{ color: 'var(--c-navy)' }}>
+                  TODAY <span className="font-bold" style={{ color: '#dc2626' }}>87</span> &nbsp;|&nbsp; TOTAL <span className="font-bold">23,456</span>
                 </div>
               </div>
 
@@ -125,7 +125,7 @@ export default function MinihompyPage() {
               <div className="flex flex-col border-b border-[#e3bfb1]">
                 <div className="bg-[#e2e2e2] px-2 py-1 font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c] flex items-center gap-1">
                   <span className="material-symbols-outlined text-sm">group</span>
-                  일촌 <span className="ml-auto text-[#a33e00]">{ILCHON.length}명</span>
+                  일촌 <span className="ml-auto" style={{ color: 'var(--c-navy)' }}>{ILCHON.length}명</span>
                 </div>
                 <div className="p-2 flex flex-col gap-1">
                   {ILCHON.map(f => (
@@ -135,7 +135,7 @@ export default function MinihompyPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c] truncate">{f.name}</p>
-                        <p className="text-[10px]" style={{ color: f.status === '접속 중' ? '#0c6780' : '#5a4136' }}>● {f.status}</p>
+                        <p className="text-[10px]" style={{ color: f.status === '접속 중' ? 'var(--c-mid)' : 'var(--c-sub)' }}>● {f.status}</p>
                       </div>
                     </div>
                   ))}
@@ -145,9 +145,9 @@ export default function MinihompyPage() {
               {/* BGM */}
               <div className="p-2">
                 <div className="window-inset flex items-center gap-1 px-2 py-1">
-                  <span className="material-symbols-outlined text-sm text-[#a33e00]">music_note</span>
+                  <span className="material-symbols-outlined text-sm" style={{ color: 'var(--c-mid)' }}>music_note</span>
                   <div className="flex-1 overflow-hidden">
-                    <span className="font-[Geist,monospace] text-[11px] text-[#5a4136] whitespace-nowrap" style={{ display: 'inline-block' }}>
+                    <span className="font-[Geist,monospace] text-[11px] whitespace-nowrap" style={{ display: 'inline-block', color: 'var(--c-sub)' }}>
                       IU - 밤편지
                     </span>
                   </div>
@@ -160,11 +160,20 @@ export default function MinihompyPage() {
             <div className="flex-1 flex flex-col min-w-0">
 
               {/* 탭 */}
-              <div className="flex border-b border-[#8e7164] bg-[#e2e2e2]">
+              <div className="flex border-b" style={{ borderColor: 'var(--c-card-border)', background: '#f0f6fb' }}>
                 {(['다이어리', '사진첩', '방명록', '일촌'] as Tab[]).map(tab => (
                   <button
                     key={tab}
-                    className={`font-[Geist,monospace] text-[12px] font-semibold px-4 py-2 border-r border-[#8e7164] transition-colors${activeTab === tab ? ' bg-[#f9f9f9] text-[#a33e00] border-b-2 border-b-[#f9f9f9] -mb-px' : ' text-[#5a4136] hover:bg-[#eeeeee]'}`}
+                    style={{
+                      fontFamily: 'Noto Sans KR, sans-serif', fontSize: 12, fontWeight: 700,
+                      padding: '8px 16px',
+                      borderRight: '1px solid var(--c-card-border)',
+                      borderBottom: activeTab === tab ? '2px solid var(--c-navy)' : '2px solid transparent',
+                      marginBottom: activeTab === tab ? -1 : 0,
+                      background: activeTab === tab ? '#fff' : 'transparent',
+                      color: activeTab === tab ? 'var(--c-navy)' : 'var(--c-sub)',
+                      cursor: 'pointer', transition: 'all 0.15s', border: 'none',
+                    }}
                     onClick={() => setActiveTab(tab)}
                   >{tab}</button>
                 ))}
@@ -183,11 +192,11 @@ export default function MinihompyPage() {
                       </button>
                     </div>
                     {DIARY_POSTS.map(post => (
-                      <div key={post.id} className="window-frame p-3 flex flex-col gap-2 cursor-pointer hover:bg-[#fffbe8]">
+                      <div key={post.id} className="window-frame p-3 flex flex-col gap-2 cursor-pointer" style={{ transition: 'box-shadow 0.15s' }}>
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{post.mood}</span>
                           <span className="text-lg">{post.weather}</span>
-                          <span className="font-[Geist,monospace] text-[11px] text-[#5a4136] ml-auto">{post.date}</span>
+                          <span className="font-[Geist,monospace] text-[11px] ml-auto" style={{ color: 'var(--c-sub)' }}>{post.date}</span>
                         </div>
                         <h4 className="font-['Bricolage_Grotesque',sans-serif] text-[16px] font-bold text-[#1a1c1c]">{post.title}</h4>
                         <p className="text-[14px] text-[#5a4136] leading-relaxed">{post.content}</p>
@@ -219,7 +228,7 @@ export default function MinihompyPage() {
                       {PHOTOS.map(photo => (
                         <div key={photo.id} className="window-frame cursor-pointer overflow-hidden group">
                           <div className="aspect-square flex items-center justify-center relative" style={{ background: photo.color }}>
-                            <span className="material-symbols-outlined text-[48px] text-[#8e7164] group-hover:scale-110 transition-transform" style={{ fontVariationSettings: "'FILL' 1" }}>image</span>
+                            <span className="material-symbols-outlined text-[48px] group-hover:scale-110 transition-transform" style={{ fontVariationSettings: "'FILL' 1", color: 'var(--c-mid)' }}>image</span>
                             <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-20 transition-opacity" />
                           </div>
                           <div className="p-1 font-[Geist,monospace] text-[11px] text-[#5a4136] text-center border-t border-[#e3bfb1]">{photo.label}</div>
@@ -237,7 +246,7 @@ export default function MinihompyPage() {
                     {/* 글쓰기 */}
                     <div className="window-inset p-2 flex gap-2">
                       <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] flex items-center justify-center">
-                        <span className="material-symbols-outlined text-[22px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                        <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1", color: 'var(--c-navy)' }}>face</span>
                       </div>
                       <div className="flex-1 flex flex-col gap-1">
                         <textarea
@@ -262,8 +271,8 @@ export default function MinihompyPage() {
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00]">{entry.author}</span>
-                              <span className="font-[Geist,monospace] text-[10px] text-[#5a4136]">{entry.time}</span>
+                              <span className="font-[Geist,monospace] text-[12px] font-bold" style={{ color: 'var(--c-navy)' }}>{entry.author}</span>
+                              <span className="font-[Geist,monospace] text-[10px]" style={{ color: 'var(--c-sub)' }}>{entry.time}</span>
                             </div>
                             <p className="text-[13px] text-[#1a1c1c]">{entry.message}</p>
                           </div>
@@ -286,11 +295,11 @@ export default function MinihompyPage() {
                       {ILCHON.map(f => (
                         <div key={f.name} className="window-frame p-3 flex flex-col items-center gap-2 cursor-pointer hover:bg-[#fffbe8]">
                           <div className="w-14 h-14 border-2 border-[#8e7164] bg-[#eeeeee] flex items-center justify-center">
-                            <span className="material-symbols-outlined text-[40px]" style={{ fontVariationSettings: "'FILL' 1", color: '#a33e00' }}>face</span>
+                            <span className="material-symbols-outlined text-[40px]" style={{ fontVariationSettings: "'FILL' 1", color: 'var(--c-navy)' }}>face</span>
                           </div>
                           <div className="text-center">
                             <p className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">{f.name}</p>
-                            <p className="text-[10px]" style={{ color: f.status === '접속 중' ? '#0c6780' : '#5a4136' }}>● {f.status}</p>
+                            <p className="text-[10px]" style={{ color: f.status === '접속 중' ? 'var(--c-mid)' : 'var(--c-sub)' }}>● {f.status}</p>
                           </div>
                           <button className="retro-btn font-[Geist,monospace] text-[10px] font-semibold px-2 py-1 w-full text-center">홈피 가기</button>
                         </div>
@@ -303,7 +312,7 @@ export default function MinihompyPage() {
           </div>
 
           {/* 푸터 */}
-          <div className="p-2 border-t border-[#e3bfb1] text-center font-[Geist,monospace] text-[11px] text-[#5a4136]">
+          <div className="p-2 text-center font-[Geist,monospace] text-[11px]" style={{ borderTop: '1px solid var(--c-card-border)', color: 'var(--c-sub)' }}>
             담당: 김채린 · HOME 도메인 · 미니홈피 / 다이어리 / 사진첩 / 방명록
           </div>
         </div>
