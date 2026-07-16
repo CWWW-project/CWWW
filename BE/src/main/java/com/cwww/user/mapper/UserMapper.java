@@ -15,5 +15,6 @@ public interface UserMapper {
     List<User> findByIds(@Param("userIds") List<Long> userIds);
 
     List<User> searchByNickname(@Param("keyword") String keyword, @Param("limit") int limit);
+    int activateUser(@Param("email") String email);
 
 }
