@@ -4,6 +4,8 @@ import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
 import com.cwww.post.domain.Post;
 import com.cwww.post.dto.FeedResponse;
+import com.cwww.friend.mapper.FriendMapper;
+import com.cwww.post.mapper.BookmarkMapper;
 import com.cwww.post.mapper.HashtagMapper;
 import com.cwww.post.mapper.MediaMapper;
 import com.cwww.post.mapper.PostLikeMapper;
@@ -33,9 +35,11 @@ class FeedLikeServiceTest {
 
     @Mock private PostMapper postMapper;
     @Mock private PostLikeMapper postLikeMapper;
+    @Mock private BookmarkMapper bookmarkMapper;
     @Mock private UserMapper userMapper;
     @Mock private HashtagMapper hashtagMapper;
     @Mock private MediaMapper mediaMapper;
+    @Mock private FriendMapper friendMapper;
 
     @InjectMocks
     private PostServiceImpl postService;
