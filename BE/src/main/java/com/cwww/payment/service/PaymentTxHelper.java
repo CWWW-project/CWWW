@@ -61,11 +61,13 @@ public class PaymentTxHelper {
         paymentMapper.updateOrderStatus(order.getOrderId(), OrderStatus.CONFIRMING.name());
 
         // CONFIRM 보정 작업 선생성 (paymentKey 포함) — ON CONFLICT DO NOTHING으로 멱등 처리
+        // nextAttemptAt: 60초 후 — PG 호출 완료 전 스케줄러가 선점해 PENDING 복구하는 경쟁 방지
         reconciliationJobMapper.insertJob(ReconciliationJob.builder()
                 .orderId(order.getOrderId())
                 .operation(JobOperation.CONFIRM.name())
                 .paymentKey(paymentKey)
                 .maxRetries(5)
+                .nextAttemptAt(LocalDateTime.now().plusSeconds(60))
                 .build());
 
         return order;

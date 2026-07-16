@@ -208,6 +208,33 @@ class PaymentServiceImplTest {
     }
 
     @Test
+    @DisplayName("cancelPayment_PG이미취소됨_내부취소완료처리")
+    void cancelPayment_ALREADY_CANCELED() {
+        // Arrange
+        Order paidOrder = Order.builder()
+                .orderId(ORDER_ID).userId(USER_ID)
+                .acornAmount(ACORN_AMOUNT).price(PRICE)
+                .status(OrderStatus.PAID.name()).orderUid(ORDER_UID)
+                .build();
+        PaymentCancelResponse expected = PaymentCancelResponse.builder()
+                .orderUid(ORDER_UID).refundedAcorn(ACORN_AMOUNT).balance(0).build();
+
+        given(paymentTxHelper.validateAndTransitionToCanceling(USER_ID, ORDER_UID)).willReturn(paidOrder);
+        given(paymentMapper.findPgTxIdByOrderId(ORDER_ID)).willReturn(PAYMENT_KEY);
+        given(tossPaymentClient.cancel(PAYMENT_KEY, "단순 변심"))
+                .willThrow(new TossBusinessException("ALREADY_CANCELED", "이미 취소된 결제"));
+        given(paymentTxHelper.completeCancel(ORDER_ID)).willReturn(expected);
+
+        // Act
+        PaymentCancelResponse result = paymentService.cancelPayment(USER_ID, cancelRequest);
+
+        // Assert: PG 이미 취소 → 내부 완료 처리 (PAID 복구 X)
+        assertThat(result.getRefundedAcorn()).isEqualTo(ACORN_AMOUNT);
+        verify(paymentTxHelper).completeCancel(ORDER_ID);
+        verify(paymentTxHelper, never()).recoverOrderToPaid(any());
+    }
+
+    @Test
     @DisplayName("cancelPayment_PG명시거절_PAID복구")
     void cancelPayment_PG명시거절() {
         // Arrange
@@ -220,7 +247,7 @@ class PaymentServiceImplTest {
         given(paymentTxHelper.validateAndTransitionToCanceling(USER_ID, ORDER_UID)).willReturn(paidOrder);
         given(paymentMapper.findPgTxIdByOrderId(ORDER_ID)).willReturn(PAYMENT_KEY);
         given(tossPaymentClient.cancel(PAYMENT_KEY, "단순 변심"))
-                .willThrow(new TossBusinessException("ALREADY_CANCELED", "이미 취소된 결제"));
+                .willThrow(new TossBusinessException("CARD_LIMIT_EXCEEDED", "한도 초과"));
 
         // Act & Assert
         assertThatThrownBy(() -> paymentService.cancelPayment(USER_ID, cancelRequest))

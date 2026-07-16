@@ -95,11 +95,10 @@ public class PaymentServiceImpl implements PaymentService {
             throw new BusinessException(ErrorCode.PAYMENT_CONFIRM_FAILED);
         }
 
-        // ③ 응답 검증
-        validateConfirmResponse(toss, request.getPaymentKey(), request.getOrderUid(), request.getAmount());
-
-        // ④ 내부 완료 처리 (보정 작업 DONE 처리 포함)
+        // ③ 응답 검증 + ④ 내부 완료 처리 (보정 작업 DONE 처리 포함)
+        // 응답 이상(null·불일치 등)은 PG 명시 거절이 아닌 불확실 상황 — CONFIRMING 유지하고 스케줄러에 위임
         try {
+            validateConfirmResponse(toss, request.getPaymentKey(), request.getOrderUid(), request.getAmount());
             return paymentTxHelper.completeConfirm(
                     order, toss.getPaymentKey(), toss.getMethod(),
                     toss.getTotalAmount(), toss.getStatus());
@@ -142,6 +141,16 @@ public class PaymentServiceImpl implements PaymentService {
         try {
             cancelResp = tossPaymentClient.cancel(pgTxId, reason);
         } catch (TossBusinessException e) {
+            // ALREADY_CANCELED: PG가 이미 취소됨 → 내부 완료 처리 (PAID 복구 X)
+            if ("ALREADY_CANCELED".equals(e.getErrorCode())) {
+                log.info("PG 이미 취소됨 — 내부 취소 완료 처리: orderId={}", order.getOrderId());
+                try {
+                    return paymentTxHelper.completeCancel(order.getOrderId());
+                } catch (Exception ex) {
+                    log.error("ALREADY_CANCELED 내부 처리 실패 — 보정 스케줄러에 위임: orderId={}", order.getOrderId(), ex);
+                    throw new BusinessException(ErrorCode.PAYMENT_CANCEL_FAILED);
+                }
+            }
             log.warn("PG 취소 명시 거절 — PAID 복구: orderId={}, pgCode={}",
                     order.getOrderId(), e.getErrorCode());
             paymentTxHelper.recoverOrderToPaid(order.getOrderId());
@@ -187,18 +196,19 @@ public class PaymentServiceImpl implements PaymentService {
                                           String expectedPaymentKey,
                                           String expectedOrderUid,
                                           int expectedAmount) {
-        if (!"DONE".equals(toss.getStatus())) {
-            throw new TossBusinessException("NOT_DONE", "토스 승인 상태가 DONE이 아님: " + toss.getStatus());
+        if (toss == null || !"DONE".equals(toss.getStatus())) {
+            throw new TossUncertainException(
+                    "토스 승인 응답 이상: " + (toss == null ? "null" : toss.getStatus()), null);
         }
         if (!expectedPaymentKey.equals(toss.getPaymentKey())) {
-            throw new TossBusinessException("PAYMENT_KEY_MISMATCH", "paymentKey 불일치");
+            throw new TossUncertainException("paymentKey 불일치", null);
         }
         if (!expectedOrderUid.equals(toss.getOrderId())) {
-            throw new TossBusinessException("ORDER_ID_MISMATCH", "orderId 불일치");
+            throw new TossUncertainException("orderId 불일치", null);
         }
         if (toss.getTotalAmount() != expectedAmount) {
-            throw new TossBusinessException("AMOUNT_MISMATCH",
-                    "금액 불일치: expected=" + expectedAmount + ", actual=" + toss.getTotalAmount());
+            throw new TossUncertainException(
+                    "금액 불일치: expected=" + expectedAmount + ", actual=" + toss.getTotalAmount(), null);
         }
     }
 
