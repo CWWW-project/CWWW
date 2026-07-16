@@ -12,8 +12,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDateTime;
 
 /*
- * media 테이블에 "있으면 UPDATE, 없으면 INSERT"하는 select-then-branch 로직 공용화
+ * 이미지 검증 -> 저장소 업로드 -> media 테이블 반영까지 한 번에 처리
  * 프로필 사진, 배경 사진 업로드에서 공통으로 사용 (중복 제거)
+ * uq_media_profile_singleton / uq_media_background_singleton 인덱스 기준
+ * 원자적 upsert로 처리 (동시 업로드 race condition 방지)
  */
 @Component
 @RequiredArgsConstructor
@@ -32,34 +34,17 @@ public class MediaUpsertHelper {
         // 새 파일 먼저 저장(기존 것 아직 안 거드림, 실패해도 기존 사진 안전)
         String mediaUrl = storageService.store(file);
 
-        // 해당 유저가 이미 프로필/배경화면 사진이 있는지 확인
-        Media existing = profileMediaMapper.selectMedia(targetType, targetId);
 
-        int affected;
+        // 없으면 신규 insert
+        Media media = Media.builder()
+                .targetType(targetType)
+                .targetId(targetId)
+                .mediaUrl(mediaUrl)
+                .createdAt(LocalDateTime.now())
+                .build();
 
-        if(existing != null) {
-
-            // 있으면 mediaId 기준으로 갱신(mediaUrl만 새 걸로 바꿔치기)
-            existing.setMediaUrl(mediaUrl);
-            affected = profileMediaMapper.updateMedia(existing);
-
-        } else {
-
-            // 없으면 신규 insert
-            Media media = Media.builder()
-                    .targetType(targetType)
-                    .targetId(targetId)
-                    .mediaUrl(mediaUrl)
-                    .createdAt(LocalDateTime.now())
-                    .build();
-
-            affected = profileMediaMapper.insertMedia(media);
-
-        }
-
-        if(affected != 1) {
-            throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED);
-        }
+        // select-then-branch 대신 원자적 upsert - DB가 있으면 UPDATE, 없으면 INSERT를 한 번에 처리
+        profileMediaMapper.upsertMedia(media);
 
         return mediaUrl;
 

@@ -72,17 +72,14 @@ public class BackgroundService {
     }
 
 
-    // 사진 배경 업로드 (select-then-branch, 프로필 사진과 동일 패턴)
+    // 사진 배경 업로드 (공용 StorageService 사용)
     @Transactional
     public BackgroundResponse uploadPhotoBackground(Long userId, MultipartFile file) {
 
-        /*
-         * selectMedia(BACKGROUND, userId)로 조회
-         * 있으면 update, 없으면 insert (target_type='BACKGROUND'로)
-         */
+        // 검증 -> 저장소 업로드 -> media 테이블 upsert까지 MediaUpsertHelper가 전부 처리
         String imageUrl = mediaUpsertHelper.upload(Media.TargetType.BACKGROUND, userId, file);
 
-        // 사진으로 전환하는 거라 색상 설정은 지움
+        // 사진으로 전환하는 거라 색상 설정 지움
         minihompyMapper.updateBackgroundColor(userId, null);
 
         return BackgroundResponse.builder()

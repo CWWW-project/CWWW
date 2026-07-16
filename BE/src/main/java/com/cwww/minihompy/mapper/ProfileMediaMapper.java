@@ -8,17 +8,17 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface ProfileMediaMapper {
 
-    // target_type + target_id 기준 media 조회
-    Media selectMedia(@Param("targetType") Media.TargetType targetType, @Param("targetId") Long targetId);
-
-    // media 등록
+    // media 신규 등록 (BGM 카탈로그 등록 등 - target_id가 항상 새로운 경우에 사용, 매번 새 행 생성)
     int insertMedia(Media media);
 
-    // 기존 media 갱신
-    int updateMedia(Media media);
+    /*
+     * 원자적 upsert (PROFILE/BACKGROUND singleton partial unique index 기준)
+     * select-then-branch 대신 DB가 직접 처리해서 동시 업로드 race condition 방지
+     */
+    void upsertMedia(Media media);
 
-    // media 삭제
-    void deleteMedia(
+    // 소프트 삭제 (target_type + target_id 기준), 대상이 없어도 에러 아님(0건 처리)
+    int deleteMedia(
             @Param("targetType") Media.TargetType targetType,
             @Param("targetId") Long targetId);
 

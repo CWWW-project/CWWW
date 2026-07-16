@@ -130,10 +130,7 @@ public class MinihompyService {
 	@Transactional
 	public ProfileImageResponse uploadProfileImage(Long userId, MultipartFile file) {
 
-		/*
-		 * selectMedia(PROFILE, userId)로 조회
-		 * 있으면 update, 없으면 insert (target_type='PROFILE'로)
-		 */
+		// 검증 -> 저장소 업로드 -> media 테이블 upsert까지 MediaUpsertHelper가 전부 처리
 		String imageUrl = mediaUpsertHelper.upload(Media.TargetType.PROFILE, userId, file);
 
 		return ProfileImageResponse.builder()
@@ -152,7 +149,7 @@ public class MinihompyService {
 	}
 
 
-	// 미니홈피 설정 변경 (공개범위 + 소개글 + 기분 한번에)
+	// 미니홈피 설정 변경 (공개범위 + 소개글 + 기분 한번에 설정)
 	@Transactional
 	public MinihompyMainResponse updateSettings(Long userId, MinihompySettingsRequest request) {
 

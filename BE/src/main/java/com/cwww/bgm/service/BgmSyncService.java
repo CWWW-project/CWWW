@@ -20,7 +20,6 @@ import java.util.List;
  * 방식으로 item(BGM 상품) + media(오디오 URL) 테이블에 등록하는 초기 카탈로그 구축용 서비스.
  *
  * 파일을 직접 다운로드/저장하지 않고, Jamendo가 제공하는 URL을 media_url에 그대로 저장.
- * item 테이블은 정용혁님 도메인 소유라, 이 서비스가 직접 쓰기 작업을 한다는 걸 공유해두어야 함.
  */
 @Slf4j
 @Service
@@ -51,7 +50,6 @@ public class BgmSyncService {
         List<JamendoTrack> tracks = searchJamendoTracks(limit);
 
         int registered = 0;
-
 
         for(JamendoTrack track : tracks) {
 
@@ -105,23 +103,13 @@ public class BgmSyncService {
 
     /*
      * 트랙 하나를 item + media에 등록 (URL만 참조, 파일 다운로드 없음)
-     * 이미 같은 이름("제목 - 아티스트")으로 등록된 BGM이 있으면 스킵하고 false 반환
+     * 이미 같은 이름("제목 - 아티스트")으로 등록된 BGM이 있으면 ON CONFLICT DO NOTHING으로 조용히 스킵됨
      */
     private boolean registerTrack(JamendoTrack track) {
 
         // itemName에 넣을 이름 조합 (name = "제목 - 아티스트")
         String itemName = track.name() + " - " + track.artist_name();
-
-        // 이미 등록된(중복된) 곡인지 확인
-        if (bgmItemMapper.countBgmItemByName(itemName) > 0) {
-
-            // 이미 있으면 스킵
-            log.info("스킵 (이미 등록된 곡): {}", itemName);
-            return false;
-
-        }
-
-        // 아이템 소개
+        // 아이템 소개글 (재생시간 + 태그 조합)
         String description = buildDescription(track);
 
         /*
@@ -132,8 +120,16 @@ public class BgmSyncService {
                 new BgmItemMapper.BgmItemInsertParam(itemName, description, DEFAULT_PRICE);
 
         // 2. DB에 저장 요청 (동시에 MyBatis가 자동생성된 itemId를 param 안에 몰래 채워줌)
-        bgmItemMapper.insertBgmItem(itemParam);
-        Long itemId = itemParam.getItemId(); // DB에서 생성된 itemId가 들어있음
+        int inserted = bgmItemMapper.insertBgmItem(itemParam);
+
+        // ON CONFLICT DO NOTHING에 걸리면 영향받은 row가 0건 -> 이미 등록된 곡이라는 뜻
+        if (inserted == 0) {
+            log.info("스킵 (이미 등록된 곡): {}", itemName);
+            return false;
+        }
+
+        // DB에서 생성된 itemId가 들어있음
+        Long itemId = itemParam.getItemId();
 
         /*
          * 3. media 테이블에 등록 (target_type='ITEM', target_id=item_id, media_url=Jamendo 스트리밍 URL 그대로)
