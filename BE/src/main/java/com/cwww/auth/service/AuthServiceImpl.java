@@ -17,11 +17,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZoneId;
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
+
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
     private static final String OAUTH_CODE_PREFIX = "oauth:code:";
+    private static final ZoneId ZONE = ZoneId.systemDefault();
 
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
@@ -61,6 +66,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public LoginResponse login(LoginRequest request) {
         User user = userMapper.findByEmail(request.getEmail());
         if (user == null) {
@@ -72,7 +78,52 @@ public class AuthServiceImpl implements AuthService {
 
         String accessToken = jwtUtil.createAccessToken(user.getUserId(), user.getRole());
         String refreshToken = jwtUtil.createRefreshToken(user.getUserId());
+        Date rtExpiry = jwtUtil.getExpiration(refreshToken);
+        userMapper.saveRefreshToken(user.getUserId(), refreshToken,
+                rtExpiry.toInstant().atZone(ZONE).toLocalDateTime());
         return LoginResponse.of(accessToken, refreshToken, user);
+    }
+
+    @Override
+    @Transactional
+    public LoginResponse refreshToken(String refreshToken) {
+        // ① 서명·만료 검증
+        jwtUtil.validateToken(refreshToken);
+        if (jwtUtil.isAccessToken(refreshToken)) {
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
+        }
+        // ② DB에 저장된 RT와 일치 검증 (재사용 방지)
+        Long userId = jwtUtil.getUserId(refreshToken);
+        User user = userMapper.findById(userId);
+        if (user == null || !refreshToken.equals(user.getRefreshToken())) {
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
+        }
+        // ③ 새 AT + RT 발급 (RTR: 기존 RT 즉시 교체)
+        String newAt = jwtUtil.createAccessToken(userId, user.getRole());
+        String newRt = jwtUtil.createRefreshToken(userId);
+        Date newRtExpiry = jwtUtil.getExpiration(newRt);
+        userMapper.saveRefreshToken(userId, newRt,
+                newRtExpiry.toInstant().atZone(ZONE).toLocalDateTime());
+        return LoginResponse.of(newAt, newRt, user);
+    }
+
+    @Override
+    public void logout(Long userId, String accessToken) {
+        // ① 남은 TTL 계산 후 AT 블랙리스트 등록
+        if (accessToken != null) {
+            try {
+                Date expiry = jwtUtil.getExpiration(accessToken);
+                long remainMs = expiry.getTime() - System.currentTimeMillis();
+                if (remainMs > 0) {
+                    redisTemplate.opsForValue().set(
+                            JwtUtil.BLACKLIST_PREFIX + accessToken, "1", remainMs, TimeUnit.MILLISECONDS);
+                }
+            } catch (BusinessException ignored) {
+                // 이미 만료된 AT는 블랙리스트 등록 불필요
+            }
+        }
+        // ② DB에서 RT 삭제
+        userMapper.deleteRefreshToken(userId);
     }
 
     @Override

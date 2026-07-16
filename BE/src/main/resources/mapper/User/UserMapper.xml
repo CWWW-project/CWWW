@@ -52,4 +52,25 @@
         ORDER BY nickname
         LIMIT #{limit}
     </select>
+
+    <select id="findById" resultType="com.cwww.user.domain.User">
+        SELECT * FROM users WHERE user_id = #{userId} AND deleted_at IS NULL
+    </select>
+
+    <update id="saveRefreshToken">
+        UPDATE users
+        SET refresh_token = #{refreshToken}, refresh_token_expires_at = #{expiresAt}, updated_at = NOW()
+        WHERE user_id = #{userId}
+    </update>
+
+    <update id="deleteRefreshToken">
+        UPDATE users
+        SET refresh_token = NULL, refresh_token_expires_at = NULL, updated_at = NOW()
+        WHERE user_id = #{userId}
+    </update>
+
+    <update id="updateNickname">
+        UPDATE users SET nickname = #{nickname}, updated_at = NOW()
+        WHERE user_id = #{userId}
+    </update>
 </mapper>
