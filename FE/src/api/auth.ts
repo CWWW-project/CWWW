@@ -25,10 +25,19 @@ export interface SignupResult {
   nickname: string
 }
 
+export interface OAuthTokenResult {
+  accessToken: string
+  userId: number
+  nickname: string
+}
+
 export const authApi = {
   login: (body: LoginBody) =>
     api.post<ApiResponse<LoginResult>>('/auth/login', body),
 
   signup: (body: SignupBody) =>
     api.post<ApiResponse<SignupResult>>('/auth/signup', body),
+
+  exchangeOAuthCode: (code: string) =>
+    api.get<ApiResponse<OAuthTokenResult>>('/auth/oauth/token', { params: { code } }),
 }

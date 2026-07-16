@@ -79,7 +79,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                 .build();
 
         userMapper.insertOAuth(newUser);
-        log.info("OAuth 신규 유저 생성: provider={}, email={}", attrs.getProvider(), attrs.getEmail());
+        log.info("OAuth 신규 유저 생성: provider={}", attrs.getProvider());
         return newUser;
     }
 }

@@ -24,23 +24,34 @@ function GlobalMobileNav() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
 
-  // 인증 페이지에서는 하단 탭 숨김
-  if (location.pathname.startsWith('/auth/')) return null
+  if (location.pathname.startsWith('/auth/') || location.pathname === '/oauth/callback') return null
+
+  const tabs = MOBILE_TABS.map(tab => ({
+    ...tab,
+    path: 'pathFn' in tab ? tab.pathFn(user?.id) : (tab as { path: string }).path,
+  }))
+
+  // 오른쪽에서 탐색해 마지막 매칭 탭 우선 (내 홈피 > 다이어리)
+  const activeIndex = tabs.reduceRight<number>((found, tab, i) => {
+    if (found !== -1) return found
+    const match = location.pathname === tab.path || (tab.path !== '/' && location.pathname.startsWith(tab.path))
+    return match ? i : -1
+  }, -1)
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center bg-[#e2e2e2] px-2 border-t-2 border-[#e3bfb1] h-16">
-      {MOBILE_TABS.map(tab => {
-        const path = 'pathFn' in tab ? tab.pathFn(user?.id) : tab.path
-        const active = location.pathname === path || (path !== '/' && location.pathname.startsWith(path))
+      {tabs.map((tab, index) => {
+        const active = index === activeIndex
         return (
-          <div
+          <button
             key={tab.label}
-            onClick={() => navigate(path)}
-            className={`flex flex-col items-center justify-center p-1 flex-1 cursor-pointer${active ? ' bg-[#a33e00] text-white rounded-lg border-t-2 border-l-2 border-white border-r-2 border-b-2 border-[#7c2e00] mx-1' : ' text-[#5a4136]'}`}
+            onClick={() => navigate(tab.path)}
+            aria-current={active ? 'page' : undefined}
+            className={`flex flex-col items-center justify-center p-1 flex-1 cursor-pointer bg-transparent border-none${active ? ' bg-[#a33e00] text-white rounded-lg border-t-2 border-l-2 border-white border-r-2 border-b-2 border-[#7c2e00] mx-1' : ' text-[#5a4136]'}`}
           >
             <span className="material-symbols-outlined" style={{ fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>{tab.icon}</span>
             <span className="font-[Geist,monospace] text-[12px] font-semibold mt-1">{tab.label}</span>
-          </div>
+          </button>
         )
       })}
     </nav>

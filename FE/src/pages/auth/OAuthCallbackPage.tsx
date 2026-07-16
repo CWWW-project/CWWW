@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { authApi } from '../../api/auth'
 import { useAuthStore } from '../../store/authStore'
 
 export default function OAuthCallbackPage() {
@@ -8,16 +9,21 @@ export default function OAuthCallbackPage() {
   const { setAuth } = useAuthStore()
 
   useEffect(() => {
-    const accessToken = searchParams.get('accessToken')
-    const userId = searchParams.get('userId')
-    const nickname = searchParams.get('nickname')
-
-    if (accessToken && userId && nickname) {
-      setAuth({ id: Number(userId), email: '', nickname }, accessToken)
-      navigate('/', { replace: true })
-    } else {
+    const code = searchParams.get('code')
+    if (!code) {
       navigate('/auth/login?error=oauth', { replace: true })
+      return
     }
+
+    authApi.exchangeOAuthCode(code)
+      .then(res => {
+        const { accessToken, userId, nickname } = res.data.data
+        setAuth({ id: userId, email: '', nickname }, accessToken)
+        navigate('/', { replace: true })
+      })
+      .catch(() => {
+        navigate('/auth/login?error=oauth', { replace: true })
+      })
   }, [])
 
   return (

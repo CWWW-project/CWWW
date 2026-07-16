@@ -875,23 +875,29 @@ export default function FeedPage() {
 
         {/* 우측 탭 */}
         <nav className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
-          {[
-            { icon: 'home', label: '홈', path: '/' },
-            { icon: 'edit_note', label: '다이어리', path: `/home/${user?.id ?? 'me'}` },
-            { icon: 'photo_library', label: '사진첩', path: `/home/${user?.id ?? 'me'}` },
-            { icon: 'forum', label: '방명록', path: `/home/${user?.id ?? 'me'}` },
-            { icon: 'storefront', label: '상점', path: '/shop' },
-          ].map(tab => {
-            const active = location.pathname === tab.path
-            return (
-              <div key={tab.label}
-                onClick={() => navigate(tab.path)}
-                className={`tab-item${active ? ' tab-active' : ' bg-[#f3f3f3] text-[#5a4136] hover:bg-[#e2e2e2]'} py-2 px-1 text-center font-[Geist,monospace] text-[12px] font-semibold flex flex-col items-center gap-1 cursor-pointer`}>
-                <span className="material-symbols-outlined text-lg">{tab.icon}</span>
-                {tab.label}
-              </div>
-            )
-          })}
+          {(() => {
+            const tabs = [
+              { icon: 'home', label: '홈', path: '/' },
+              { icon: 'edit_note', label: '다이어리', path: `/home/${user?.id ?? 'me'}` },
+              { icon: 'photo_library', label: '사진첩', path: `/home/${user?.id ?? 'me'}` },
+              { icon: 'forum', label: '방명록', path: `/home/${user?.id ?? 'me'}` },
+              { icon: 'storefront', label: '상점', path: '/shop' },
+            ]
+            // 첫 번째 매칭 탭만 active → 동일 경로 탭 중복 active 방지
+            const activeIndex = tabs.findIndex(t => location.pathname === t.path)
+            return tabs.map((tab, index) => {
+              const active = index === activeIndex
+              return (
+                <button key={tab.label}
+                  onClick={() => navigate(tab.path)}
+                  aria-current={active ? 'page' : undefined}
+                  className={`tab-item${active ? ' tab-active' : ' bg-[#f3f3f3] text-[#5a4136] hover:bg-[#e2e2e2]'} py-2 px-1 text-center font-[Geist,monospace] text-[12px] font-semibold flex flex-col items-center gap-1 cursor-pointer border-none`}>
+                  <span className="material-symbols-outlined text-lg">{tab.icon}</span>
+                  {tab.label}
+                </button>
+              )
+            })
+          })()}
         </nav>
       </div>
 
