@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cwww.payment.mapper.ReconciliationJobMapper">
+
+    <!-- 활성 중복 방지: uidx_reconciliation_job_active (V12) -->
+    <insert id="insertJob" useGeneratedKeys="true" keyProperty="jobId" keyColumn="job_id">
+        INSERT INTO payment_reconciliation_job
+            (order_id, operation, status, retry_count, max_retries, next_attempt_at, created_at)
+        VALUES
+            (#{orderId}, #{operation}, 'PENDING', 0, #{maxRetries}, now(), now())
+        ON CONFLICT (order_id, operation)
+            WHERE status IN ('PENDING', 'PROCESSING')
+        DO NOTHING
+    </insert>
+
+    <!--
+        처리 대상 작업 claim:
+        - locked_at IS NULL → 아직 아무도 잡지 않음
+        - locked_at < now() - 5분 → 이전 인스턴스가 응답 없이 죽은 경우 (soft lock 만료)
+        - FOR UPDATE SKIP LOCKED → 다중 인스턴스 동시 처리 방지
+    -->
+    <select id="claimNextJob" resultType="com.cwww.payment.domain.ReconciliationJob">
+        SELECT job_id, order_id, operation, status, retry_count, max_retries,
+               next_attempt_at, locked_at, last_error, created_at, updated_at
+        FROM payment_reconciliation_job
+        WHERE status IN ('PENDING', 'PROCESSING')
+          AND next_attempt_at &lt;= now()
+          AND (locked_at IS NULL OR locked_at &lt; now() - INTERVAL '5 minutes')
+        ORDER BY next_attempt_at
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+    </select>
+
+    <update id="markProcessing">
+        UPDATE payment_reconciliation_job
+        SET status = 'PROCESSING', locked_at = now(), updated_at = now()
+        WHERE job_id = #{jobId}
+    </update>
+
+    <update id="markDone">
+        UPDATE payment_reconciliation_job
+        SET status = 'DONE', locked_at = NULL, updated_at = now()
+        WHERE job_id = #{jobId}
+    </update>
+
+    <update id="markFailed">
+        UPDATE payment_reconciliation_job
+        SET status = 'FAILED', last_error = #{lastError}, locked_at = NULL, updated_at = now()
+        WHERE job_id = #{jobId}
+    </update>
+
+    <update id="reschedule">
+        UPDATE payment_reconciliation_job
+        SET status          = 'PENDING',
+            retry_count     = #{retryCount},
+            next_attempt_at = #{nextAttemptAt},
+            last_error      = #{lastError},
+            locked_at       = NULL,
+            updated_at      = now()
+        WHERE job_id = #{jobId}
+    </update>
+
+</mapper>

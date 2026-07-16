@@ -3,6 +3,8 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.cwww.payment.mapper.PaymentMapper">
 
+    <!-- ── 주문 ─────────────────────────────────────────────────────────── -->
+
     <insert id="insertOrder" useGeneratedKeys="true" keyProperty="orderId" keyColumn="order_id">
         INSERT INTO orders (user_id, acorn_amount, price, status, order_uid, created_at)
         VALUES (#{userId}, #{acornAmount}, #{price}, #{status}, #{orderUid}, now())
@@ -12,7 +14,20 @@
         SELECT order_id, user_id, acorn_amount, price, status, order_uid, created_at, updated_at
         FROM orders
         WHERE order_uid = #{orderUid}
-            FOR UPDATE
+        FOR UPDATE
+    </select>
+
+    <select id="findOrderByIdForUpdate" resultType="com.cwww.payment.domain.Order">
+        SELECT order_id, user_id, acorn_amount, price, status, order_uid, created_at, updated_at
+        FROM orders
+        WHERE order_id = #{orderId}
+        FOR UPDATE
+    </select>
+
+    <select id="findOrderById" resultType="com.cwww.payment.domain.Order">
+        SELECT order_id, user_id, acorn_amount, price, status, order_uid, created_at, updated_at
+        FROM orders
+        WHERE order_id = #{orderId}
     </select>
 
     <update id="updateOrderStatus">
@@ -20,39 +35,49 @@
         WHERE order_id = #{orderId}
     </update>
 
-    <insert id="insertPayment">
-        INSERT INTO payment (order_id, pg_tx_id, method, amount, status, paid_at)
-        VALUES (#{orderId}, #{pgTxId}, #{method}, #{amount}, #{status}, now())
+    <update id="updateOrderStatusCas">
+        UPDATE orders SET status = #{toStatus}, updated_at = now()
+        WHERE order_id = #{orderId}
+          AND status = #{fromStatus}
+    </update>
+
+    <!-- ── 결제 ─────────────────────────────────────────────────────────── -->
+
+    <!--
+        멱등 삽입: V12 uidx_payment_order_id (WHERE order_id IS NOT NULL) 활용
+        payment.user_id 는 V1 컬럼이므로 함께 채움
+    -->
+    <insert id="insertPaymentIdempotent">
+        INSERT INTO payment (order_id, pg_tx_id, method, amount, status, pg_status, user_id, paid_at, updated_at)
+        VALUES (#{orderId}, #{pgTxId}, #{method}, #{amount}, 'DONE', #{pgStatus}, #{userId}, now(), now())
+        ON CONFLICT (order_id)
+            WHERE order_id IS NOT NULL
+        DO NOTHING
     </insert>
+
+    <update id="updatePaymentPgStatus">
+        UPDATE payment
+        SET pg_status    = #{pgStatus},
+            failure_code = #{failureCode},
+            updated_at   = now()
+        WHERE order_id = #{orderId}
+        LIMIT 1
+    </update>
+
+    <select id="findPgTxIdByOrderId" resultType="string">
+        SELECT pg_tx_id
+        FROM payment
+        WHERE order_id = #{orderId}
+        LIMIT 1
+    </select>
+
+    <!-- ── 지갑 ─────────────────────────────────────────────────────────── -->
 
     <select id="findWalletForUpdate" resultType="com.cwww.payment.domain.AcornWallet">
         SELECT wallet_id, user_id, balance
         FROM acorn_wallet
         WHERE user_id = #{userId}
-            FOR UPDATE
-    </select>
-
-    <insert id="insertWallet">
-        INSERT INTO acorn_wallet (user_id, balance, created_at)
-        VALUES (#{userId}, 0, now())
-    </insert>
-
-    <update id="addWalletBalance">
-        UPDATE acorn_wallet SET balance = balance + #{amount}, updated_at = now()
-        WHERE user_id = #{userId}
-    </update>
-
-    <insert id="insertAcornTransaction">
-        INSERT INTO acorn_transaction (user_id, amount, balance_after, reason, ref_id, created_at)
-        VALUES (#{userId}, #{amount}, #{balanceAfter}, #{reason}, #{refId}, now())
-    </insert>
-
-    <select id="findAcornHistory" resultType="com.cwww.payment.dto.AcornHistoryResponse">
-        SELECT amount, balance_after, reason, created_at
-        FROM acorn_transaction
-        WHERE user_id = #{userId}
-        ORDER BY created_at DESC, acorn_tx_id DESC
-            LIMIT #{size} OFFSET #{offset}
+        FOR UPDATE
     </select>
 
     <select id="findWalletByUserId" resultType="com.cwww.payment.domain.AcornWallet">
@@ -61,15 +86,40 @@
         WHERE user_id = #{userId}
     </select>
 
-    <select id="findPgTxIdByOrderId" resultType="string">
-        SELECT pg_tx_id
-        FROM payment
-        WHERE order_id = #{orderId}
-    </select>
+    <!-- 신규 사용자 지갑 생성: UNIQUE(user_id) 충돌 시 DO NOTHING으로 race condition 해결 -->
+    <insert id="upsertWallet">
+        INSERT INTO acorn_wallet (user_id, balance, created_at)
+        VALUES (#{userId}, 0, now())
+        ON CONFLICT (user_id) DO NOTHING
+    </insert>
 
-    <update id="updatePaymentStatus">
-        UPDATE payment SET status = #{status}
-        WHERE order_id = #{orderId}
+    <update id="addWalletBalance">
+        UPDATE acorn_wallet
+        SET balance    = balance + #{amount},
+            updated_at = now()
+        WHERE user_id = #{userId}
     </update>
+
+    <!-- ── 원장 ─────────────────────────────────────────────────────────── -->
+
+    <!--
+        멱등 삽입: V12 uidx_acorn_tx_ref_reason (WHERE ref_id IS NOT NULL AND reason IN ('CHARGE','REFUND')) 활용
+        반환값: 삽입된 행 수 (0=이미 존재 → 지갑 이중 반영 방지에 사용)
+    -->
+    <insert id="insertAcornTransactionIdempotent">
+        INSERT INTO acorn_transaction (user_id, amount, balance_after, reason, ref_id, created_at)
+        VALUES (#{userId}, #{amount}, #{balanceAfter}, #{reason}, #{refId}, now())
+        ON CONFLICT (ref_id, reason)
+            WHERE ref_id IS NOT NULL AND reason IN ('CHARGE', 'REFUND')
+        DO NOTHING
+    </insert>
+
+    <select id="findAcornHistory" resultType="com.cwww.payment.dto.AcornHistoryResponse">
+        SELECT amount, balance_after, reason, created_at
+        FROM acorn_transaction
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC, acorn_tx_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
 
 </mapper>
