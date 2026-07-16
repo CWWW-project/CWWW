@@ -2,6 +2,7 @@ package com.cwww.auth.service;
 
 import com.cwww.auth.dto.LoginRequest;
 import com.cwww.auth.dto.LoginResponse;
+import com.cwww.auth.dto.OAuthTokenResponse;
 import com.cwww.auth.dto.SignupRequest;
 import com.cwww.auth.dto.SignupResponse;
 import com.cwww.auth.jwt.JwtUtil;
@@ -11,6 +12,7 @@ import com.cwww.user.domain.User;
 import com.cwww.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,9 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
+    private static final String OAUTH_CODE_PREFIX = "oauth:code:";
+
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final RedisTemplate<String, String> redisTemplate;
 
     @Override
     @Transactional
@@ -68,5 +73,21 @@ public class AuthServiceImpl implements AuthService {
         String accessToken = jwtUtil.createAccessToken(user.getUserId(), user.getRole());
         String refreshToken = jwtUtil.createRefreshToken(user.getUserId());
         return LoginResponse.of(accessToken, refreshToken, user);
+    }
+
+    @Override
+    public OAuthTokenResponse exchangeOAuthCode(String code) {
+        // getAndDelete: 읽는 즉시 삭제 → 일회용 보장
+        String value = redisTemplate.opsForValue().getAndDelete(OAUTH_CODE_PREFIX + code);
+        if (value == null) {
+            throw new BusinessException(ErrorCode.OAUTH_CODE_INVALID);
+        }
+        // 저장 형식: "{userId}\n{nickname}\n{role}"
+        String[] parts = value.split("\n", 3);
+        Long userId = Long.parseLong(parts[0]);
+        String nickname = parts[1];
+        String role = parts[2];
+        String accessToken = jwtUtil.createAccessToken(userId, role);
+        return new OAuthTokenResponse(accessToken, userId, nickname);
     }
 }

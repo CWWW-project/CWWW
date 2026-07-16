@@ -3,6 +3,8 @@ package com.cwww.auth.controller;
 
 import com.cwww.auth.dto.LoginRequest;
 import com.cwww.auth.dto.LoginResponse;
+import com.cwww.auth.dto.OAuthCodeRequest;
+import com.cwww.auth.dto.OAuthTokenResponse;
 import com.cwww.auth.dto.SignupRequest;
 import com.cwww.auth.dto.SignupResponse;
 import com.cwww.auth.service.AuthService;
@@ -34,6 +36,13 @@ public class AuthController {
     public ResponseEntity<ApiResponse<LoginResponse>>
     login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/oauth/token")
+    public ResponseEntity<ApiResponse<OAuthTokenResponse>>
+    exchangeOAuthToken(@RequestBody OAuthCodeRequest request) {
+        OAuthTokenResponse response = authService.exchangeOAuthCode(request.code());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }
