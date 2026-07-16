@@ -31,10 +31,12 @@ public record JamendoTrack(
 
     }
 
-    // 실제로 다운로드 해서 쓸 수 있는 트랙인지 (다운로드 허용 + 비상업용 아님)
+    // 실제로 재생 가능한 트랙인지 (스트리밍 URL 있음 + 다운로드 허용 + 비상업용 아님)
     public boolean isUsable() {
 
-        return audiodownload_allowed && !isNonCommercial();
+        return audio != null && !audio.isBlank()
+                && audiodownload_allowed
+                && !isNonCommercial();
 
     }
 
