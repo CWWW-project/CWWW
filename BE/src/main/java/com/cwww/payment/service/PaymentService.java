@@ -15,4 +15,7 @@ public interface PaymentService {
 
     AcornBalanceResponse getBalance(Long userId);
 
+    String prepareCancel(Long userId, PaymentCancelRequest request);
+    void revertCancelStatus(Long userId, PaymentCancelRequest request);
+    PaymentCancelResponse completeCancel(Long userId, PaymentCancelRequest request);
 }

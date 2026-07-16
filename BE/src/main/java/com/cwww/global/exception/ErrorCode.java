@@ -75,7 +75,11 @@ public enum ErrorCode {
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "PAY001", "주문을 찾을 수 없습니다."),
     AMOUNT_MISMATCH(HttpStatus.BAD_REQUEST, "PAY002", "결제 금액이 주문 금액과 일치하지 않습니다."),
     ALREADY_PROCESSED_ORDER(HttpStatus.CONFLICT, "PAY003", "이미 처리된 주문입니다."),
-    PAYMENT_CONFIRM_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "PAY004", "결제 승인에 실패했습니다.");
+    PAYMENT_CONFIRM_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "PAY004", "결제 승인에 실패했습니다."),
+
+    PAYMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "PAY005", "결제 정보를 찾을 수 없습니다."),
+    CANCEL_NOT_ALLOWED(HttpStatus.CONFLICT, "PAY006", "취소할 수 없는 주문 상태입니다."),
+    REFUND_INSUFFICIENT_BALANCE(HttpStatus.CONFLICT, "PAY007", "도토리 잔액이 부족하여 환불할 수 없습니다.");
 
 
     private final HttpStatus httpStatus;
