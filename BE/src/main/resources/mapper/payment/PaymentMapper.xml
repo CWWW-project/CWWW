@@ -61,7 +61,6 @@
             failure_code = #{failureCode},
             updated_at   = now()
         WHERE order_id = #{orderId}
-        LIMIT 1
     </update>
 
     <select id="findPgTxIdByOrderId" resultType="string">
