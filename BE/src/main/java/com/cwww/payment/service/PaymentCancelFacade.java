@@ -38,13 +38,12 @@ public class PaymentCancelFacade {
         try {
             tossPaymentClient.cancel(pgTxId, reason);
         } catch (RuntimeException e) {
-            // 토스 취소 실패 → CANCELING을 PAID로 원복해 재시도 가능하게
-            log.warn("토스 취소 호출 실패, 주문 상태 복구. userId={}, orderUid={}",
-                    userId, request.getOrderUid(), e);
-            paymentService.revertCancelStatus(userId, request);
+            // 토스 취소 실패 — 타임아웃 등으로 실제 취소됐을 가능성이 있어
+            // PAID로 자동 복구하지 않고 CANCELING 유지 (보정/재확인 대상)
+            log.error("토스 취소 호출 실패, 결과 불확실 - 보정 필요. userId={}, orderUid={}, pgTxId={}",
+                    userId, request.getOrderUid(), pgTxId, e);
             throw e;
         }
-
         // [3] 내부 상태 갱신 (짧은 트랜잭션)
         try {
             return paymentService.completeCancel(userId, request);
