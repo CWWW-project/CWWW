@@ -52,7 +52,8 @@ public class UserController {
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        if (userMapper.findByNickname(request.nickname()) != null) {
+        User existing = userMapper.findByNickname(request.nickname());
+        if (existing != null && !existing.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.DUPLICATE_NICKNAME);
         }
         userMapper.updateNickname(userId, request.nickname());
