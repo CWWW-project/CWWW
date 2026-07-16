@@ -151,7 +151,8 @@ class PaymentTxHelperTest {
                 .acornAmount(1000).price(10_000)
                 .status(OrderStatus.PAID.name()).orderUid("uid-1")
                 .build();
-        AcornWallet emptyWallet = wallet(500);
+        // availableBalance=500 < 1000
+        AcornWallet emptyWallet = walletForCancel(500);
 
         given(paymentMapper.findOrderByUidForUpdate("uid-1")).willReturn(paidOrder);
         given(paymentMapper.findWalletForUpdate(USER_ID)).willReturn(emptyWallet);
@@ -160,6 +161,53 @@ class PaymentTxHelperTest {
         assertThatThrownBy(() -> paymentTxHelper.validateAndTransitionToCanceling(USER_ID, "uid-1"))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.REFUND_INSUFFICIENT_BALANCE);
+    }
+
+    @Test
+    @DisplayName("validateAndTransitionToCanceling_예약잔액초과_가용잔액부족_예외")
+    void validateAndTransitionToCanceling_예약잔액초과_가용부족() {
+        // Arrange — balance=1500이지만 reservedBalance=800 → availableBalance=700 < 1000
+        Order paidOrder = Order.builder()
+                .orderId(ORDER_ID).userId(USER_ID)
+                .acornAmount(1000).price(10_000)
+                .status(OrderStatus.PAID.name()).orderUid("uid-1")
+                .build();
+        AcornWallet wallet = walletForCancel(700); // availableBalance=700 < 1000
+
+        given(paymentMapper.findOrderByUidForUpdate("uid-1")).willReturn(paidOrder);
+        given(paymentMapper.findWalletForUpdate(USER_ID)).willReturn(wallet);
+
+        // Act & Assert
+        assertThatThrownBy(() -> paymentTxHelper.validateAndTransitionToCanceling(USER_ID, "uid-1"))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.REFUND_INSUFFICIENT_BALANCE);
+    }
+
+    @Test
+    @DisplayName("completeCancel_취소완료_예약해제확인")
+    void completeCancel_예약해제() {
+        // Arrange
+        Order order = Order.builder()
+                .orderId(ORDER_ID).userId(USER_ID)
+                .acornAmount(1000).price(10_000)
+                .status(OrderStatus.CANCELING.name()).orderUid("uid-1")
+                .build();
+        AcornWallet wallet = wallet(1000); // balance=1000
+
+        given(paymentMapper.findOrderByIdForUpdate(ORDER_ID)).willReturn(order);
+        given(paymentMapper.findWalletForUpdate(USER_ID)).willReturn(wallet);
+        given(paymentMapper.insertAcornTransactionIdempotent(
+                eq(USER_ID), eq(-1000), eq(0), eq("REFUND"), eq(ORDER_ID)))
+                .willReturn(1);
+        given(paymentMapper.updateOrderStatusCas(ORDER_ID, "CANCELING", "CANCELED")).willReturn(1);
+        given(paymentMapper.findWalletByUserId(USER_ID)).willReturn(wallet);
+
+        // Act
+        paymentTxHelper.completeCancel(ORDER_ID);
+
+        // Assert: 차감 + 예약 해제 둘 다 호출
+        verify(paymentMapper).addWalletBalance(USER_ID, -1000);
+        verify(paymentMapper).releaseReservation(USER_ID, 1000);
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -174,9 +222,17 @@ class PaymentTxHelperTest {
                 .build();
     }
 
+    /** completeConfirm 등 balance만 필요한 경우 */
     private AcornWallet wallet(int balance) {
         AcornWallet w = mock(AcornWallet.class);
         given(w.getBalance()).willReturn(balance);
+        return w;
+    }
+
+    /** validateAndTransitionToCanceling — availableBalance만 사용 */
+    private AcornWallet walletForCancel(int available) {
+        AcornWallet w = mock(AcornWallet.class);
+        given(w.getAvailableBalance()).willReturn(available);
         return w;
     }
 }

@@ -162,11 +162,13 @@ public class PaymentTxHelper {
         }
 
         AcornWallet wallet = paymentMapper.findWalletForUpdate(order.getUserId());
-        if (wallet == null || wallet.getBalance() < order.getAcornAmount()) {
+        if (wallet == null || wallet.getAvailableBalance() < order.getAcornAmount()) {
             throw new BusinessException(ErrorCode.REFUND_INSUFFICIENT_BALANCE);
         }
 
         paymentMapper.updateOrderStatus(order.getOrderId(), OrderStatus.CANCELING.name());
+        // 환불 예정 금액 예약 — PG 호출 중 다른 소비로 인한 음수 잔액 방지
+        paymentMapper.reserveBalance(order.getUserId(), order.getAcornAmount());
 
         // PG 취소 호출 타임아웃(30s) + 버퍼를 고려해 60초 후 실행
         reconciliationJobMapper.insertJob(ReconciliationJob.builder()
@@ -203,13 +205,7 @@ public class PaymentTxHelper {
         paymentMapper.upsertWallet(order.getUserId());
         AcornWallet wallet = paymentMapper.findWalletForUpdate(order.getUserId());
 
-        // 잔액 재검증 — validateAndTransitionToCanceling 이후 도토리를 소비했을 수 있음
-        if (wallet.getBalance() < order.getAcornAmount()) {
-            log.error("환불 잔액 부족 — CANCELING 유지, 운영팀 개입 필요: orderId={}, balance={}, required={}",
-                    orderId, wallet.getBalance(), order.getAcornAmount());
-            throw new BusinessException(ErrorCode.REFUND_INSUFFICIENT_BALANCE);
-        }
-
+        // 예약(reserved_balance)이 충분한 잔액을 보장하므로 별도 재검증 불필요
         int balanceAfter = wallet.getBalance() - order.getAcornAmount();
 
         // REFUND 원장 멱등 삽입 — 반환값으로 지갑 이중 차감 방지
@@ -220,6 +216,8 @@ public class PaymentTxHelper {
         if (inserted > 0) {
             paymentMapper.addWalletBalance(order.getUserId(), -order.getAcornAmount());
         }
+        // 예약 해제 — 중복 호출 시 GREATEST로 음수 방지 (멱등)
+        paymentMapper.releaseReservation(order.getUserId(), order.getAcornAmount());
 
         paymentMapper.updatePaymentPgStatus(orderId, "CANCELED", null);
 
@@ -247,6 +245,11 @@ public class PaymentTxHelper {
      */
     @Transactional
     public void recoverOrderToPaid(Long orderId) {
+        Order order = paymentMapper.findOrderById(orderId);
+        if (order != null) {
+            // CANCELING 시 예약한 금액 해제 (PG 취소 거절 → 환불 미발생)
+            paymentMapper.releaseReservation(order.getUserId(), order.getAcornAmount());
+        }
         paymentMapper.updateOrderStatusCas(orderId, OrderStatus.CANCELING.name(), OrderStatus.PAID.name());
         reconciliationJobMapper.markDoneByOrderAndOperation(orderId, JobOperation.CANCEL.name());
     }

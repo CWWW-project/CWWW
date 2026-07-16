@@ -61,6 +61,12 @@ public interface PaymentMapper {
 
     void addWalletBalance(@Param("userId") Long userId, @Param("amount") int amount);
 
+    /** CANCELING 전환 시 환불 예정 금액 예약 (reserved_balance += amount) */
+    void reserveBalance(@Param("userId") Long userId, @Param("amount") int amount);
+
+    /** 취소 완료/복구 시 예약 해제 — GREATEST(reserved_balance - amount, 0) 로 음수 방지 */
+    void releaseReservation(@Param("userId") Long userId, @Param("amount") int amount);
+
     // ── 원장 ────────────────────────────────────────────────────────────────
 
     /**

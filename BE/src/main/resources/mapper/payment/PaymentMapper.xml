@@ -73,14 +73,14 @@
     <!-- ── 지갑 ─────────────────────────────────────────────────────────── -->
 
     <select id="findWalletForUpdate" resultType="com.cwww.payment.domain.AcornWallet">
-        SELECT wallet_id, user_id, balance
+        SELECT wallet_id, user_id, balance, reserved_balance
         FROM acorn_wallet
         WHERE user_id = #{userId}
         FOR UPDATE
     </select>
 
     <select id="findWalletByUserId" resultType="com.cwww.payment.domain.AcornWallet">
-        SELECT wallet_id, user_id, balance
+        SELECT wallet_id, user_id, balance, reserved_balance
         FROM acorn_wallet
         WHERE user_id = #{userId}
     </select>
@@ -96,6 +96,20 @@
         UPDATE acorn_wallet
         SET balance    = balance + #{amount},
             updated_at = now()
+        WHERE user_id = #{userId}
+    </update>
+
+    <update id="reserveBalance">
+        UPDATE acorn_wallet
+        SET reserved_balance = reserved_balance + #{amount},
+            updated_at       = now()
+        WHERE user_id = #{userId}
+    </update>
+
+    <update id="releaseReservation">
+        UPDATE acorn_wallet
+        SET reserved_balance = GREATEST(reserved_balance - #{amount}, 0),
+            updated_at       = now()
         WHERE user_id = #{userId}
     </update>
 
