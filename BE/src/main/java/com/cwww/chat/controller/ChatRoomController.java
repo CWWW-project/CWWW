@@ -4,6 +4,7 @@ import com.cwww.chat.dto.request.CreateChatRoomRequest;
 import com.cwww.chat.dto.request.InviteParticipantsRequest;
 import com.cwww.chat.dto.response.ChatListUpdateResponse;
 import com.cwww.chat.dto.response.ChatMessageResponse;
+import com.cwww.chat.dto.response.ChatParticipantResponse;
 import com.cwww.chat.dto.response.ChatRoomResponse;
 import com.cwww.chat.dto.response.CreateChatRoomResponse;
 import com.cwww.chat.redis.RedisPublisher;
@@ -56,6 +57,14 @@ public class ChatRoomController {
     public ResponseEntity<ApiResponse<List<ChatRoomResponse>>>
     getChatRooms(@RequestHeader("X-User-Id") Long userId) {
         List<ChatRoomResponse> response = chatRoomService.getChatRooms(userId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/{chatId}/participants")
+    public ResponseEntity<ApiResponse<List<ChatParticipantResponse>>>
+    getActiveParticipants(@RequestHeader("X-User-Id") Long userId,
+                          @PathVariable Long chatId) {
+        List<ChatParticipantResponse> response = chatRoomService.getActiveParticipants(userId, chatId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

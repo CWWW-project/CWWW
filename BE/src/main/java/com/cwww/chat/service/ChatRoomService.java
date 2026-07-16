@@ -9,6 +9,7 @@ import com.cwww.chat.dto.request.CreateChatRoomRequest;
 import com.cwww.chat.dto.request.InviteParticipantsRequest;
 import com.cwww.chat.dto.response.ChatListUpdateResponse;
 import com.cwww.chat.dto.response.ChatMessageResponse;
+import com.cwww.chat.dto.response.ChatParticipantResponse;
 import com.cwww.chat.dto.response.ChatRoomResponse;
 import com.cwww.chat.dto.response.CreateChatRoomResponse;
 import com.cwww.chat.mapper.ChatMessageMapper;
@@ -251,6 +252,28 @@ public class ChatRoomService {
         for (Long userId : userIds) {
             ChatListUpdateResponse response = createChatListUpdateResponse(userId, chatId);
             responses.add(response);
+        }
+
+        return responses;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChatParticipantResponse> getActiveParticipants(Long userId, Long chatId) {
+        ChatRoom chatRoom = validateChatRoom(chatId);
+        validateParticipant(chatId, userId);
+
+        List<ChatParticipant> participants = chatParticipantMapper.findByChatId(chatRoom.getChatId());
+        List<ChatParticipantResponse> responses = new ArrayList<>();
+
+        for (ChatParticipant participant : participants) {
+            if (participant.getLeftAt() != null) {
+                continue;
+            }
+
+            responses.add(ChatParticipantResponse.from(
+                    participant.getUserId(),
+                    findNickname(participant.getUserId())
+            ));
         }
 
         return responses;
