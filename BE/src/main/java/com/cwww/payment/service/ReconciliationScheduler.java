@@ -26,6 +26,8 @@ import java.time.LocalDateTime;
  *   - claim / markDone / markFailed / reschedule → ReconciliationTxHelper (각각 독립 TX)
  *   - completeConfirm / completeCancel / recoverOrder  → PaymentTxHelper (각각 독립 TX)
  *   - 토스 API 호출 → TX 밖
+ *
+ * 한 번 실행에 최대 MAX_JOBS_PER_RUN건 처리하여 장애 후 적체를 빠르게 소화한다.
  */
 @Slf4j
 @Component
@@ -33,6 +35,7 @@ import java.time.LocalDateTime;
 public class ReconciliationScheduler {
 
     private static final int MAX_BACKOFF_SECONDS = 3600;
+    private static final int MAX_JOBS_PER_RUN    = 50;
 
     private final ReconciliationTxHelper reconciliationTxHelper;
     private final PaymentTxHelper paymentTxHelper;
@@ -41,16 +44,18 @@ public class ReconciliationScheduler {
 
     @Scheduled(fixedDelay = 30_000)
     public void process() {
-        ReconciliationJob job = reconciliationTxHelper.claimNextJob();
-        if (job == null) return;
+        for (int i = 0; i < MAX_JOBS_PER_RUN; i++) {
+            ReconciliationJob job = reconciliationTxHelper.claimNextJob();
+            if (job == null) return;
 
-        log.info("보정 작업 처리 시작: jobId={}, orderId={}, operation={}",
-                job.getJobId(), job.getOrderId(), job.getOperation());
-        try {
-            processJob(job);
-        } catch (Exception e) {
-            log.error("보정 작업 처리 중 예외: jobId={}", job.getJobId(), e);
-            reschedule(job, e.getMessage());
+            log.info("보정 작업 처리 시작: jobId={}, orderId={}, operation={}",
+                    job.getJobId(), job.getOrderId(), job.getOperation());
+            try {
+                processJob(job);
+            } catch (Exception e) {
+                log.error("보정 작업 처리 중 예외: jobId={}", job.getJobId(), e);
+                reschedule(job, e.getMessage());
+            }
         }
     }
 
@@ -58,27 +63,30 @@ public class ReconciliationScheduler {
         Order order = paymentMapper.findOrderById(job.getOrderId());
         if (order == null) {
             log.warn("보정 대상 주문 없음: jobId={}, orderId={}", job.getJobId(), job.getOrderId());
-            reconciliationTxHelper.markFailed(job.getJobId(), "주문을 찾을 수 없음");
+            reconciliationTxHelper.markFailed(job.getJobId(), job.getVersion(), "주문을 찾을 수 없음");
             return;
         }
 
         if (isAlreadyCompleted(order, job)) {
             log.info("보정 작업 이미 완료됨: jobId={}, orderStatus={}", job.getJobId(), order.getStatus());
-            reconciliationTxHelper.markDone(job.getJobId());
+            reconciliationTxHelper.markDone(job.getJobId(), job.getVersion());
             return;
         }
 
-        String pgTxId = paymentMapper.findPgTxIdByOrderId(job.getOrderId());
+        // CONFIRM 잡: job.paymentKey 우선 사용 (payment 행 없이도 PG 조회 가능)
+        // Legacy 잡(paymentKey 없음) 또는 CANCEL 잡: payment 테이블에서 조회
+        String pgTxId = job.getPaymentKey() != null
+                ? job.getPaymentKey()
+                : paymentMapper.findPgTxIdByOrderId(job.getOrderId());
 
         if (pgTxId == null && JobOperation.CONFIRM.name().equals(job.getOperation())) {
             log.warn("CONFIRM 보정: pgTxId 없음 (PG 호출 전 실패) → PENDING 복구: jobId={}", job.getJobId());
             paymentTxHelper.recoverOrderToPending(job.getOrderId());
-            reconciliationTxHelper.markDone(job.getJobId());
             return;
         }
 
         if (pgTxId == null) {
-            reconciliationTxHelper.markFailed(job.getJobId(), "pgTxId 없음");
+            reconciliationTxHelper.markFailed(job.getJobId(), job.getVersion(), "pgTxId 없음");
             return;
         }
 
@@ -91,7 +99,7 @@ public class ReconciliationScheduler {
             return;
         } catch (TossBusinessException e) {
             log.warn("보정 작업 PG 상태 조회 거절: jobId={}", job.getJobId(), e);
-            reconciliationTxHelper.markFailed(job.getJobId(), "PG 조회 거절: " + e.getMessage());
+            reconciliationTxHelper.markFailed(job.getJobId(), job.getVersion(), "PG 조회 거절: " + e.getMessage());
             return;
         }
 
@@ -110,7 +118,7 @@ public class ReconciliationScheduler {
                     paymentTxHelper.completeConfirm(
                             order, pgTxId, pgState.getMethod(),
                             pgState.getTotalAmount(), pgState.getStatus());
-                    reconciliationTxHelper.markDone(job.getJobId());
+                    // completeConfirm 내부에서 markDoneByOrderAndOperation 호출됨
                     log.info("보정 CONFIRM 완료: jobId={}, orderId={}", job.getJobId(), job.getOrderId());
                 } catch (Exception e) {
                     log.error("보정 CONFIRM 내부 처리 실패: jobId={}", job.getJobId(), e);
@@ -118,8 +126,8 @@ public class ReconciliationScheduler {
                 }
             }
             case "ABORTED", "EXPIRED" -> {
+                // recoverOrderToPending 내부에서 markDoneByOrderAndOperation 호출됨
                 paymentTxHelper.recoverOrderToPending(job.getOrderId());
-                reconciliationTxHelper.markDone(job.getJobId());
                 log.info("보정 CONFIRM PG 거절 — PENDING 복구: jobId={}", job.getJobId());
             }
             default -> reschedule(job, "PG 상태 진행 중: " + pgState.getStatus());
@@ -128,19 +136,27 @@ public class ReconciliationScheduler {
 
     private void handleCancelJob(ReconciliationJob job, TossPaymentResponse pgState) {
         switch (pgState.getStatus()) {
-            case "CANCELED", "PARTIAL_CANCELED" -> {
+            case "CANCELED" -> {
                 try {
                     paymentTxHelper.completeCancel(job.getOrderId());
-                    reconciliationTxHelper.markDone(job.getJobId());
+                    reconciliationTxHelper.markDone(job.getJobId(), job.getVersion());
                     log.info("보정 CANCEL 완료: jobId={}, orderId={}", job.getJobId(), job.getOrderId());
                 } catch (Exception e) {
                     log.error("보정 CANCEL 내부 처리 실패: jobId={}", job.getJobId(), e);
                     reschedule(job, "내부 처리 실패: " + e.getMessage());
                 }
             }
+            case "PARTIAL_CANCELED" -> {
+                // 부분 취소는 현재 서비스에서 미지원 — 운영팀 수동 처리 대상
+                log.error("보정 CANCEL PARTIAL_CANCELED 미지원 — 운영팀 확인 필요: jobId={}, orderId={}",
+                        job.getJobId(), job.getOrderId());
+                reconciliationTxHelper.markFailed(job.getJobId(), job.getVersion(),
+                        "PARTIAL_CANCELED 미지원 — 운영팀 확인 필요");
+            }
             case "DONE" -> {
+                // 취소 명시 거절 (PG는 여전히 DONE) → PAID 복구
+                // recoverOrderToPaid 내부에서 markDoneByOrderAndOperation 호출됨
                 paymentTxHelper.recoverOrderToPaid(job.getOrderId());
-                reconciliationTxHelper.markDone(job.getJobId());
                 log.info("보정 CANCEL PG 거절 — PAID 복구: jobId={}", job.getJobId());
             }
             default -> reschedule(job, "PG 상태 진행 중: " + pgState.getStatus());
@@ -158,12 +174,12 @@ public class ReconciliationScheduler {
         int newRetry = job.getRetryCount() + 1;
         if (newRetry > job.getMaxRetries()) {
             log.error("보정 작업 최대 재시도 초과: jobId={}, lastError={}", job.getJobId(), error);
-            reconciliationTxHelper.markFailed(job.getJobId(), "최대 재시도 초과: " + error);
+            reconciliationTxHelper.markFailed(job.getJobId(), job.getVersion(), "최대 재시도 초과: " + error);
             return;
         }
         long backoffSec = Math.min((long) Math.pow(2, newRetry) * 30L, MAX_BACKOFF_SECONDS);
         LocalDateTime next = LocalDateTime.now().plusSeconds(backoffSec);
-        reconciliationTxHelper.reschedule(job.getJobId(), newRetry, next, error);
+        reconciliationTxHelper.reschedule(job.getJobId(), job.getVersion(), newRetry, next, error);
         log.info("보정 작업 재스케줄: jobId={}, retryCount={}, next={}", job.getJobId(), newRetry, next);
     }
 }

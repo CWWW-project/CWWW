@@ -104,6 +104,13 @@ public class TossPaymentClient {
     }
 
     private void handle4xx(HttpRequest request, ClientHttpResponse response) throws IOException {
+        int statusCode = response.getStatusCode().value();
+        // 408(Request Timeout), 429(Too Many Requests)는 일시적 오류 — 재시도 대상
+        if (statusCode == 408 || statusCode == 429) {
+            String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+            log.warn("토스 재시도 가능 4xx: status={}, body={}", statusCode, body);
+            throw new TossUncertainException("HTTP_" + statusCode + ": " + body, null);
+        }
         String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
         log.warn("토스 4xx 오류: {}", body);
         try {

@@ -34,6 +34,7 @@ class ReconciliationSchedulerTest {
     private static final Long JOB_ID   = 1L;
     private static final Long ORDER_ID = 10L;
     private static final String PG_TX_ID = "toss-pk-1";
+    private static final long VERSION = 0L;
 
     private ReconciliationJob confirmJob;
     private ReconciliationJob cancelJob;
@@ -47,6 +48,8 @@ class ReconciliationSchedulerTest {
                 .operation(JobOperation.CONFIRM.name())
                 .status(JobStatus.PROCESSING.name())
                 .retryCount(0).maxRetries(5)
+                .paymentKey(PG_TX_ID)   // paymentKey 선저장
+                .version(VERSION)
                 .nextAttemptAt(LocalDateTime.now().minusSeconds(10))
                 .build();
 
@@ -55,6 +58,7 @@ class ReconciliationSchedulerTest {
                 .operation(JobOperation.CANCEL.name())
                 .status(JobStatus.PROCESSING.name())
                 .retryCount(0).maxRetries(5)
+                .version(VERSION)
                 .nextAttemptAt(LocalDateTime.now().minusSeconds(10))
                 .build();
 
@@ -90,17 +94,17 @@ class ReconciliationSchedulerTest {
         given(pgDone.getMethod()).willReturn("카드");
         given(pgDone.getTotalAmount()).willReturn(10_000);
 
-        given(reconciliationTxHelper.claimNextJob()).willReturn(confirmJob);
+        given(reconciliationTxHelper.claimNextJob()).willReturn(confirmJob).willReturn(null);
         given(paymentMapper.findOrderById(ORDER_ID)).willReturn(confirming);
-        given(paymentMapper.findPgTxIdByOrderId(ORDER_ID)).willReturn(PG_TX_ID);
         given(tossPaymentClient.getPayment(PG_TX_ID)).willReturn(pgDone);
 
         // Act
         scheduler.process();
 
-        // Assert
+        // Assert: job.paymentKey 사용 → findPgTxIdByOrderId 호출 X
+        verify(paymentMapper, never()).findPgTxIdByOrderId(any());
         verify(paymentTxHelper).completeConfirm(confirming, PG_TX_ID, "카드", 10_000, "DONE");
-        verify(reconciliationTxHelper).markDone(JOB_ID);
+        // completeConfirm 내부에서 markDoneByOrderAndOperation 호출됨 (별도 verify 불필요)
     }
 
     @Test
@@ -110,17 +114,15 @@ class ReconciliationSchedulerTest {
         TossPaymentResponse pgAborted = mock(TossPaymentResponse.class);
         given(pgAborted.getStatus()).willReturn("ABORTED");
 
-        given(reconciliationTxHelper.claimNextJob()).willReturn(confirmJob);
+        given(reconciliationTxHelper.claimNextJob()).willReturn(confirmJob).willReturn(null);
         given(paymentMapper.findOrderById(ORDER_ID)).willReturn(confirming);
-        given(paymentMapper.findPgTxIdByOrderId(ORDER_ID)).willReturn(PG_TX_ID);
         given(tossPaymentClient.getPayment(PG_TX_ID)).willReturn(pgAborted);
 
         // Act
         scheduler.process();
 
-        // Assert
+        // Assert: recoverOrderToPending 내부에서 markDoneByOrderAndOperation 호출됨
         verify(paymentTxHelper).recoverOrderToPending(ORDER_ID);
-        verify(reconciliationTxHelper).markDone(JOB_ID);
         verify(paymentTxHelper, never()).completeConfirm(any(), any(), any(), anyInt(), any());
     }
 
@@ -131,7 +133,7 @@ class ReconciliationSchedulerTest {
         TossPaymentResponse pgCanceled = mock(TossPaymentResponse.class);
         given(pgCanceled.getStatus()).willReturn("CANCELED");
 
-        given(reconciliationTxHelper.claimNextJob()).willReturn(cancelJob);
+        given(reconciliationTxHelper.claimNextJob()).willReturn(cancelJob).willReturn(null);
         given(paymentMapper.findOrderById(ORDER_ID)).willReturn(canceling);
         given(paymentMapper.findPgTxIdByOrderId(ORDER_ID)).willReturn(PG_TX_ID);
         given(tossPaymentClient.getPayment(PG_TX_ID)).willReturn(pgCanceled);
@@ -141,7 +143,7 @@ class ReconciliationSchedulerTest {
 
         // Assert
         verify(paymentTxHelper).completeCancel(ORDER_ID);
-        verify(reconciliationTxHelper).markDone(JOB_ID);
+        verify(reconciliationTxHelper).markDone(JOB_ID, VERSION);
     }
 
     @Test
@@ -151,7 +153,7 @@ class ReconciliationSchedulerTest {
         TossPaymentResponse pgDone = mock(TossPaymentResponse.class);
         given(pgDone.getStatus()).willReturn("DONE");
 
-        given(reconciliationTxHelper.claimNextJob()).willReturn(cancelJob);
+        given(reconciliationTxHelper.claimNextJob()).willReturn(cancelJob).willReturn(null);
         given(paymentMapper.findOrderById(ORDER_ID)).willReturn(canceling);
         given(paymentMapper.findPgTxIdByOrderId(ORDER_ID)).willReturn(PG_TX_ID);
         given(tossPaymentClient.getPayment(PG_TX_ID)).willReturn(pgDone);
@@ -159,19 +161,38 @@ class ReconciliationSchedulerTest {
         // Act
         scheduler.process();
 
-        // Assert
+        // Assert: recoverOrderToPaid 내부에서 markDoneByOrderAndOperation 호출됨
         verify(paymentTxHelper).recoverOrderToPaid(ORDER_ID);
-        verify(reconciliationTxHelper).markDone(JOB_ID);
         verify(paymentTxHelper, never()).completeCancel(any());
+    }
+
+    @Test
+    @DisplayName("CANCEL_PG_PARTIAL_CANCELED_FAILED처리")
+    void cancel_PG_PARTIAL_CANCELED_FAILED() {
+        // Arrange
+        TossPaymentResponse pgPartial = mock(TossPaymentResponse.class);
+        given(pgPartial.getStatus()).willReturn("PARTIAL_CANCELED");
+
+        given(reconciliationTxHelper.claimNextJob()).willReturn(cancelJob).willReturn(null);
+        given(paymentMapper.findOrderById(ORDER_ID)).willReturn(canceling);
+        given(paymentMapper.findPgTxIdByOrderId(ORDER_ID)).willReturn(PG_TX_ID);
+        given(tossPaymentClient.getPayment(PG_TX_ID)).willReturn(pgPartial);
+
+        // Act
+        scheduler.process();
+
+        // Assert: 부분 취소 미지원 → FAILED
+        verify(reconciliationTxHelper).markFailed(eq(JOB_ID), eq(VERSION), contains("PARTIAL_CANCELED"));
+        verify(paymentTxHelper, never()).completeCancel(any());
+        verify(paymentTxHelper, never()).recoverOrderToPaid(any());
     }
 
     @Test
     @DisplayName("PG조회_불확실오류_재스케줄")
     void PG조회_불확실오류_재스케줄() {
         // Arrange
-        given(reconciliationTxHelper.claimNextJob()).willReturn(confirmJob);
+        given(reconciliationTxHelper.claimNextJob()).willReturn(confirmJob).willReturn(null);
         given(paymentMapper.findOrderById(ORDER_ID)).willReturn(confirming);
-        given(paymentMapper.findPgTxIdByOrderId(ORDER_ID)).willReturn(PG_TX_ID);
         given(tossPaymentClient.getPayment(PG_TX_ID))
                 .willThrow(new TossUncertainException("타임아웃", null));
 
@@ -179,9 +200,9 @@ class ReconciliationSchedulerTest {
         scheduler.process();
 
         // Assert
-        verify(reconciliationTxHelper).reschedule(eq(JOB_ID), eq(1), any(), contains("타임아웃"));
-        verify(reconciliationTxHelper, never()).markDone(any());
-        verify(reconciliationTxHelper, never()).markFailed(any(), any());
+        verify(reconciliationTxHelper).reschedule(eq(JOB_ID), eq(VERSION), eq(1), any(), contains("타임아웃"));
+        verify(reconciliationTxHelper, never()).markDone(any(), anyLong());
+        verify(reconciliationTxHelper, never()).markFailed(any(), anyLong(), any());
     }
 
     @Test
@@ -193,12 +214,13 @@ class ReconciliationSchedulerTest {
                 .operation(JobOperation.CONFIRM.name())
                 .status(JobStatus.PROCESSING.name())
                 .retryCount(5).maxRetries(5)
+                .paymentKey(PG_TX_ID)
+                .version(VERSION)
                 .nextAttemptAt(LocalDateTime.now().minusSeconds(10))
                 .build();
 
-        given(reconciliationTxHelper.claimNextJob()).willReturn(exhaustedJob);
+        given(reconciliationTxHelper.claimNextJob()).willReturn(exhaustedJob).willReturn(null);
         given(paymentMapper.findOrderById(ORDER_ID)).willReturn(confirming);
-        given(paymentMapper.findPgTxIdByOrderId(ORDER_ID)).willReturn(PG_TX_ID);
         given(tossPaymentClient.getPayment(PG_TX_ID))
                 .willThrow(new TossUncertainException("5xx", null));
 
@@ -206,8 +228,8 @@ class ReconciliationSchedulerTest {
         scheduler.process();
 
         // Assert
-        verify(reconciliationTxHelper).markFailed(eq(JOB_ID), contains("최대 재시도 초과"));
-        verify(reconciliationTxHelper, never()).reschedule(any(), anyInt(), any(), any());
+        verify(reconciliationTxHelper).markFailed(eq(JOB_ID), eq(VERSION), contains("최대 재시도 초과"));
+        verify(reconciliationTxHelper, never()).reschedule(any(), anyLong(), anyInt(), any(), any());
     }
 
     @Test
@@ -220,22 +242,32 @@ class ReconciliationSchedulerTest {
                 .status(OrderStatus.PAID.name()).orderUid("uid-1")
                 .build();
 
-        given(reconciliationTxHelper.claimNextJob()).willReturn(confirmJob);
+        given(reconciliationTxHelper.claimNextJob()).willReturn(confirmJob).willReturn(null);
         given(paymentMapper.findOrderById(ORDER_ID)).willReturn(alreadyPaid);
 
         // Act
         scheduler.process();
 
         // Assert
-        verify(reconciliationTxHelper).markDone(JOB_ID);
+        verify(reconciliationTxHelper).markDone(JOB_ID, VERSION);
         verify(tossPaymentClient, never()).getPayment(any());
     }
 
     @Test
-    @DisplayName("CONFIRM_pgTxId없음_PENDING복구")
+    @DisplayName("CONFIRM_pgTxId없음_paymentKey없는레거시잡_PENDING복구")
     void confirm_pgTxId없음_PENDING복구() {
-        // Arrange — pgTxId가 없으면 PG 호출 전에 실패한 것 → PENDING 복구
-        given(reconciliationTxHelper.claimNextJob()).willReturn(confirmJob);
+        // Arrange — paymentKey 없는 레거시 잡 (V13 이전 생성된 잡)
+        ReconciliationJob legacyJob = ReconciliationJob.builder()
+                .jobId(JOB_ID).orderId(ORDER_ID)
+                .operation(JobOperation.CONFIRM.name())
+                .status(JobStatus.PROCESSING.name())
+                .retryCount(0).maxRetries(5)
+                .paymentKey(null)  // 레거시: paymentKey 없음
+                .version(VERSION)
+                .nextAttemptAt(LocalDateTime.now().minusSeconds(10))
+                .build();
+
+        given(reconciliationTxHelper.claimNextJob()).willReturn(legacyJob).willReturn(null);
         given(paymentMapper.findOrderById(ORDER_ID)).willReturn(confirming);
         given(paymentMapper.findPgTxIdByOrderId(ORDER_ID)).willReturn(null);
 
@@ -244,7 +276,6 @@ class ReconciliationSchedulerTest {
 
         // Assert
         verify(paymentTxHelper).recoverOrderToPending(ORDER_ID);
-        verify(reconciliationTxHelper).markDone(JOB_ID);
         verify(tossPaymentClient, never()).getPayment(any());
     }
 }

@@ -12,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 /**
  * 결제 흐름에서 DB 트랜잭션이 필요한 짧은 작업들을 모아둔 컴포넌트.
  * PaymentServiceImpl / ReconciliationScheduler 에서 PG 호출 전·후에 호출한다.
@@ -31,9 +33,15 @@ public class PaymentTxHelper {
     // CONFIRM 흐름
     // ──────────────────────────────────────────────────────────────────────
 
-    /** ① 주문 검증 + CONFIRMING 전이 (짧은 TX) */
+    /**
+     * ① 주문 검증 + CONFIRMING 전이 + CONFIRM 보정 작업 선생성 (짧은 TX)
+     *
+     * paymentKey를 보정 작업에 함께 저장하여, PG 호출 직후 프로세스가 죽어도
+     * 스케줄러가 payment 행 없이 직접 PG를 조회할 수 있다.
+     */
     @Transactional
-    public Order validateAndTransitionToConfirming(Long userId, String orderUid, int requestAmount) {
+    public Order validateAndTransitionToConfirming(Long userId, String orderUid,
+                                                    int requestAmount, String paymentKey) {
         Order order = paymentMapper.findOrderByUidForUpdate(orderUid);
         if (order == null) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
         if (!order.getUserId().equals(userId)) throw new BusinessException(ErrorCode.FORBIDDEN);
@@ -51,10 +59,24 @@ public class PaymentTxHelper {
         }
 
         paymentMapper.updateOrderStatus(order.getOrderId(), OrderStatus.CONFIRMING.name());
+
+        // CONFIRM 보정 작업 선생성 (paymentKey 포함) — ON CONFLICT DO NOTHING으로 멱등 처리
+        reconciliationJobMapper.insertJob(ReconciliationJob.builder()
+                .orderId(order.getOrderId())
+                .operation(JobOperation.CONFIRM.name())
+                .paymentKey(paymentKey)
+                .maxRetries(5)
+                .build());
+
         return order;
     }
 
-    /** ③ PG 승인 성공 후 내부 완료 처리 — 멱등 (짧은 TX) */
+    /**
+     * ③ PG 승인 성공 후 내부 완료 처리 — 멱등 (짧은 TX)
+     *
+     * CAS(CONFIRMING→PAID) 반환값을 검증하여 예상치 못한 상태 전이를 차단한다.
+     * 모든 처리 완료 후 보정 작업을 DONE 처리한다.
+     */
     @Transactional
     public PaymentConfirmResponse completeConfirm(Order order,
                                                    String pgTxId, String method,
@@ -72,18 +94,27 @@ public class PaymentTxHelper {
                 AcornTxReason.CHARGE.name(), order.getOrderId());
 
         if (inserted > 0) {
-            // 최초 처리 → 지갑 충전
             paymentMapper.addWalletBalance(order.getUserId(), order.getAcornAmount());
         }
-        // inserted == 0 이면 이전 처리에서 이미 충전됨 → 스킵
 
         // payment 멱등 삽입
         paymentMapper.insertPaymentIdempotent(
                 order.getOrderId(), pgTxId, method, totalAmount, pgStatus, order.getUserId());
 
-        // PAID 전이 (CONFIRMING → PAID, 이미 PAID이면 CAS가 no-op)
-        paymentMapper.updateOrderStatusCas(
+        // PAID 전이 — CAS 반환값 검증
+        int cas = paymentMapper.updateOrderStatusCas(
                 order.getOrderId(), OrderStatus.CONFIRMING.name(), OrderStatus.PAID.name());
+        if (cas == 0) {
+            // 이미 PAID이면 멱등 처리, 그 외는 예상 불가 상태 → 예외
+            Order current = paymentMapper.findOrderById(order.getOrderId());
+            if (current == null || !OrderStatus.PAID.name().equals(current.getStatus())) {
+                throw new BusinessException(ErrorCode.ALREADY_PROCESSED_ORDER);
+            }
+        }
+
+        // 보정 작업 완료 처리 (CONFIRM 잡)
+        reconciliationJobMapper.markDoneByOrderAndOperation(
+                order.getOrderId(), JobOperation.CONFIRM.name());
 
         AcornWallet updated = paymentMapper.findWalletByUserId(order.getUserId());
         return PaymentConfirmResponse.builder()
@@ -93,27 +124,26 @@ public class PaymentTxHelper {
                 .build();
     }
 
-    /** PG 명시 거절 시 주문 PENDING 복구 */
+    /**
+     * PG 명시 거절 시 주문 PENDING 복구 + 보정 작업 종료 (짧은 TX)
+     * CONFIRM 보정 잡을 동시에 닫아 스케줄러 불필요한 재처리를 방지한다.
+     */
     @Transactional
     public void recoverOrderToPending(Long orderId) {
         paymentMapper.updateOrderStatusCas(orderId, OrderStatus.CONFIRMING.name(), OrderStatus.PENDING.name());
-    }
-
-    /** 보정 작업 생성 (CONFIRM) */
-    @Transactional
-    public void saveConfirmJob(Long orderId) {
-        reconciliationJobMapper.insertJob(ReconciliationJob.builder()
-                .orderId(orderId)
-                .operation(JobOperation.CONFIRM.name())
-                .maxRetries(5)
-                .build());
+        reconciliationJobMapper.markDoneByOrderAndOperation(orderId, JobOperation.CONFIRM.name());
     }
 
     // ──────────────────────────────────────────────────────────────────────
     // CANCEL 흐름
     // ──────────────────────────────────────────────────────────────────────
 
-    /** ① 주문 검증 + CANCELING 전이 + 보정 작업 생성 (짧은 TX) */
+    /**
+     * ① 주문 검증 + CANCELING 전이 + 보정 작업 생성 (짧은 TX)
+     *
+     * CANCEL 보정 작업의 next_attempt_at을 60초 후로 설정하여
+     * PG 취소 호출이 진행 중인 동안 스케줄러가 선점하는 레이스를 방지한다.
+     */
     @Transactional
     public Order validateAndTransitionToCanceling(Long userId, String orderUid) {
         Order order = paymentMapper.findOrderByUidForUpdate(orderUid);
@@ -136,17 +166,23 @@ public class PaymentTxHelper {
 
         paymentMapper.updateOrderStatus(order.getOrderId(), OrderStatus.CANCELING.name());
 
-        // 보정 작업을 먼저 생성 → PG 취소 성공 후 내부 처리 실패해도 스케줄러가 복구
+        // PG 취소 호출 타임아웃(30s) + 버퍼를 고려해 60초 후 실행
         reconciliationJobMapper.insertJob(ReconciliationJob.builder()
                 .orderId(order.getOrderId())
                 .operation(JobOperation.CANCEL.name())
                 .maxRetries(5)
+                .nextAttemptAt(LocalDateTime.now().plusSeconds(60))
                 .build());
 
         return order;
     }
 
-    /** ③ PG 취소 성공 후 내부 완료 처리 — 멱등 (짧은 TX) */
+    /**
+     * ③ PG 취소 성공 후 내부 완료 처리 — 멱등 (짧은 TX)
+     *
+     * PG 취소와 내부 처리 사이에 사용자가 도토리를 소비했을 수 있으므로
+     * 지갑 잔액을 재검증한 후 차감한다.
+     */
     @Transactional
     public PaymentCancelResponse completeCancel(Long orderId) {
         Order order = paymentMapper.findOrderByIdForUpdate(orderId);
@@ -164,6 +200,14 @@ public class PaymentTxHelper {
 
         paymentMapper.upsertWallet(order.getUserId());
         AcornWallet wallet = paymentMapper.findWalletForUpdate(order.getUserId());
+
+        // 잔액 재검증 — validateAndTransitionToCanceling 이후 도토리를 소비했을 수 있음
+        if (wallet.getBalance() < order.getAcornAmount()) {
+            log.error("환불 잔액 부족 — CANCELING 유지, 운영팀 개입 필요: orderId={}, balance={}, required={}",
+                    orderId, wallet.getBalance(), order.getAcornAmount());
+            throw new BusinessException(ErrorCode.REFUND_INSUFFICIENT_BALANCE);
+        }
+
         int balanceAfter = wallet.getBalance() - order.getAcornAmount();
 
         // REFUND 원장 멱등 삽입 — 반환값으로 지갑 이중 차감 방지
@@ -176,8 +220,16 @@ public class PaymentTxHelper {
         }
 
         paymentMapper.updatePaymentPgStatus(orderId, "CANCELED", null);
-        paymentMapper.updateOrderStatusCas(
+
+        // CANCELED 전이 — CAS 반환값 검증
+        int cas = paymentMapper.updateOrderStatusCas(
                 orderId, OrderStatus.CANCELING.name(), OrderStatus.CANCELED.name());
+        if (cas == 0) {
+            Order current = paymentMapper.findOrderById(orderId);
+            if (current == null || !OrderStatus.CANCELED.name().equals(current.getStatus())) {
+                throw new BusinessException(ErrorCode.CANCEL_NOT_ALLOWED);
+            }
+        }
 
         AcornWallet updated = paymentMapper.findWalletByUserId(order.getUserId());
         return PaymentCancelResponse.builder()
@@ -187,9 +239,13 @@ public class PaymentTxHelper {
                 .build();
     }
 
-    /** PG 취소 명시 거절 시 주문 PAID 복구 */
+    /**
+     * PG 취소 명시 거절 시 주문 PAID 복구 + 보정 작업 종료 (짧은 TX)
+     * pgTxId 없음(PG 호출 전 실패)으로 인한 복구 시에도 동일하게 사용한다.
+     */
     @Transactional
     public void recoverOrderToPaid(Long orderId) {
         paymentMapper.updateOrderStatusCas(orderId, OrderStatus.CANCELING.name(), OrderStatus.PAID.name());
+        reconciliationJobMapper.markDoneByOrderAndOperation(orderId, JobOperation.CANCEL.name());
     }
 }

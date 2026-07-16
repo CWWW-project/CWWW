@@ -23,10 +23,13 @@ public interface PaymentMapper {
 
     void updateOrderStatus(@Param("orderId") Long orderId, @Param("status") String status);
 
-    /** CAS 업데이트 — fromStatus와 일치할 때만 전이 (중복 처리 방지) */
-    void updateOrderStatusCas(@Param("orderId") Long orderId,
-                              @Param("fromStatus") String fromStatus,
-                              @Param("toStatus") String toStatus);
+    /**
+     * CAS 업데이트 — fromStatus와 일치할 때만 전이 (중복 처리 방지)
+     * 반환값: 실제 갱신된 행 수 (0=전이 불가 상태, 1=성공)
+     */
+    int updateOrderStatusCas(@Param("orderId") Long orderId,
+                             @Param("fromStatus") String fromStatus,
+                             @Param("toStatus") String toStatus);
 
     // ── 결제 ────────────────────────────────────────────────────────────────
 

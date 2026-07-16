@@ -3,6 +3,7 @@ package com.cwww.payment.service;
 import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
 import com.cwww.payment.client.TossBusinessException;
+import com.cwww.payment.client.TossCancelResponse;
 import com.cwww.payment.client.TossConfirmResponse;
 import com.cwww.payment.client.TossPaymentClient;
 import com.cwww.payment.client.TossUncertainException;
@@ -38,17 +39,18 @@ class PaymentServiceImplTest {
     @InjectMocks
     private PaymentServiceImpl paymentService;
 
-    private static final Long USER_ID   = 1L;
-    private static final Long ORDER_ID  = 10L;
-    private static final String ORDER_UID  = "order-uid-1";
+    private static final Long USER_ID    = 1L;
+    private static final Long ORDER_ID   = 10L;
+    private static final String ORDER_UID   = "order-uid-1";
     private static final String PAYMENT_KEY = "toss-pk-1";
-    private static final int ACORN_AMOUNT  = 1000;
-    private static final int PRICE         = 10_000;
+    private static final int ACORN_AMOUNT   = 1000;
+    private static final int PRICE          = 10_000;
 
     private Order pendingOrder;
     private PaymentConfirmRequest confirmRequest;
     private PaymentCancelRequest cancelRequest;
     private TossConfirmResponse tossOk;
+    private TossCancelResponse tossCancelOk;
 
     @BeforeEach
     void setUp() {
@@ -73,6 +75,10 @@ class PaymentServiceImplTest {
         given(tossOk.getOrderId()).willReturn(ORDER_UID);
         given(tossOk.getTotalAmount()).willReturn(PRICE);
         given(tossOk.getMethod()).willReturn("카드");
+
+        tossCancelOk = mock(TossCancelResponse.class);
+        given(tossCancelOk.getStatus()).willReturn("CANCELED");
+        given(tossCancelOk.getPaymentKey()).willReturn(PAYMENT_KEY);
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -86,7 +92,7 @@ class PaymentServiceImplTest {
         PaymentConfirmResponse expected = PaymentConfirmResponse.builder()
                 .orderUid(ORDER_UID).chargedAcorn(ACORN_AMOUNT).balance(1000).build();
 
-        given(paymentTxHelper.validateAndTransitionToConfirming(USER_ID, ORDER_UID, PRICE))
+        given(paymentTxHelper.validateAndTransitionToConfirming(USER_ID, ORDER_UID, PRICE, PAYMENT_KEY))
                 .willReturn(pendingOrder);
         given(tossPaymentClient.confirm(PAYMENT_KEY, ORDER_UID, PRICE)).willReturn(tossOk);
         given(paymentTxHelper.completeConfirm(eq(pendingOrder), eq(PAYMENT_KEY), eq("카드"), eq(PRICE), eq("DONE")))
@@ -105,7 +111,7 @@ class PaymentServiceImplTest {
     @DisplayName("confirmPayment_이미처리된주문_예외")
     void confirmPayment_중복승인차단() {
         // Arrange — validateAndTransitionToConfirming 에서 이미 예외 던짐
-        given(paymentTxHelper.validateAndTransitionToConfirming(USER_ID, ORDER_UID, PRICE))
+        given(paymentTxHelper.validateAndTransitionToConfirming(USER_ID, ORDER_UID, PRICE, PAYMENT_KEY))
                 .willThrow(new BusinessException(ErrorCode.ALREADY_PROCESSED_ORDER));
 
         // Act & Assert
@@ -120,7 +126,7 @@ class PaymentServiceImplTest {
     @DisplayName("confirmPayment_PG명시거절_PENDING복구후예외")
     void confirmPayment_PG명시거절() {
         // Arrange
-        given(paymentTxHelper.validateAndTransitionToConfirming(USER_ID, ORDER_UID, PRICE))
+        given(paymentTxHelper.validateAndTransitionToConfirming(USER_ID, ORDER_UID, PRICE, PAYMENT_KEY))
                 .willReturn(pendingOrder);
         given(tossPaymentClient.confirm(PAYMENT_KEY, ORDER_UID, PRICE))
                 .willThrow(new TossBusinessException("REJECT", "PG 거절"));
@@ -130,16 +136,15 @@ class PaymentServiceImplTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.PAYMENT_PG_REJECTED);
 
-        // 검증: PENDING 복구 호출 O, 보정 작업 생성 X
+        // 검증: PENDING 복구 O (보정 잡은 선생성되어 있으니 같이 닫힘)
         verify(paymentTxHelper).recoverOrderToPending(ORDER_ID);
-        verify(paymentTxHelper, never()).saveConfirmJob(any());
     }
 
     @Test
-    @DisplayName("confirmPayment_PG불확실오류_CONFIRMING유지_보정작업생성")
+    @DisplayName("confirmPayment_PG불확실오류_CONFIRMING유지_보정잡스케줄러위임")
     void confirmPayment_PG불확실오류() {
         // Arrange
-        given(paymentTxHelper.validateAndTransitionToConfirming(USER_ID, ORDER_UID, PRICE))
+        given(paymentTxHelper.validateAndTransitionToConfirming(USER_ID, ORDER_UID, PRICE, PAYMENT_KEY))
                 .willReturn(pendingOrder);
         given(tossPaymentClient.confirm(PAYMENT_KEY, ORDER_UID, PRICE))
                 .willThrow(new TossUncertainException("타임아웃", null));
@@ -149,16 +154,15 @@ class PaymentServiceImplTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.PAYMENT_CONFIRM_FAILED);
 
-        // 검증: PENDING 복구 X, 보정 작업 생성 O
+        // 검증: PENDING 복구 X (선생성된 보정 잡이 스케줄러에 의해 처리됨)
         verify(paymentTxHelper, never()).recoverOrderToPending(any());
-        verify(paymentTxHelper).saveConfirmJob(ORDER_ID);
     }
 
     @Test
-    @DisplayName("confirmPayment_PG성공후내부처리실패_보정작업생성_롤백안함")
+    @DisplayName("confirmPayment_PG성공후내부처리실패_보정잡스케줄러위임")
     void confirmPayment_PG성공후내부처리실패() {
         // Arrange
-        given(paymentTxHelper.validateAndTransitionToConfirming(USER_ID, ORDER_UID, PRICE))
+        given(paymentTxHelper.validateAndTransitionToConfirming(USER_ID, ORDER_UID, PRICE, PAYMENT_KEY))
                 .willReturn(pendingOrder);
         given(tossPaymentClient.confirm(PAYMENT_KEY, ORDER_UID, PRICE)).willReturn(tossOk);
         given(paymentTxHelper.completeConfirm(any(), any(), any(), anyInt(), any()))
@@ -169,8 +173,7 @@ class PaymentServiceImplTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.PAYMENT_CONFIRM_FAILED);
 
-        // 검증: 보정 작업 생성 O (PG 성공했으니 PENDING 복구하면 안 됨)
-        verify(paymentTxHelper).saveConfirmJob(ORDER_ID);
+        // 검증: 선생성된 보정 잡이 스케줄러에 위임됨 (PENDING 복구 X)
         verify(paymentTxHelper, never()).recoverOrderToPending(any());
     }
 
@@ -192,6 +195,7 @@ class PaymentServiceImplTest {
 
         given(paymentTxHelper.validateAndTransitionToCanceling(USER_ID, ORDER_UID)).willReturn(paidOrder);
         given(paymentMapper.findPgTxIdByOrderId(ORDER_ID)).willReturn(PAYMENT_KEY);
+        given(tossPaymentClient.cancel(PAYMENT_KEY, "단순 변심")).willReturn(tossCancelOk);
         given(paymentTxHelper.completeCancel(ORDER_ID)).willReturn(expected);
 
         // Act
@@ -223,13 +227,13 @@ class PaymentServiceImplTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.PAYMENT_CANCEL_FAILED);
 
-        // 검증: PAID 복구 O, completeCancel X
+        // 검증: PAID 복구 O (보정 잡도 닫힘), completeCancel X
         verify(paymentTxHelper).recoverOrderToPaid(ORDER_ID);
         verify(paymentTxHelper, never()).completeCancel(any());
     }
 
     @Test
-    @DisplayName("cancelPayment_PG불확실오류_CANCELING유지_보정작업이미있음")
+    @DisplayName("cancelPayment_PG불확실오류_CANCELING유지_보정잡스케줄러위임")
     void cancelPayment_PG불확실오류() {
         // Arrange
         Order paidOrder = Order.builder()
@@ -248,7 +252,7 @@ class PaymentServiceImplTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.PAYMENT_CANCEL_FAILED);
 
-        // 검증: PAID 복구 X (CANCELING 유지), completeCancel X
+        // 검증: PAID 복구 X (CANCELING 유지, 보정 잡이 60초 후 실행됨), completeCancel X
         verify(paymentTxHelper, never()).recoverOrderToPaid(any());
         verify(paymentTxHelper, never()).completeCancel(any());
     }

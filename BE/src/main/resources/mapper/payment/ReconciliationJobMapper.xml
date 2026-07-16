@@ -6,9 +6,13 @@
     <!-- 활성 중복 방지: uidx_reconciliation_job_active (V12) -->
     <insert id="insertJob" useGeneratedKeys="true" keyProperty="jobId" keyColumn="job_id">
         INSERT INTO payment_reconciliation_job
-            (order_id, operation, status, retry_count, max_retries, next_attempt_at, created_at)
+            (order_id, operation, status, retry_count, max_retries,
+             next_attempt_at, payment_key, version, created_at)
         VALUES
-            (#{orderId}, #{operation}, 'PENDING', 0, #{maxRetries}, now(), now())
+            (#{orderId}, #{operation}, 'PENDING', 0, #{maxRetries},
+             COALESCE(#{nextAttemptAt, jdbcType=TIMESTAMP}, now()),
+             #{paymentKey, jdbcType=VARCHAR},
+             0, now())
         ON CONFLICT (order_id, operation)
             WHERE status IN ('PENDING', 'PROCESSING')
         DO NOTHING
@@ -22,7 +26,8 @@
     -->
     <select id="claimNextJob" resultType="com.cwww.payment.domain.ReconciliationJob">
         SELECT job_id, order_id, operation, status, retry_count, max_retries,
-               next_attempt_at, locked_at, last_error, created_at, updated_at
+               next_attempt_at, locked_at, last_error, created_at, updated_at,
+               payment_key, version
         FROM payment_reconciliation_job
         WHERE status IN ('PENDING', 'PROCESSING')
           AND next_attempt_at &lt;= now()
@@ -38,16 +43,18 @@
         WHERE job_id = #{jobId}
     </update>
 
+    <!-- 낙관적 락: version 불일치 시 0행 반환 (다른 워커가 선점한 것) -->
     <update id="markDone">
         UPDATE payment_reconciliation_job
-        SET status = 'DONE', locked_at = NULL, updated_at = now()
-        WHERE job_id = #{jobId}
+        SET status = 'DONE', locked_at = NULL, version = version + 1, updated_at = now()
+        WHERE job_id = #{jobId} AND version = #{version}
     </update>
 
     <update id="markFailed">
         UPDATE payment_reconciliation_job
-        SET status = 'FAILED', last_error = #{lastError}, locked_at = NULL, updated_at = now()
-        WHERE job_id = #{jobId}
+        SET status = 'FAILED', last_error = #{lastError}, locked_at = NULL,
+            version = version + 1, updated_at = now()
+        WHERE job_id = #{jobId} AND version = #{version}
     </update>
 
     <update id="reschedule">
@@ -57,8 +64,18 @@
             next_attempt_at = #{nextAttemptAt},
             last_error      = #{lastError},
             locked_at       = NULL,
+            version         = version + 1,
             updated_at      = now()
-        WHERE job_id = #{jobId}
+        WHERE job_id = #{jobId} AND version = #{version}
+    </update>
+
+    <!-- recoverOrderToPending / recoverOrderToPaid 시 동일 TX에서 잡을 닫는다 -->
+    <update id="markDoneByOrderAndOperation">
+        UPDATE payment_reconciliation_job
+        SET status = 'DONE', locked_at = NULL, version = version + 1, updated_at = now()
+        WHERE order_id = #{orderId}
+          AND operation = #{operation}
+          AND status IN ('PENDING', 'PROCESSING')
     </update>
 
 </mapper>

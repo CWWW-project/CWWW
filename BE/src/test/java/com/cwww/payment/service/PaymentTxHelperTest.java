@@ -42,14 +42,14 @@ class PaymentTxHelperTest {
     void completeConfirm_최초처리() {
         // Arrange
         Order order = order(1000);
-        AcornWallet wallet = wallet(500); // 기존 잔액 500
-
+        AcornWallet wallet = wallet(500);
         AcornWallet updatedWallet = wallet(1500);
 
         given(paymentMapper.findWalletForUpdate(USER_ID)).willReturn(wallet);
         given(paymentMapper.insertAcornTransactionIdempotent(
                 eq(USER_ID), eq(1000), eq(1500), eq("CHARGE"), eq(ORDER_ID)))
-                .willReturn(1); // 최초 삽입
+                .willReturn(1);
+        given(paymentMapper.updateOrderStatusCas(ORDER_ID, "CONFIRMING", "PAID")).willReturn(1);
         given(paymentMapper.findWalletByUserId(USER_ID)).willReturn(updatedWallet);
 
         // Act
@@ -61,6 +61,7 @@ class PaymentTxHelperTest {
         verify(paymentMapper).addWalletBalance(USER_ID, 1000);
         verify(paymentMapper).insertPaymentIdempotent(eq(ORDER_ID), any(), any(), anyInt(), any(), eq(USER_ID));
         verify(paymentMapper).updateOrderStatusCas(ORDER_ID, "CONFIRMING", "PAID");
+        verify(reconciliationJobMapper).markDoneByOrderAndOperation(ORDER_ID, "CONFIRM");
     }
 
     @Test
@@ -68,12 +69,13 @@ class PaymentTxHelperTest {
     void completeConfirm_멱등성_이중충전방지() {
         // Arrange
         Order order = order(1000);
-        AcornWallet wallet = wallet(1500); // 이미 충전된 상태
+        AcornWallet wallet = wallet(1500);
 
         given(paymentMapper.findWalletForUpdate(USER_ID)).willReturn(wallet);
         given(paymentMapper.insertAcornTransactionIdempotent(
                 eq(USER_ID), eq(1000), eq(2500), eq("CHARGE"), eq(ORDER_ID)))
-                .willReturn(0); // 이미 존재 → DO NOTHING
+                .willReturn(0);
+        given(paymentMapper.updateOrderStatusCas(ORDER_ID, "CONFIRMING", "PAID")).willReturn(1);
         given(paymentMapper.findWalletByUserId(USER_ID)).willReturn(wallet);
 
         // Act
@@ -88,7 +90,7 @@ class PaymentTxHelperTest {
     void validateAndTransitionToConfirming_타인주문() {
         // Arrange
         Order otherUserOrder = Order.builder()
-                .orderId(ORDER_ID).userId(999L) // 다른 사용자
+                .orderId(ORDER_ID).userId(999L)
                 .acornAmount(1000).price(10_000)
                 .status(OrderStatus.PENDING.name()).orderUid("uid-1")
                 .build();
@@ -96,7 +98,8 @@ class PaymentTxHelperTest {
         given(paymentMapper.findOrderByUidForUpdate("uid-1")).willReturn(otherUserOrder);
 
         // Act & Assert
-        assertThatThrownBy(() -> paymentTxHelper.validateAndTransitionToConfirming(USER_ID, "uid-1", 10_000))
+        assertThatThrownBy(() -> paymentTxHelper.validateAndTransitionToConfirming(
+                USER_ID, "uid-1", 10_000, "pk-1"))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.FORBIDDEN);
     }
@@ -114,7 +117,8 @@ class PaymentTxHelperTest {
         given(paymentMapper.findOrderByUidForUpdate("uid-1")).willReturn(confirming);
 
         // Act & Assert
-        assertThatThrownBy(() -> paymentTxHelper.validateAndTransitionToConfirming(USER_ID, "uid-1", 10_000))
+        assertThatThrownBy(() -> paymentTxHelper.validateAndTransitionToConfirming(
+                USER_ID, "uid-1", 10_000, "pk-1"))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.ORDER_IN_PROGRESS);
     }
@@ -132,7 +136,8 @@ class PaymentTxHelperTest {
         given(paymentMapper.findOrderByUidForUpdate("uid-1")).willReturn(order);
 
         // Act & Assert
-        assertThatThrownBy(() -> paymentTxHelper.validateAndTransitionToConfirming(USER_ID, "uid-1", 9_999))
+        assertThatThrownBy(() -> paymentTxHelper.validateAndTransitionToConfirming(
+                USER_ID, "uid-1", 9_999, "pk-1"))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.AMOUNT_MISMATCH);
     }
@@ -146,7 +151,7 @@ class PaymentTxHelperTest {
                 .acornAmount(1000).price(10_000)
                 .status(OrderStatus.PAID.name()).orderUid("uid-1")
                 .build();
-        AcornWallet emptyWallet = wallet(500); // 잔액 부족
+        AcornWallet emptyWallet = wallet(500);
 
         given(paymentMapper.findOrderByUidForUpdate("uid-1")).willReturn(paidOrder);
         given(paymentMapper.findWalletForUpdate(USER_ID)).willReturn(emptyWallet);
