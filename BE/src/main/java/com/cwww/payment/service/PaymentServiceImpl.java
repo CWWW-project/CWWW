@@ -161,12 +161,16 @@ public class PaymentServiceImpl implements PaymentService {
             throw new BusinessException(ErrorCode.PAYMENT_CANCEL_FAILED);
         }
 
-        // ④ 취소 응답 검증
-        validateCancelResponse(cancelResp, pgTxId, order.getOrderId());
-
-        // ⑤ 내부 완료 처리
+        // ④ 취소 응답 검증 + ⑤ 내부 완료 처리
         try {
+            validateCancelResponse(cancelResp, pgTxId, order.getOrderId());
             return paymentTxHelper.completeCancel(order.getOrderId());
+        } catch (TossUncertainException e) {
+            // PARTIAL_CANCELED를 포함한 응답 이상은 전체 환불을 수행하지 않는다.
+            // CANCELING 및 선생성 보정 작업을 유지해 스케줄러의 수동 처리 경로로 넘긴다.
+            log.error("PG 취소 응답을 전체 취소로 확정할 수 없음 — 보정 스케줄러에 위임: orderId={}",
+                    order.getOrderId(), e);
+            throw new BusinessException(ErrorCode.PAYMENT_CANCEL_FAILED);
         } catch (Exception e) {
             log.error("PG 취소 성공 후 내부 처리 실패 — 보정 스케줄러에 위임: orderId={}",
                     order.getOrderId(), e);
@@ -217,7 +221,14 @@ public class PaymentServiceImpl implements PaymentService {
             log.warn("토스 취소 응답 null — 보정 스케줄러에 위임: orderId={}", orderId);
             throw new TossUncertainException("취소 응답 null", null);
         }
-        if (!"CANCELED".equals(resp.getStatus()) && !"PARTIAL_CANCELED".equals(resp.getStatus())) {
+        // 부분 취소는 현재 주문/지갑/원장 모델에서 지원하지 않는다. 전체 취소 완료로
+        // 처리하면 주문 전체 도토리를 회수하게 되므로, 보정 작업이 수동 처리 대상으로
+        // 종료할 때까지 CANCELING 상태를 유지한다.
+        if ("PARTIAL_CANCELED".equals(resp.getStatus())) {
+            log.error("토스 부분 취소 응답 — 전체 취소 완료 처리 금지, 보정 작업에 위임: orderId={}", orderId);
+            throw new TossUncertainException("PARTIAL_CANCELED 미지원", null);
+        }
+        if (!"CANCELED".equals(resp.getStatus())) {
             log.warn("토스 취소 응답 상태 이상 — 보정 스케줄러에 위임: orderId={}, status={}",
                     orderId, resp.getStatus());
             throw new TossUncertainException("취소 응답 상태 이상: " + resp.getStatus(), null);
