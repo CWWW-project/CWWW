@@ -87,10 +87,12 @@ public class BgmSyncService {
      */
     private List<JamendoTrack> searchJamendoTracks(int limit) {
 
-        JamendoResponse response = restClient.get()
+        // get 방식으로 웹 요청 보낼 준비
+        JamendoResponse response = restClient.get() 
+                // 실제 주소
                 .uri(jamendoApiUrl + "?client_id={clientId}&format=json&limit={limit}&ccnc=false&include=licenses+musicinfo&audioformat=mp32",
-                        jamendoClientId, limit)
-                .retrieve()
+                        jamendoClientId, limit)// client_id + 몇 곡 가져올지
+                .retrieve() // 진짜 요청 보내기
                 .body(JamendoResponse.class);
 
         return response != null ? response.results() : List.of();
@@ -110,6 +112,7 @@ public class BgmSyncService {
         // 이미 등록된(중복된) 곡인지 확인
         if (bgmItemMapper.countBgmItemByName(itemName) > 0) {
 
+            // 이미 있으면 스킵
             log.info("스킵 (이미 등록된 곡): {}", itemName);
             return false;
 
@@ -118,14 +121,21 @@ public class BgmSyncService {
         // 아이템 소개
         String description = buildDescription(track);
 
-        // 1. item 테이블에 등록
+        /*
+         * 1. item 테이블에 등록
+         * 필요한 정보만 담아서 그릇(param) 만들기 (itemId는 아직 없음)
+         */
         BgmItemMapper.BgmItemInsertParam itemParam =
                 new BgmItemMapper.BgmItemInsertParam(itemName, description, DEFAULT_PRICE);
 
+        // 2. DB에 저장 요청 (동시에 MyBatis가 자동생성된 itemId를 param 안에 몰래 채워줌)
         bgmItemMapper.insertBgmItem(itemParam);
-        Long itemId = itemParam.getItemId();
+        Long itemId = itemParam.getItemId(); // DB에서 생성된 itemId가 들어있음
 
-        // 2. media 테이블에 등록 (target_type='ITEM', target_id=item_id, media_url=Jamendo 스트리밍 URL 그대로)
+        /*
+         * 3. media 테이블에 등록 (target_type='ITEM', target_id=item_id, media_url=Jamendo 스트리밍 URL 그대로)
+         * 이 itemId를 media 저장에 그대로 사용
+         */
         Media media = Media.builder()
                 .targetType(Media.TargetType.BGM)
                 .targetId(itemId)
