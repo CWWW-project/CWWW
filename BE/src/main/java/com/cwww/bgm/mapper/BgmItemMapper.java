@@ -1,7 +1,6 @@
 package com.cwww.bgm.mapper;
 
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Param;
 
 // BGM 아이템을 item 테이블에 등록

@@ -16,8 +16,8 @@ public record JamendoTrack(
         String name, // 곡 제목
         String artist_name, // 아티스트
         String license_ccurl, // 라이선스 URL (nc 포함되면 비상업용 -> 제외 대상)
-
-        String audiodownload, // 실제 mp3 다운로드 URL
+        String audio, // 스트리밍(재생)용 URL - 실제 media_url에 저장할 값
+        String audiodownload, // 다운로드용 URL (재생용 아님, 여기선 안 씀)
         boolean audiodownload_allowed,
         int duration, // 재생시간 (초 단위)
         MusicInfo musicinfo // 장르/무드 태그 (include=musicinfo 필요)

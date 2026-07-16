@@ -280,6 +280,11 @@ public class MinihompyService {
 	@Transactional
 	public BgmApplyResponse applyBgm(Long userId, Long itemId) {
 
+		// 미니홈피 존재 여부를 가장 먼저 확인 (itemId가 있든 없든 공통)
+		if (minihompyBgmMapper.countMinihompyByUserId(userId) == 0) {
+			throw new BusinessException(ErrorCode.MINIHOMPY_NOT_FOUND);
+		}
+
 		// 선택한 BGM이 없는 경우
 		if (itemId == null) {
 

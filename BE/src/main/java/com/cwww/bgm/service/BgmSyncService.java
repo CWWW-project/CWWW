@@ -52,8 +52,10 @@ public class BgmSyncService {
 
         int registered = 0;
 
+
         for(JamendoTrack track : tracks) {
 
+            // NC 라이선스거나 다운로드 불가면 스킵
             if(!track.isUsable()) {
 
                 log.info("스킵 (NC 라이선스 또는 다운로드 불가): {} - {}", track.name(), track.artist_name());
@@ -61,6 +63,7 @@ public class BgmSyncService {
 
             }
 
+            // 등록 시도 (실패해도 나머지 트랙은 계속 진행)
             try {
 
                 if(registerTrack(track)) {
@@ -81,7 +84,7 @@ public class BgmSyncService {
 
 
     /*
-     * Jamendo API 호출
+     * Jamendo API 호출 - ccnc=false로 요청 시점에 비상업용(NC) 라이선스 트랙 제외
      * audiodownload_allowed는 응답 필드일 뿐 요청 파라미터가 아니라, 다운로드 가능 여부는
      * amendoTrack.isUsable()에서 응답을 받은 뒤 클라이언트 사이드로 한번 더 걸러냄
      */
@@ -139,7 +142,7 @@ public class BgmSyncService {
         Media media = Media.builder()
                 .targetType(Media.TargetType.BGM)
                 .targetId(itemId)
-                .mediaUrl(track.audiodownload())
+                .mediaUrl(track.audio())
                 .createdAt(LocalDateTime.now())
                 .build();
         profileMediaMapper.insertMedia(media);
