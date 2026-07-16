@@ -5,7 +5,10 @@ import com.cwww.global.storage.StorageService;
 import com.cwww.minihompy.domain.Media;
 import com.cwww.minihompy.domain.Minihompy;
 import com.cwww.minihompy.dto.request.MinihompySettingsRequest;
+import com.cwww.minihompy.dto.response.BgmApplyResponse;
+import com.cwww.minihompy.dto.response.BgmOptionResponse;
 import com.cwww.minihompy.dto.response.ProfileImageResponse;
+import com.cwww.minihompy.mapper.MinihompyBgmMapper;
 import com.cwww.minihompy.mapper.ProfileMediaMapper;
 import com.cwww.minihompy.mapper.VisitLogMapper;
 import com.cwww.user.mapper.UserMapper;
@@ -40,11 +43,12 @@ public class MinihompyService {
 	private final UserMapper userMapper;
 	private final FriendMapper friendMapper;
 	private final VisitLogService visitLogService;
+	private final VisitLogMapper visitLogMapper;
+	private final MinihompyBgmMapper minihompyBgmMapper;
 
 
 	private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 	private static final List<String> ALLOWED_EXTENSIONS = List.of("jpg", "jpeg", "png");
-	private final VisitLogMapper visitLogMapper;
 
 
 	// 미니홈피 메인 조회( + 최초 접근 시 자동 생성)
@@ -229,7 +233,7 @@ public class MinihompyService {
 		}
 
 		// 파일명은 .jpg(이미지 확장자)인데 내용은 진짜 이미지가 아닌 경우
-		if (image == null) {
+		if(image == null) {
 			throw new BusinessException(ErrorCode.INVALID_FILE_EXTENSION);
 		}
 
@@ -254,6 +258,65 @@ public class MinihompyService {
 
 		// 갱신된 전체 데이터를 owner/visitorCount까지 정상 조립해서 리턴(프론트에서 응답받은 데이터로 화면 갱신용)
 		return getMinihompyMain(userId, userId); // getMinihompyMain과 동일한 조립 과정 재사용
+
+	}
+
+
+	// 내가 보유한 BGM 목록 조회
+	public List<BgmOptionResponse> getBgmOptions(Long userId) {
+
+		// 미니홈피가 없으면 "보유 없음"과 구분해서 명확히 404 처리
+		if (minihompyBgmMapper.countMinihompyByUserId(userId) == 0) {
+			throw new BusinessException(ErrorCode.MINIHOMPY_NOT_FOUND);
+		}
+
+		List<BgmOptionResponse> response = minihompyBgmMapper.selectOwnedBgmOptions(userId);
+
+		return response;
+	}
+
+
+	// BGM 적용 (또는 끄기)
+	@Transactional
+	public BgmApplyResponse applyBgm(Long userId, Long itemId) {
+
+		// 미니홈피 존재 여부를 가장 먼저 확인 (itemId가 있든 없든 공통)
+		if (minihompyBgmMapper.countMinihompyByUserId(userId) == 0) {
+			throw new BusinessException(ErrorCode.MINIHOMPY_NOT_FOUND);
+		}
+
+		// 선택한 BGM이 없는 경우
+		if (itemId == null) {
+
+			// BGM 안 씀 -> 그냥 끄기
+			minihompyBgmMapper.clearBgm(userId);
+
+			return BgmApplyResponse.builder()
+					.itemId(null)
+					.mediaUrl(null)
+					.build();
+
+		}
+
+		// 진짜 이 유저가 이 아이템을 보유하고 있는지 재검증
+		if (minihompyBgmMapper.countOwnedBgmItem(userId, itemId) == 0) {
+			throw new BusinessException(ErrorCode.BGM_NOT_OWNED);
+		}
+
+		// BGM 적용
+		int updated = minihompyBgmMapper.applyBgm(userId, itemId);
+
+		if(updated == 0) {
+			throw new BusinessException(ErrorCode.MINIHOMPY_NOT_FOUND);
+		}
+
+		// 방금 적용한 BGM의 재생 URL 조회해서 같이 응답
+		String mediaUrl = minihompyBgmMapper.selectMediaUrlByItemId(itemId);
+
+		return BgmApplyResponse.builder()
+				.itemId(itemId)
+				.mediaUrl(mediaUrl)
+				.build();
 
 	}
 

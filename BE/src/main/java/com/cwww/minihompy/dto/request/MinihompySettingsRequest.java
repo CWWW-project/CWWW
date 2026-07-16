@@ -6,7 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
+/*
  * 미니홈피 설정 변경 요청
  *
  * accessLevel(공개범위), introduction(소개글), mood(기분)를 한 번에 수정.

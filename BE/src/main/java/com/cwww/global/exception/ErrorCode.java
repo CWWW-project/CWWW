@@ -61,6 +61,9 @@ public enum ErrorCode {
     GUESTBOOK_NOT_FOUND(HttpStatus.NOT_FOUND, "H004", "방명록을 찾을 수 없습니다."),
     GUESTBOOK_FORBIDDEN(HttpStatus.FORBIDDEN, "H005", "방명록에 대한 권한이 없습니다."),
 
+    // Bgm
+    BGM_NOT_OWNED(HttpStatus.FORBIDDEN, "H006", "보유하지 않은 BGM입니다."),
+
     // Item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "I001", "아이템을 찾을 수 없습니다."),
 
