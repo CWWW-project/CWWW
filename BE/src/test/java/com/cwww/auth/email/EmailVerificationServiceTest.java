@@ -92,8 +92,8 @@ class EmailVerificationServiceTest {
         String email = "test@test.com";
         String code = "123456";
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
-
         given(valueOperations.get("email:verify:" + email)).willReturn(code);
+        given(userMapper.activateUser(email)).willReturn(1);
 
         //Act
         emailVerificationService.verifyCode(email, code);
@@ -133,4 +133,22 @@ class EmailVerificationServiceTest {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_VERIFICATION_CODE);
     }
+
+    @Test
+    @DisplayName("탈퇴한 계정은 인증코드가 일치해도 재활성화되지 않고 USER_NOT_FOUND 예외가 발생한다")
+    void verifyCode_withdrawnUser() {
+        //Arrange
+        String email = "withdrawn@test.com";
+        String code = "123456";
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get("email:verify:" + email)).willReturn(code);
+        given(userMapper.activateUser(email)).willReturn(0);
+
+        //Act & Assert
+        assertThatThrownBy(() -> emailVerificationService.verifyCode(email, code))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.USER_NOT_FOUND);
+    }
+
 }

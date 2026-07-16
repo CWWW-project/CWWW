@@ -7,6 +7,10 @@
         UPDATE users SET status = 'ACTIVE', updated_at = NOW() WHERE email = #{email}
     </update>
 
+    <update id="activateUser">
+        UPDATE users SET status = 'ACTIVE', updated_at = NOW() WHERE email = #{email} AND deleted_at IS NULL
+    </update>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="userId">
         INSERT INTO users (email, password, nickname, role, status, created_at, updated_at)
         VALUES (#{email}, #{password}, #{nickname}, #{role}, 'ACTIVE', NOW(), NOW())
