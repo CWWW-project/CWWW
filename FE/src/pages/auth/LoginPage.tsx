@@ -1,12 +1,15 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '../../api/auth'
 import { useAuthStore } from '../../store/authStore'
+
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
 
 type Tab = 'login' | 'signup'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { setAuth } = useAuthStore()
 
   const [tab, setTab] = useState<Tab>('login')
@@ -14,6 +17,13 @@ export default function LoginPage() {
   const [message, setMessage] = useState('')
   const [isSuccess, setIsSuccess] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get('error') === 'oauth') {
+      setIsSuccess(false)
+      setMessage('소셜 로그인에 실패했습니다. 다시 시도해 주세요.')
+    }
+  }, [])
 
   const [loginForm, setLoginForm] = useState({ email: '', password: '' })
   const [signupForm, setSignupForm] = useState({ email: '', password: '', confirmPassword: '', nickname: '' })
@@ -166,16 +176,23 @@ export default function LoginPage() {
               <div style={{ flex: 1, borderTop: '1px solid #e3bfb1' }} />
             </div>
 
-            {/* 카카오 */}
-            <button className="retro-btn" style={{ width: '100%', padding: '8px 0', background: '#FEE500', borderColor: '#FEE500', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <circle cx="9" cy="9" r="9" fill="#3C1E1E"/>
-                <path d="M9 5.5C6.515 5.5 4.5 7.015 4.5 8.875c0 1.19.79 2.235 1.98 2.835l-.49 1.83c-.04.15.13.27.26.19L8.38 12.5c.205.025.415.04.62.04 2.485 0 4.5-1.515 4.5-3.375S11.485 5.5 9 5.5z" fill="#FEE500"/>
+            {/* 깃허브 */}
+            <button
+              className="retro-btn"
+              style={{ width: '100%', padding: '8px 0', background: '#24292e', borderColor: '#24292e', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              onClick={() => { window.location.href = `${API_URL}/oauth2/authorization/github` }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
               </svg>
-              카카오로 시작하기
+              GitHub으로 시작하기
             </button>
             {/* 구글 */}
-            <button className="retro-btn" style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <button
+              className="retro-btn"
+              style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              onClick={() => { window.location.href = `${API_URL}/oauth2/authorization/google` }}
+            >
               <svg width="18" height="18" viewBox="0 0 18 18">
                 <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
                 <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>

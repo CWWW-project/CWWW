@@ -9,12 +9,13 @@ import java.util.List;
 @Mapper
 public interface UserMapper {
     void insert(User user);
+    void insertOAuth(User user);
     User findByEmail(String email);
     User findByNickname(String nickname);
     String findNicknameById(Long userId);
     List<User> findByIds(@Param("userIds") List<Long> userIds);
+    User findByProviderAndProviderId(@Param("provider") String provider, @Param("providerId") String providerId);
 
     List<User> searchByNickname(@Param("keyword") String keyword, @Param("limit") int limit);
     int activateUser(@Param("email") String email);
-
 }
