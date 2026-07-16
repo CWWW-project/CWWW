@@ -42,5 +42,21 @@ public class TossPaymentClient {
             log.error("토스 결제 승인 실패: orderUid={}", orderUid, e);
             throw new BusinessException(ErrorCode.PAYMENT_CONFIRM_FAILED);
         }
+
     }
+
+    public TossConfirmResponse cancel(String paymentKey, String reason) {
+        try {
+            return restClient.post()
+                    .uri("/v1/payments/{paymentKey}/cancel", paymentKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("cancelReason", reason))
+                    .retrieve()
+                    .body(TossConfirmResponse.class);
+        } catch (Exception e) {
+            log.error("토스 결제 취소 실패: paymentKey={}", paymentKey, e);
+            throw new BusinessException(ErrorCode.PAYMENT_CONFIRM_FAILED);
+        }
+    }
+
 }
