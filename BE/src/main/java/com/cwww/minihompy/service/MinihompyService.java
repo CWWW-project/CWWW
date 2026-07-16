@@ -1,7 +1,6 @@
 package com.cwww.minihompy.service;
 
 import com.cwww.friend.mapper.FriendMapper;
-import com.cwww.global.storage.StorageService;
 import com.cwww.minihompy.domain.Media;
 import com.cwww.minihompy.domain.Minihompy;
 import com.cwww.minihompy.dto.request.MinihompySettingsRequest;
@@ -11,6 +10,7 @@ import com.cwww.minihompy.dto.response.ProfileImageResponse;
 import com.cwww.minihompy.mapper.MinihompyBgmMapper;
 import com.cwww.minihompy.mapper.ProfileMediaMapper;
 import com.cwww.minihompy.mapper.VisitLogMapper;
+import com.cwww.minihompy.util.MediaUpsertHelper;
 import com.cwww.user.mapper.UserMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,13 +24,8 @@ import com.cwww.minihompy.mapper.MinihompyMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -39,16 +34,15 @@ public class MinihompyService {
 	
 	private final MinihompyMapper minihompyMapper;
 	private final ProfileMediaMapper profileMediaMapper;
-	private final StorageService storageService;
 	private final UserMapper userMapper;
 	private final FriendMapper friendMapper;
-	private final VisitLogService visitLogService;
 	private final VisitLogMapper visitLogMapper;
 	private final MinihompyBgmMapper minihompyBgmMapper;
 
+	private final VisitLogService visitLogService;
 
-	private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-	private static final List<String> ALLOWED_EXTENSIONS = List.of("jpg", "jpeg", "png");
+	private final MediaUpsertHelper mediaUpsertHelper;
+
 
 
 	// 미니홈피 메인 조회( + 최초 접근 시 자동 생성)
@@ -136,40 +130,11 @@ public class MinihompyService {
 	@Transactional
 	public ProfileImageResponse uploadProfileImage(Long userId, MultipartFile file) {
 
-		// 파일 검증
-		validateImageFile(file);
-
-		// 새 파일 먼저 저장(기존 것 아직 안 거드림, 실패해도 기존 사진 안전)
-		String imageUrl = storageService.store(file);
-
-		// 해당 유저가 이미 프로필 사진이 있는지 확인
-		Media existing = profileMediaMapper.selectMedia(Media.TargetType.PROFILE, userId);
-
-		int affected;
-
-		if(existing != null) {
-
-			// 있으면 mediaId 기준으로 갱신(mediaUrl만 새 걸로 바꿔치기)
-			existing.setMediaUrl(imageUrl);
-			affected = profileMediaMapper.updateMedia(existing);
-
-		}else {
-
-			// 없으면 신규 insert
-			Media media = Media.builder()
-					.targetId(userId)
-					.targetType(Media.TargetType.PROFILE)
-					.mediaUrl(imageUrl)
-					.createdAt(LocalDateTime.now())
-					.build();
-
-			affected = profileMediaMapper.insertMedia(media);
-
-		}
-
-		if(affected != 1) {
-			throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED);
-		}
+		/*
+		 * selectMedia(PROFILE, userId)로 조회
+		 * 있으면 update, 없으면 insert (target_type='PROFILE'로)
+		 */
+		String imageUrl = mediaUpsertHelper.upload(Media.TargetType.PROFILE, userId, file);
 
 		return ProfileImageResponse.builder()
 				.profileImageUrl(imageUrl)
@@ -183,59 +148,6 @@ public class MinihompyService {
 	public void deleteProfileImage(Long userId) {
 
 		profileMediaMapper.deleteMedia(Media.TargetType.PROFILE, userId);
-
-	}
-
-
-	// 파일 검증
-	private void validateImageFile(MultipartFile file) {
-
-		// 파일이 없는 경우
-		if(file.isEmpty()) {
-			throw new BusinessException(ErrorCode.INVALID_INPUT);
-		}
-
-		// 파일 크기 초과 확인
-		if(file.getSize() > MAX_FILE_SIZE) {
-			throw new BusinessException(ErrorCode.PROFILE_IMAGE_SIZE_EXCEEDED);
-		}
-
-		String originalFilename = file.getOriginalFilename();
-
-		// 파일명이 이상하거나(없거나) 확장자가 없는 경우
-		if(originalFilename == null || !originalFilename.contains(".")) {
-			throw new BusinessException(ErrorCode.INVALID_FILE_EXTENSION);
-		}
-
-		// 확장자 추출 및 소문자로 통일
-		String ext = originalFilename
-				.substring(originalFilename.lastIndexOf('.') + 1)
-				.toLowerCase(Locale.ROOT);
-
-		// 허용된 확장자가 아닌 경우
-		if(!ALLOWED_EXTENSIONS.contains(ext)) {
-			throw new BusinessException(ErrorCode.INVALID_FILE_EXTENSION);
-		}
-
-		// 확장자만 바꿔치기한 위장 파일 방지 - 실제로 이미지로 디코딩 가능한지 확인
-		BufferedImage image;
-
-		try (InputStream inputStream = file.getInputStream()) {
-			/*
-			 * 진짜 이미지로 해석할 수 있는지 시도
-			 * - 진짜 이미지 파일이면 내용을 성공적으로 해석해서 BufferedImage 반환
-			 * - 가짜일 경우 해석 실패로 null 반환
-			 */
-			image = ImageIO.read(inputStream);
-		} catch (IOException e) {
-			// 파일을 읽는 과정 자체에서 문제가 생길 경우
-			throw new BusinessException(ErrorCode.INVALID_FILE_EXTENSION);
-		}
-
-		// 파일명은 .jpg(이미지 확장자)인데 내용은 진짜 이미지가 아닌 경우
-		if(image == null) {
-			throw new BusinessException(ErrorCode.INVALID_FILE_EXTENSION);
-		}
 
 	}
 

@@ -11,29 +11,32 @@
         <result property="targetId" column="target_id"/>
         <result property="mediaUrl" column="media_url"/>
         <result property="createdAt" column="created_at"/>
+        <result property="deletedAt"  column="deleted_at"/>
     </resultMap>
 
 
     <!--
-        target_type + target_id 기준으로 media 단건 조회
+        target_type + target_id 기준으로 media 단건 조회 (소프트 삭제된 건 제외)
+        PROFILE(프로필사진), BACKGROUND(배경화면) 둘 다 이 하나의 쿼리로 재사용됨
         기존 레코드가 있는지 확인해서 있으면 UPDATE, 없으면 INSERT 분기 처리할 때 사용
     -->
     <select id="selectMedia" resultMap="mediaMap">
-        SELECT media_id, target_type, target_id, media_url, created_at
+        SELECT media_id, target_type, target_id, media_url, created_at, deleted_at
         FROM media
         WHERE target_type = #{targetType}
         AND target_id = #{targetId}
+        AND deleted_at IS NULL
     </select>
 
 
-    <!-- media 신규 등록 -->
+    <!-- media 신규 등록 (domain 객체를 그대로 insert), 삽입된 row 수 반환 -->
     <insert id="insertMedia" parameterType="com.cwww.minihompy.domain.Media">
         INSERT INTO media (target_type, target_id, media_url, created_at)
         VALUES (#{targetType}, #{targetId}, #{mediaUrl}, #{createdAt})
     </insert>
 
 
-    <!-- 기존 media 갱신 -->
+    <!-- 기존 media 갱신 (mediaId 기준, media_url만 새 값으로 교체) -->
     <update id="updateMedia" parameterType="com.cwww.minihompy.domain.Media">
         UPDATE media
         SET media_url = #{mediaUrl}
@@ -41,11 +44,13 @@
     </update>
 
 
-    <!-- media 삭제, 대상이 없어도 에러 아님(0건 처리) -->
-    <delete id="deleteMedia">
-        DELETE FROM media
+    <!-- media 소프트 삭제 (target_type + target_id 기준), 대상이 없어도 에러 아님(0건 처리) -->
+    <update id="deleteMedia">
+        UPDATE media
+        SET deleted_at = CURRENT_TIMESTAMP
         WHERE target_type = #{targetType}
         AND target_id = #{targetId}
-    </delete>
+        AND deleted_at IS NULL
+    </update>
 
 </mapper>

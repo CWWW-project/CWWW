@@ -22,4 +22,10 @@ public interface MinihompyMapper {
 					   @Param("introduction") String introduction,
 					   @Param("mood") String mood);
 
+
+	// 도트 배경 색상 갱신 (null이면 색상 해제 - 사진으로 전환 시 사용)
+	int updateBackgroundColor(
+			@Param("userId") Long userId,
+			@Param("backgroundColor") String backgroundColor);
+
 }
