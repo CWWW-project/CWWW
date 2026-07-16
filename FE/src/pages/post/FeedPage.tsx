@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { postApi } from '../../api/post'
 import { commentApi } from '../../api/comment'
 import type { PostResponse, CommentResponse } from '../../types'
@@ -35,7 +35,8 @@ const EMPTY_FORM: WriteForm = { title: '', content: '', visibility: 'ALL', hasht
 
 export default function FeedPage() {
   const navigate = useNavigate()
-  const { user } = useAuthStore()
+  const location = useLocation()
+  const { user, clearAuth } = useAuthStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const searchRequestIdRef = useRef(0)
 
@@ -551,12 +552,16 @@ export default function FeedPage() {
                 </div>
                 <div className="flex flex-col gap-1 w-full mt-auto">
                   <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                    onClick={() => navigate('/home/me')}>
+                    onClick={() => navigate(`/home/${user.id}`)}>
                     <span className="material-symbols-outlined text-base">home</span> 내 홈피 가기
                   </button>
                   <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
                     onClick={openModal}>
                     <span className="material-symbols-outlined text-base">edit_note</span> 다이어리 쓰기
+                  </button>
+                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ba1a1a]"
+                    onClick={() => { clearAuth(); navigate('/auth/login') }}>
+                    <span className="material-symbols-outlined text-base">logout</span> 로그아웃
                   </button>
                 </div>
               </div>
@@ -877,7 +882,7 @@ export default function FeedPage() {
             { icon: 'forum', label: '방명록', path: `/home/${user?.id ?? 'me'}` },
             { icon: 'storefront', label: '상점', path: '/shop' },
           ].map(tab => {
-            const active = tab.path === '/'
+            const active = location.pathname === tab.path
             return (
               <div key={tab.label}
                 onClick={() => navigate(tab.path)}
@@ -890,26 +895,6 @@ export default function FeedPage() {
         </nav>
       </div>
 
-      {/* 모바일 하단 탭 */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center bg-[#e2e2e2] px-2 border-t-2 border-[#e3bfb1] h-16">
-        {[
-          { icon: 'home', label: '홈', path: '/' },
-          { icon: 'edit_note', label: '다이어리', path: `/home/${user?.id ?? 'me'}` },
-          { icon: 'photo_library', label: '사진첩', path: `/home/${user?.id ?? 'me'}` },
-          { icon: 'forum', label: '방명록', path: `/home/${user?.id ?? 'me'}` },
-          { icon: 'storefront', label: '상점', path: '/shop' },
-        ].map(tab => {
-          const active = tab.path === '/'
-          return (
-            <div key={tab.label}
-              onClick={() => navigate(tab.path)}
-              className={`flex flex-col items-center justify-center p-1 flex-1 cursor-pointer${active ? ' bg-[#a33e00] text-white rounded-lg border-t-2 border-l-2 border-white border-r-2 border-b-2 border-[#7c2e00] mx-1' : ' text-[#5a4136]'}`}>
-              <span className="material-symbols-outlined" style={{ fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}>{tab.icon}</span>
-              <span className="font-[Geist,monospace] text-[12px] font-semibold mt-1">{tab.label}</span>
-            </div>
-          )
-        })}
-      </nav>
     </div>
   )
 }
