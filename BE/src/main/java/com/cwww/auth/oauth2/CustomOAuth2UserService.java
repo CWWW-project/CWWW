@@ -9,6 +9,7 @@ import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserServ
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
@@ -33,7 +34,16 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         String provider = userRequest.getClientRegistration().getRegistrationId();
         OAuthAttributes attrs = OAuthAttributes.of(provider, oAuth2User.getAttributes());
 
-        User user = findOrCreate(attrs);
+        User user;
+        try {
+            user = findOrCreate(attrs);
+        } catch (Exception e) {
+            // unchecked 예외를 OAuth2AuthenticationException으로 감싸야
+            // AbstractAuthenticationProcessingFilter가 failureHandler로 넘길 수 있음
+            log.error("OAuth 유저 처리 실패: provider={}, email={}", attrs.getProvider(), attrs.getEmail(), e);
+            throw new OAuth2AuthenticationException(
+                    new OAuth2Error("user_processing_error"), e.getMessage(), e);
+        }
 
         // 성공 핸들러에서 쓸 커스텀 속성 추가
         Map<String, Object> attributes = new HashMap<>(oAuth2User.getAttributes());

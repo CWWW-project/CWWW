@@ -5,6 +5,7 @@ import com.cwww.auth.jwt.JwtUtil;
 import com.cwww.auth.oauth2.CustomOAuth2UserService;
 import com.cwww.auth.oauth2.OAuth2AuthenticationSuccessHandler;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -21,6 +22,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
+@Slf4j
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -43,7 +45,10 @@ public class SecurityConfig {
             .oauth2Login(oauth2 -> oauth2
                 .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                 .successHandler(oAuth2AuthenticationSuccessHandler)
-                .failureUrl("http://localhost:3000/auth/login?error=oauth")
+                .failureHandler((request, response, exception) -> {
+                    log.error("OAuth2 로그인 실패: {}", exception.getMessage());
+                    response.sendRedirect("http://localhost:3000/auth/login?error=oauth");
+                })
             )
             .addFilterBefore(new JwtAuthenticationFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class);
 
