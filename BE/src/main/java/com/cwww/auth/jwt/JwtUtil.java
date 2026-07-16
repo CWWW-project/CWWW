@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 
 @Component
 public class JwtUtil {
@@ -50,6 +51,7 @@ public class JwtUtil {
     public String createRefreshToken(Long userId) {
         Date now = new Date();
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())   // jti: 동일 초 생성 시에도 고유 보장
                 .subject(String.valueOf(userId))
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + refreshExpiration))
@@ -70,8 +72,14 @@ public class JwtUtil {
         return TOKEN_TYPE_ACCESS.equals(parseClaims(token).get(CLAIM_TYPE, String.class));
     }
 
+    public static final String BLACKLIST_PREFIX = "auth:blacklist:";
+
     public void validateToken(String token) {
         parseClaims(token);
+    }
+
+    public Date getExpiration(String token) {
+        return parseClaims(token).getExpiration();
     }
 
     private Claims parseClaims(String token) {

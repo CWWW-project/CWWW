@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -19,6 +20,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final RedisTemplate<String, String> redisTemplate;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -30,6 +32,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 jwtUtil.validateToken(token);
                 if (!jwtUtil.isAccessToken(token)) {
+                    SecurityContextHolder.clearContext();
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+                // 로그아웃된 AT 차단
+                if (Boolean.TRUE.equals(redisTemplate.hasKey(JwtUtil.BLACKLIST_PREFIX + token))) {
                     SecurityContextHolder.clearContext();
                     filterChain.doFilter(request, response);
                     return;

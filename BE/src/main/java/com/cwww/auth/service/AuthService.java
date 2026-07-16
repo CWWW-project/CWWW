@@ -10,4 +10,6 @@ public interface AuthService {
     SignupResponse signup(SignupRequest request);
     LoginResponse login(LoginRequest request);
     OAuthTokenResponse exchangeOAuthCode(String code);
+    LoginResponse refreshToken(String refreshToken);
+    void logout(Long userId, String accessToken);
 }
