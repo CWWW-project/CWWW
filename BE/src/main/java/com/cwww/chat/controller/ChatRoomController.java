@@ -15,13 +15,13 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -37,8 +37,9 @@ public class ChatRoomController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<CreateChatRoomResponse>>
-    createChatRoom(@RequestHeader("X-User-Id") Long userId,
+    createChatRoom(Authentication authentication,
                    @Valid @RequestBody CreateChatRoomRequest request) {
+        Long userId = (Long) authentication.getPrincipal();
         CreateChatRoomResponse response = chatRoomService.createChatRoom(userId, request);
 
         List<ChatListUpdateResponse> chatListUpdateResponses = chatRoomService.createChatListUpdateResponses(
@@ -55,23 +56,26 @@ public class ChatRoomController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<ChatRoomResponse>>>
-    getChatRooms(@RequestHeader("X-User-Id") Long userId) {
+    getChatRooms(Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
         List<ChatRoomResponse> response = chatRoomService.getChatRooms(userId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/{chatId}/participants")
     public ResponseEntity<ApiResponse<List<ChatParticipantResponse>>>
-    getActiveParticipants(@RequestHeader("X-User-Id") Long userId,
+    getActiveParticipants(Authentication authentication,
                           @PathVariable Long chatId) {
+        Long userId = (Long) authentication.getPrincipal();
         List<ChatParticipantResponse> response = chatRoomService.getActiveParticipants(userId, chatId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PatchMapping("/{chatId}/read")
     public ResponseEntity<ApiResponse<ChatListUpdateResponse>>
-    markAsRead(@RequestHeader("X-User-Id") Long userId,
+    markAsRead(Authentication authentication,
                @PathVariable Long chatId) {
+        Long userId = (Long) authentication.getPrincipal();
         ChatListUpdateResponse response = chatRoomService.markAsRead(userId, chatId);
         List<ChatMessageResponse> messages = chatMessageService.getMessagesForReadSync(userId, chatId);
 
@@ -85,8 +89,9 @@ public class ChatRoomController {
 
     @PatchMapping("/{chatId}/leave")
     public ResponseEntity<ApiResponse<Void>>
-    leaveChatRoom(@RequestHeader("X-User-Id") Long userId,
+    leaveChatRoom(Authentication authentication,
                   @PathVariable Long chatId) {
+        Long userId = (Long) authentication.getPrincipal();
         ChatMessageResponse systemMessage = chatRoomService.leaveChatRoom(userId, chatId);
         redisPublisher.publishMessage(systemMessage);
 
@@ -105,9 +110,10 @@ public class ChatRoomController {
 
     @PostMapping("/{chatId}/participants")
     public ResponseEntity<ApiResponse<Void>>
-    inviteParticipants(@RequestHeader("X-User-Id") Long userId,
+    inviteParticipants(Authentication authentication,
                        @PathVariable Long chatId,
                        @Valid @RequestBody InviteParticipantsRequest request) {
+        Long userId = (Long) authentication.getPrincipal();
         List<ChatMessageResponse> systemMessages = chatRoomService.inviteParticipants(userId, chatId, request);
 
         for (ChatMessageResponse systemMessage : systemMessages) {

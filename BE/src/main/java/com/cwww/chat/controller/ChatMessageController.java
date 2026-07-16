@@ -14,13 +14,14 @@ import com.cwww.global.response.ApiResponse;
 import com.cwww.global.storage.StorageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.stereotype.Controller;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,8 +37,13 @@ public class ChatMessageController {
 
 
     @MessageMapping("/chat/message")
-    public void sendMessage(@Header("X-User-Id") Long senderId,
+    public void sendMessage(Principal principal,
                             @Valid ChatMessageRequest request) {
+        if (principal == null) {
+            throw new IllegalArgumentException("Unauthenticated websocket session");
+        }
+
+        Long senderId = Long.valueOf(principal.getName());
         ChatMessageResponse savedMessage = chatMessageService.sendMessage(senderId, request);
         redisPublisher.publishMessage(savedMessage);
 
@@ -62,9 +68,10 @@ public class ChatMessageController {
     @GetMapping("/api/chat/rooms/{chatId}/messages")
     @ResponseBody
     public ResponseEntity<ApiResponse<List<ChatMessageResponse>>>
-    getMessages(@RequestHeader("X-User-Id") Long userId,
+    getMessages(Authentication authentication,
                 @PathVariable Long chatId,
                 @RequestParam(required = false) Long beforeMessageId) {
+        Long userId = (Long) authentication.getPrincipal();
         List<ChatMessageResponse> response = chatMessageService.getMessages(userId, chatId, beforeMessageId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -72,9 +79,10 @@ public class ChatMessageController {
     @PatchMapping("/api/chat/rooms/{chatId}/messages/{messageId}/delete")
     @ResponseBody
     public ResponseEntity<ApiResponse<Void>>
-    deleteMessage(@RequestHeader("X-User-Id") Long userId,
+    deleteMessage(Authentication authentication,
                   @PathVariable Long chatId,
                   @PathVariable Long messageId) {
+        Long userId = (Long) authentication.getPrincipal();
         chatMessageService.deleteMessage(userId, chatId, messageId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
