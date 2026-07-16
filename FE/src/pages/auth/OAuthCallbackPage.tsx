@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '../../api/auth'
 import { useAuthStore } from '../../store/authStore'
@@ -7,8 +7,13 @@ export default function OAuthCallbackPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { setAuth } = useAuthStore()
+  const called = useRef(false)
 
   useEffect(() => {
+    // StrictMode 이중 실행 방지
+    if (called.current) return
+    called.current = true
+
     const code = searchParams.get('code')
     if (!code) {
       navigate('/auth/login?error=oauth', { replace: true })

@@ -3,6 +3,7 @@ package com.cwww.auth.controller;
 
 import com.cwww.auth.dto.LoginRequest;
 import com.cwww.auth.dto.LoginResponse;
+import com.cwww.auth.dto.OAuthCodeRequest;
 import com.cwww.auth.dto.OAuthTokenResponse;
 import com.cwww.auth.dto.SignupRequest;
 import com.cwww.auth.dto.SignupResponse;
@@ -12,11 +13,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -40,10 +39,10 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @GetMapping("/oauth/token")
+    @PostMapping("/oauth/token")
     public ResponseEntity<ApiResponse<OAuthTokenResponse>>
-    exchangeOAuthToken(@RequestParam String code) {
-        OAuthTokenResponse response = authService.exchangeOAuthCode(code);
+    exchangeOAuthToken(@RequestBody OAuthCodeRequest request) {
+        OAuthTokenResponse response = authService.exchangeOAuthCode(request.code());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

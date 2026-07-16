@@ -82,11 +82,12 @@ public class AuthServiceImpl implements AuthService {
         if (value == null) {
             throw new BusinessException(ErrorCode.OAUTH_CODE_INVALID);
         }
-        // 저장 형식: "{userId}\n{nickname}"
-        String[] parts = value.split("\n", 2);
+        // 저장 형식: "{userId}\n{nickname}\n{role}"
+        String[] parts = value.split("\n", 3);
         Long userId = Long.parseLong(parts[0]);
         String nickname = parts[1];
-        String accessToken = jwtUtil.createAccessToken(userId, "USER");
+        String role = parts[2];
+        String accessToken = jwtUtil.createAccessToken(userId, role);
         return new OAuthTokenResponse(accessToken, userId, nickname);
     }
 }

@@ -39,5 +39,5 @@ export const authApi = {
     api.post<ApiResponse<SignupResult>>('/auth/signup', body),
 
   exchangeOAuthCode: (code: string) =>
-    api.get<ApiResponse<OAuthTokenResult>>('/auth/oauth/token', { params: { code } }),
+    api.post<ApiResponse<OAuthTokenResult>>('/auth/oauth/token', { code }),
 }

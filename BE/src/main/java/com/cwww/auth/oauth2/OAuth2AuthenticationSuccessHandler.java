@@ -36,10 +36,12 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         Long userId = ((Number) oAuth2User.getAttribute("cwww_user_id")).longValue();
         String nickname = (String) oAuth2User.getAttribute("cwww_nickname");
+        String role = (String) oAuth2User.getAttribute("cwww_role");
 
         // JWT는 교환 API에서 발급 → 여기서는 30초짜리 일회용 코드만 발급
+        // 저장 형식: "{userId}\n{nickname}\n{role}"
         String code = UUID.randomUUID().toString();
-        redisTemplate.opsForValue().set(CODE_PREFIX + code, userId + "\n" + nickname, CODE_TTL);
+        redisTemplate.opsForValue().set(CODE_PREFIX + code, userId + "\n" + nickname + "\n" + role, CODE_TTL);
 
         String targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
                 .queryParam("code", code)
