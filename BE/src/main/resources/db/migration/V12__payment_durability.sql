@@ -90,3 +90,10 @@ CREATE TABLE payment_reconciliation_job (
 CREATE INDEX idx_reconciliation_job_runnable
     ON payment_reconciliation_job(next_attempt_at, status)
     WHERE status IN ('PENDING', 'PROCESSING');
+
+-- 동일 주문의 활성 보정 작업 중복 생성 방지
+-- (order_id, operation) 쌍이 PENDING/PROCESSING 상태로 동시에 2개 이상 존재 불가
+-- → SKIP LOCKED 스케줄러 환경에서 동일 작업이 중복 실행되는 것을 DB 레벨에서 차단
+CREATE UNIQUE INDEX uidx_reconciliation_job_active
+    ON payment_reconciliation_job(order_id, operation)
+    WHERE status IN ('PENDING', 'PROCESSING');
