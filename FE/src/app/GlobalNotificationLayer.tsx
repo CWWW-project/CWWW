@@ -50,6 +50,7 @@ export function GlobalNotificationLayer() {
       socket.send(buildFrame('CONNECT', {
         'accept-version': '1.2',
         host: 'localhost',
+        Authorization: `Bearer ${accessToken}`,
       }))
     }
 

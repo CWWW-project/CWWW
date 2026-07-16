@@ -4,8 +4,8 @@ import type { useChatPage } from './useChatPage'
 
 type ChatPageViewProps = ReturnType<typeof useChatPage>
 
-function getUserNickname(userId: number, testUsers: ChatPageViewProps['testUsers']): string {
-  const matchedUser = testUsers.find((user) => user.id === userId)
+function getUserNickname(userId: number, participants: ChatPageViewProps['activeParticipants']): string {
+  const matchedUser = participants.find((user) => user.userId === userId)
   return matchedUser ? matchedUser.nickname : `유저 ${userId}`
 }
 
@@ -46,8 +46,9 @@ export function ChatPageView({
   pendingAttachments,
   removePendingAttachment,
   selectedParticipantIds,
-  selectedUser,
-  selectedUserId,
+  currentUser,
+  currentUserId,
+  friendCandidates,
   sendMessage,
   setCreateName,
   setCreateType,
@@ -55,9 +56,7 @@ export function ChatPageView({
   setInviteUserId,
   setOpenMessageMenuId,
   setSelectedParticipantIds,
-  setSelectedUserId,
   textareaRef,
-  testUsers,
 }: ChatPageViewProps) {
   const handleTextareaKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.nativeEvent.isComposing) {
@@ -81,7 +80,7 @@ export function ChatPageView({
               채팅방 목록과 소켓 연결을 불러오는 중입니다.
             </div>
             <div style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#7a5c50' }}>
-              현재 사용자: {selectedUser.nickname}
+              현재 사용자: {currentUser?.nickname ?? '알 수 없음'}
             </div>
           </div>
         </div>
@@ -102,17 +101,9 @@ export function ChatPageView({
 
           <div style={{ padding: '6px 8px', borderBottom: '1px solid #e3bfb1' }}>
             <div className="retro-inner-box" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8 }}>
-              <select
-                value={selectedUserId}
-                onChange={(event) => setSelectedUserId(Number(event.target.value))}
-                style={{ border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 12, background: 'transparent' }}
-              >
-                {testUsers.map((testUser) => (
-                  <option key={testUser.id} value={testUser.id}>
-                    현재 테스트 유저: {testUser.nickname} ({testUser.id})
-                  </option>
-                ))}
-              </select>
+              <div style={{ fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136' }}>
+                현재 사용자: {currentUser?.nickname ?? '알 수 없음'}
+              </div>
               <select
                 value={createType}
                 onChange={(event) => setCreateType(event.target.value as 'PRIVATE' | 'GROUP')}
@@ -129,27 +120,29 @@ export function ChatPageView({
               />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#5a4136' }}>
-                  참여자 선택 (현재 유저 포함)
+                  참여자 선택
                 </span>
-                {testUsers.map((testUser) => {
-                  const checked = selectedParticipantIds.includes(testUser.id)
-                  const isCurrentUser = testUser.id === selectedUserId
+                {friendCandidates.length === 0 ? (
+                  <span style={{ fontFamily: 'Be Vietnam Pro', fontSize: 12, color: '#5a4136' }}>
+                    초대할 친구가 없습니다.
+                  </span>
+                ) : friendCandidates.map((candidate) => {
+                  const checked = selectedParticipantIds.includes(candidate.userId)
                   return (
-                    <label key={testUser.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'Be Vietnam Pro', fontSize: 12 }}>
+                    <label key={candidate.userId} style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'Be Vietnam Pro', fontSize: 12 }}>
                       <input
                         type="checkbox"
                         checked={checked}
-                        disabled={isCurrentUser}
                         onChange={(event) => {
                           setSelectedParticipantIds((prev) => {
                             if (event.target.checked) {
-                              return [...prev, testUser.id]
+                              return [...prev, candidate.userId]
                             }
-                            return prev.filter((id) => id !== testUser.id)
+                            return prev.filter((id) => id !== candidate.userId)
                           })
                         }}
                       />
-                      {testUser.nickname} ({testUser.id}){isCurrentUser ? ' - 현재 사용자' : ''}
+                      {candidate.nickname}
                     </label>
                   )
                 })}
@@ -264,17 +257,15 @@ export function ChatPageView({
               {activeRoom?.type === 'GROUP' ? (
                 <>
                   <select
-                    value={inviteUserId}
+                    value={inviteUserId ?? ''}
                     onChange={(event) => setInviteUserId(Number(event.target.value))}
                     style={{ height: 24, fontFamily: 'Be Vietnam Pro', fontSize: 12 }}
                   >
-                    {testUsers
-                      .filter((user) => user.id !== selectedUserId)
-                      .map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.nickname}
-                        </option>
-                      ))}
+                    {friendCandidates.map((candidate) => (
+                      <option key={candidate.userId} value={candidate.userId}>
+                        {candidate.nickname}
+                      </option>
+                    ))}
                   </select>
                   <button
                     className="retro-btn-gray"
@@ -362,14 +353,14 @@ export function ChatPageView({
                   </span>
                 </div>
               ) : (
-                <div key={message.id} style={{ display: 'flex', flexDirection: 'column', alignItems: message.senderId === selectedUserId ? 'flex-end' : 'flex-start', maxWidth: '78%', alignSelf: message.senderId === selectedUserId ? 'flex-end' : 'flex-start' }}>
-                  {message.senderId !== selectedUserId ? (
+                <div key={message.id} style={{ display: 'flex', flexDirection: 'column', alignItems: message.senderId === currentUserId ? 'flex-end' : 'flex-start', maxWidth: '78%', alignSelf: message.senderId === currentUserId ? 'flex-end' : 'flex-start' }}>
+                  {message.senderId !== currentUserId ? (
                     <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-                      {activeRoom?.type === 'GROUP' ? getUserNickname(message.senderId, testUsers) : activeRoom?.name ?? '채팅방'}
+                      {activeRoom?.type === 'GROUP' ? getUserNickname(message.senderId, activeParticipants) : activeRoom?.name ?? '채팅방'}
                     </span>
                   ) : null}
                   <div style={{ position: 'relative' }}>
-                    {message.senderId === selectedUserId ? (
+                    {message.senderId === currentUserId ? (
                       <button
                         className="retro-btn-gray"
                         onClick={() => setOpenMessageMenuId((prev) => (prev === message.id ? null : message.id))}
@@ -394,10 +385,10 @@ export function ChatPageView({
                       </div>
                     ) : null}
                     <div style={{
-                      background: message.senderId === selectedUserId ? '#ff6600' : '#eeeeee',
-                      color: message.senderId === selectedUserId ? '#fff' : '#1a1c1c',
+                      background: message.senderId === currentUserId ? '#ff6600' : '#eeeeee',
+                      color: message.senderId === currentUserId ? '#fff' : '#1a1c1c',
                       padding: '8px 10px',
-                      border: message.senderId === selectedUserId ? '1px solid #a33e00' : '1px solid #e3bfb1',
+                      border: message.senderId === currentUserId ? '1px solid #a33e00' : '1px solid #e3bfb1',
                       boxShadow: '1px 1px 0px rgba(0,0,0,0.1)',
                       fontFamily: 'Be Vietnam Pro',
                       fontSize: 14,
@@ -432,7 +423,7 @@ export function ChatPageView({
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
                     <span style={{ fontFamily: 'Geist, monospace', fontSize: 10, color: '#5a4136' }}>{message.time}</span>
-                    {message.unreadMemberCount > 0 && (message.senderId === selectedUserId || activeRoom?.type === 'GROUP') ? (
+                    {message.unreadMemberCount > 0 && (message.senderId === currentUserId || activeRoom?.type === 'GROUP') ? (
                       <span style={{ fontFamily: 'Geist, monospace', fontSize: 10, color: '#ba1a1a', fontWeight: 700 }}>
                         {message.unreadMemberCount}
                       </span>
@@ -456,7 +447,7 @@ export function ChatPageView({
                 <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span>
               </button>
               <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136', marginLeft: 'auto', alignSelf: 'center' }}>
-                현재 사용자: {selectedUser.nickname}
+                현재 사용자: {currentUser?.nickname ?? '알 수 없음'}
               </span>
             </div>
             <input

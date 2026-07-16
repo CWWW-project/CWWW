@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { friendApi } from '../../api/friend'
 import { buildFrame, getWebSocketUrl, parseFrames } from '../../lib/websocket'
+import { useAuthStore } from '../../store/authStore'
 import {
   createChatRoom,
   deleteChatMessage,
@@ -15,6 +17,7 @@ import {
 import type {
   ChatListUpdatePayload,
   ChatMessagePayload,
+  FriendCandidate,
   ChatParticipantResponse,
   ChatRoomSummary,
   ChatRoomType,
@@ -22,14 +25,6 @@ import type {
   Message,
   PendingAttachment,
 } from './types'
-
-const TEST_USERS = [
-  { id: 1, nickname: '김찬호' },
-  { id: 2, nickname: '윤주원' },
-  { id: 3, nickname: '김채린' },
-  { id: 4, nickname: '장수호' },
-  { id: 5, nickname: '정용혁' },
-] as const
 
 function formatChatTime(iso: string): string {
   const date = new Date(iso)
@@ -58,28 +53,29 @@ function createAttachmentId(file: File): string {
 }
 
 export function useChatPage() {
-  const initialUserId = Number(localStorage.getItem('userId') ?? 1)
+  const { user, accessToken } = useAuthStore()
+  const currentUserId = user?.id ?? Number(localStorage.getItem('userId') ?? 0)
 
   const [activeId, setActiveId] = useState<number | null>(null)
   const [chatRooms, setChatRooms] = useState<ChatRoomSummary[]>([])
   const [messagesByRoom, setMessagesByRoom] = useState<Record<number, Message[]>>({})
   const [participantsByRoom, setParticipantsByRoom] = useState<Record<number, ChatParticipantResponse[]>>({})
   const [hasMoreByRoom, setHasMoreByRoom] = useState<Record<number, boolean>>({})
+  const [friendCandidates, setFriendCandidates] = useState<FriendCandidate[]>([])
   const [input, setInput] = useState('')
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting')
   const [isReady, setIsReady] = useState(false)
   const [isInitialRoomsLoaded, setIsInitialRoomsLoaded] = useState(false)
   const [isSocketReady, setIsSocketReady] = useState(false)
-  const [selectedUserId, setSelectedUserId] = useState(initialUserId)
   const [createType, setCreateType] = useState<ChatRoomType>('PRIVATE')
   const [createName, setCreateName] = useState('')
-  const [selectedParticipantIds, setSelectedParticipantIds] = useState<number[]>([initialUserId])
+  const [selectedParticipantIds, setSelectedParticipantIds] = useState<number[]>([])
   const [createError, setCreateError] = useState('')
   const [createLoading, setCreateLoading] = useState(false)
   const [loadingMoreRoomId, setLoadingMoreRoomId] = useState<number | null>(null)
   const [isRoomViewportSettling, setIsRoomViewportSettling] = useState(false)
   const [openMessageMenuId, setOpenMessageMenuId] = useState<number | null>(null)
-  const [inviteUserId, setInviteUserId] = useState<number>(2)
+  const [inviteUserId, setInviteUserId] = useState<number | null>(null)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
   const messageContainerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -98,31 +94,27 @@ export function useChatPage() {
   )
   const messages = activeId !== null ? messagesByRoom[activeId] ?? [] : []
   const activeParticipants = activeId !== null ? participantsByRoom[activeId] ?? [] : []
-  const selectedUser = useMemo(
-    () => TEST_USERS.find((user) => user.id === selectedUserId) ?? TEST_USERS[0],
-    [selectedUserId],
-  )
   const isSocketConnected = connectionStatus === 'connected'
 
   useEffect(() => {
     attachmentCleanupRef.current = pendingAttachments
   }, [pendingAttachments])
 
-  const refreshChatRooms = async (userId: number) => {
-    const rooms = await getChatRooms(userId)
+  const refreshChatRooms = async () => {
+    const rooms = await getChatRooms()
     setChatRooms(rooms)
   }
 
-  const refreshParticipants = async (userId: number, chatId: number) => {
-    const participants = await getParticipants(userId, chatId)
+  const refreshParticipants = async (chatId: number) => {
+    const participants = await getParticipants(chatId)
     setParticipantsByRoom((prev) => ({
       ...prev,
       [chatId]: participants,
     }))
   }
 
-  const refreshMessages = async (userId: number, chatId: number, beforeMessageId?: number) => {
-    const { messages: fetchedMessages, hasMore } = await getMessages(userId, chatId, beforeMessageId)
+  const refreshMessages = async (chatId: number, beforeMessageId?: number) => {
+    const { messages: fetchedMessages, hasMore } = await getMessages(chatId, beforeMessageId)
 
     if (beforeMessageId === undefined) {
       pendingScrollActionRef.current = 'bottom'
@@ -186,36 +178,49 @@ export function useChatPage() {
     setIsReady(false)
     setIsInitialRoomsLoaded(false)
     setIsSocketReady(false)
-    localStorage.setItem('userId', String(selectedUserId))
-    window.dispatchEvent(new CustomEvent('user-id-changed', { detail: selectedUserId }))
-    setSelectedParticipantIds((prev) => {
-      const withoutSelectedUser = prev.filter((id) => id !== selectedUserId)
-      return [selectedUserId, ...withoutSelectedUser]
-    })
-  }, [selectedUserId])
-
-  useEffect(() => {
-    if (inviteUserId === selectedUserId) {
-      const candidate = TEST_USERS.find((user) => user.id !== selectedUserId)
-      if (candidate) {
-        setInviteUserId(candidate.id)
-      }
-    }
-  }, [inviteUserId, selectedUserId])
+    setSelectedParticipantIds([])
+  }, [currentUserId])
 
   useEffect(() => () => {
     attachmentCleanupRef.current.forEach((attachment) => URL.revokeObjectURL(attachment.previewUrl))
   }, [])
 
   useEffect(() => {
-    refreshChatRooms(selectedUserId)
+    if (!accessToken || !currentUserId) {
+      setIsInitialRoomsLoaded(true)
+      return
+    }
+
+    refreshChatRooms()
       .catch(() => {
         setCreateError('채팅방 목록 조회에 실패했습니다.')
       })
       .finally(() => {
         setIsInitialRoomsLoaded(true)
       })
-  }, [selectedUserId])
+  }, [accessToken, currentUserId])
+
+  useEffect(() => {
+    if (!accessToken || !currentUserId) {
+      setFriendCandidates([])
+      setInviteUserId(null)
+      return
+    }
+
+    friendApi.getFriends()
+      .then((response) => {
+        const candidates = response.data.data.map((friend) => ({
+          userId: friend.requesterId === currentUserId ? friend.receiverId : friend.requesterId,
+          nickname: friend.opponentNickname,
+        }))
+        setFriendCandidates(candidates)
+        setInviteUserId(candidates[0]?.userId ?? null)
+      })
+      .catch(() => {
+        setFriendCandidates([])
+        setInviteUserId(null)
+      })
+  }, [accessToken, currentUserId])
 
   useEffect(() => {
     setActiveId((prev) => {
@@ -229,9 +234,9 @@ export function useChatPage() {
     setActiveId(chatId)
 
     try {
-      await refreshMessages(selectedUserId, chatId)
-      await refreshParticipants(selectedUserId, chatId)
-      await markChatRoomAsRead(selectedUserId, chatId)
+      await refreshMessages(chatId)
+      await refreshParticipants(chatId)
+      await markChatRoomAsRead(chatId)
     } catch {
       setCreateError('메시지 목록 조회 또는 읽음 처리에 실패했습니다.')
       setIsRoomViewportSettling(false)
@@ -252,7 +257,7 @@ export function useChatPage() {
     setLoadingMoreRoomId(chatId)
 
     try {
-      await refreshMessages(selectedUserId, chatId, currentMessages[0].id)
+      await refreshMessages(chatId, currentMessages[0].id)
     } catch {
       setCreateError('이전 메시지 조회에 실패했습니다.')
     } finally {
@@ -261,6 +266,12 @@ export function useChatPage() {
   }
 
   useEffect(() => {
+    if (!accessToken || !currentUserId) {
+      setConnectionStatus('disconnected')
+      setIsSocketReady(false)
+      return
+    }
+
     const socket = new WebSocket(getWebSocketUrl())
     socketRef.current = socket
 
@@ -269,6 +280,7 @@ export function useChatPage() {
       socket.send(buildFrame('CONNECT', {
         'accept-version': '1.2',
         host: 'localhost',
+        Authorization: `Bearer ${accessToken}`,
       }))
     }
 
@@ -280,8 +292,8 @@ export function useChatPage() {
           setConnectionStatus('connected')
           setIsSocketReady(true)
           socket.send(buildFrame('SUBSCRIBE', {
-            id: `sub-list-${selectedUserId}`,
-            destination: `/sub/chat/list/${selectedUserId}`,
+            id: `sub-list-${currentUserId}`,
+            destination: `/sub/chat/list/${currentUserId}`,
           }))
           if (activeId !== null) {
             const subscriptionId = `sub-room-${activeId}`
@@ -296,7 +308,7 @@ export function useChatPage() {
 
         if (frame.command !== 'MESSAGE') return
 
-        if (frame.headers.destination === `/sub/chat/list/${selectedUserId}`) {
+        if (frame.headers.destination === `/sub/chat/list/${currentUserId}`) {
           const payload = JSON.parse(frame.body) as ChatListUpdatePayload
 
           setChatRooms((prev) => {
@@ -352,8 +364,8 @@ export function useChatPage() {
           }
         })
 
-        if (payload.chatId === activeId && payload.senderId !== selectedUserId && payload.eventType === 'MESSAGE') {
-          markChatRoomAsRead(selectedUserId, payload.chatId).catch(() => {
+        if (payload.chatId === activeId && payload.senderId !== currentUserId && payload.eventType === 'MESSAGE') {
+          markChatRoomAsRead(payload.chatId).catch(() => {
             setCreateError('읽음 처리에 실패했습니다.')
           })
         }
@@ -365,7 +377,7 @@ export function useChatPage() {
               ...room,
               lastMsg: payload.content,
               time: formatChatTime(payload.createdAt),
-              unread: payload.chatId === activeId || payload.senderId === selectedUserId ? 0 : (room.unread ?? 0) + 1,
+              unread: payload.chatId === activeId || payload.senderId === currentUserId ? 0 : (room.unread ?? 0) + 1,
             }
           }))
         }
@@ -388,7 +400,7 @@ export function useChatPage() {
       }
       socket.close()
     }
-  }, [activeId, selectedUserId])
+  }, [accessToken, activeId, currentUserId])
 
   useEffect(() => {
     if (isInitialRoomsLoaded && isSocketReady) {
@@ -397,9 +409,14 @@ export function useChatPage() {
   }, [isInitialRoomsLoaded, isSocketReady])
 
   const handleCreateChatRoom = async () => {
-    const participantUserIds = [...new Set(selectedParticipantIds)]
+    if (!currentUserId) {
+      setCreateError('로그인 정보가 없습니다.')
+      return
+    }
 
-    if (participantUserIds.length === 0) {
+    const participantUserIds = [...new Set([currentUserId, ...selectedParticipantIds])]
+
+    if (participantUserIds.length < 2) {
       setCreateError('참여자를 최소 1명 이상 선택하세요.')
       return
     }
@@ -408,12 +425,12 @@ export function useChatPage() {
     setCreateLoading(true)
 
     try {
-      const createdRoom = await createChatRoom(selectedUserId, createType, createName, participantUserIds)
+      const createdRoom = await createChatRoom(createType, createName, participantUserIds)
       setMessagesByRoom((prev) => ({ ...prev, [createdRoom.chatId]: [] }))
-      await refreshChatRooms(selectedUserId)
+      await refreshChatRooms()
       await handleSelectRoom(createdRoom.chatId)
       setCreateName('')
-      setSelectedParticipantIds([selectedUserId])
+      setSelectedParticipantIds([])
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : '채팅방 생성에 실패했습니다.')
     } finally {
@@ -469,7 +486,6 @@ export function useChatPage() {
       socketRef.current.send(buildFrame('SEND', {
         destination: '/pub/chat/message',
         'content-type': 'application/json',
-        'X-User-Id': String(selectedUserId),
       }, JSON.stringify({
         chatId: activeId,
         content: trimmedInput,
@@ -491,9 +507,9 @@ export function useChatPage() {
     setOpenMessageMenuId(null)
 
     try {
-      await deleteChatMessage(selectedUserId, activeId, messageId)
+      await deleteChatMessage(activeId, messageId)
       syncDeletedMessageInState(activeId, messageId)
-      await markChatRoomAsRead(selectedUserId, activeId)
+      await markChatRoomAsRead(activeId)
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : '메시지 삭제에 실패했습니다.')
     }
@@ -503,20 +519,20 @@ export function useChatPage() {
     if (activeId === null) return
 
     try {
-      await leaveChatRoom(selectedUserId, activeId)
+      await leaveChatRoom(activeId)
       setActiveId(null)
-      await refreshChatRooms(selectedUserId)
+      await refreshChatRooms()
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : '채팅방 나가기에 실패했습니다.')
     }
   }
 
   const handleInviteParticipant = async () => {
-    if (activeId === null) return
+    if (activeId === null || inviteUserId === null) return
 
     try {
-      await inviteParticipant(selectedUserId, activeId, inviteUserId)
-      await refreshParticipants(selectedUserId, activeId)
+      await inviteParticipant(activeId, inviteUserId)
+      await refreshParticipants(activeId)
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : '참여자 초대에 실패했습니다.')
     }
@@ -555,8 +571,9 @@ export function useChatPage() {
     pendingAttachments,
     removePendingAttachment,
     selectedParticipantIds,
-    selectedUser,
-    selectedUserId,
+    currentUser: user,
+    currentUserId,
+    friendCandidates,
     sendMessage,
     setCreateName,
     setCreateType,
@@ -564,8 +581,6 @@ export function useChatPage() {
     setInviteUserId,
     setOpenMessageMenuId,
     setSelectedParticipantIds,
-    setSelectedUserId,
     textareaRef,
-    testUsers: TEST_USERS,
   }
 }

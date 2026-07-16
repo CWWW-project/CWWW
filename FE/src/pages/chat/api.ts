@@ -1,3 +1,4 @@
+import api from '../../api/axios'
 import type { ApiResponse } from '../../types'
 import type {
   ChatMessagePayload,
@@ -44,49 +45,23 @@ function mapMessage(message: ChatMessagePayload): Message {
   }
 }
 
-export async function getChatRooms(userId: number): Promise<ChatRoomSummary[]> {
-  const response = await fetch('/api/chat/rooms', {
-    headers: {
-      'X-User-Id': String(userId),
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error('채팅방 목록 조회에 실패했습니다.')
-  }
-
-  const payload = await response.json() as ApiResponse<ChatRoomResponse[]>
+export async function getChatRooms(): Promise<ChatRoomSummary[]> {
+  const response = await api.get<ApiResponse<ChatRoomResponse[]>>('/chat/rooms')
+  const payload = response.data
   return payload.data.map(mapChatRoomSummary)
 }
 
-export async function getParticipants(userId: number, chatId: number): Promise<ChatParticipantResponse[]> {
-  const response = await fetch(`/api/chat/rooms/${chatId}/participants`, {
-    headers: {
-      'X-User-Id': String(userId),
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error('참여자 목록 조회에 실패했습니다.')
-  }
-
-  const payload = await response.json() as ApiResponse<ChatParticipantResponse[]>
+export async function getParticipants(chatId: number): Promise<ChatParticipantResponse[]> {
+  const response = await api.get<ApiResponse<ChatParticipantResponse[]>>(`/chat/rooms/${chatId}/participants`)
+  const payload = response.data
   return payload.data
 }
 
-export async function getMessages(userId: number, chatId: number, beforeMessageId?: number): Promise<{ messages: Message[], hasMore: boolean }> {
-  const queryString = beforeMessageId !== undefined ? `?beforeMessageId=${beforeMessageId}` : ''
-  const response = await fetch(`/api/chat/rooms/${chatId}/messages${queryString}`, {
-    headers: {
-      'X-User-Id': String(userId),
-    },
+export async function getMessages(chatId: number, beforeMessageId?: number): Promise<{ messages: Message[], hasMore: boolean }> {
+  const response = await api.get<ApiResponse<ChatMessagePayload[]>>(`/chat/rooms/${chatId}/messages`, {
+    params: beforeMessageId !== undefined ? { beforeMessageId } : undefined,
   })
-
-  if (!response.ok) {
-    throw new Error('메시지 목록 조회에 실패했습니다.')
-  }
-
-  const payload = await response.json() as ApiResponse<ChatMessagePayload[]>
+  const payload = response.data
 
   return {
     messages: payload.data.map(mapMessage),
@@ -94,82 +69,35 @@ export async function getMessages(userId: number, chatId: number, beforeMessageI
   }
 }
 
-export async function markChatRoomAsRead(userId: number, chatId: number): Promise<void> {
-  const response = await fetch(`/api/chat/rooms/${chatId}/read`, {
-    method: 'PATCH',
-    headers: {
-      'X-User-Id': String(userId),
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error('읽음 처리에 실패했습니다.')
-  }
+export async function markChatRoomAsRead(chatId: number): Promise<void> {
+  await api.patch(`/chat/rooms/${chatId}/read`)
 }
 
-export async function deleteChatMessage(userId: number, chatId: number, messageId: number): Promise<void> {
-  const response = await fetch(`/api/chat/rooms/${chatId}/messages/${messageId}/delete`, {
-    method: 'PATCH',
-    headers: {
-      'X-User-Id': String(userId),
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error('메시지 삭제에 실패했습니다.')
-  }
+export async function deleteChatMessage(chatId: number, messageId: number): Promise<void> {
+  await api.patch(`/chat/rooms/${chatId}/messages/${messageId}/delete`)
 }
 
-export async function leaveChatRoom(userId: number, chatId: number): Promise<void> {
-  const response = await fetch(`/api/chat/rooms/${chatId}/leave`, {
-    method: 'PATCH',
-    headers: {
-      'X-User-Id': String(userId),
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error('채팅방 나가기에 실패했습니다.')
-  }
+export async function leaveChatRoom(chatId: number): Promise<void> {
+  await api.patch(`/chat/rooms/${chatId}/leave`)
 }
 
-export async function inviteParticipant(userId: number, chatId: number, participantUserId: number): Promise<void> {
-  const response = await fetch(`/api/chat/rooms/${chatId}/participants`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-User-Id': String(userId),
-    },
-    body: JSON.stringify({
+export async function inviteParticipant(chatId: number, participantUserId: number): Promise<void> {
+  try {
+    await api.post('/chat/rooms/' + chatId + '/participants', {
       participantUserIds: [participantUserId],
-    }),
-  })
-
-  if (!response.ok) {
-    const errorPayload = await response.json() as ApiResponse<null>
-    throw new Error(errorPayload.message || '참여자 초대에 실패했습니다.')
+    })
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || '참여자 초대에 실패했습니다.')
   }
 }
 
-export async function createChatRoom(userId: number, type: ChatRoomType, name: string, participantUserIds: number[]): Promise<CreateChatRoomResponse> {
-  const response = await fetch('/api/chat/rooms', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-User-Id': String(userId),
-    },
-    body: JSON.stringify({
-      type,
-      name,
-      participantUserIds,
-    }),
+export async function createChatRoom(type: ChatRoomType, name: string, participantUserIds: number[]): Promise<CreateChatRoomResponse> {
+  const response = await api.post<ApiResponse<CreateChatRoomResponse>>('/chat/rooms', {
+    type,
+    name,
+    participantUserIds,
   })
-
-  if (!response.ok) {
-    throw new Error('채팅방 생성에 실패했습니다.')
-  }
-
-  const payload = await response.json() as ApiResponse<CreateChatRoomResponse>
+  const payload = response.data
   return payload.data
 }
 
@@ -177,15 +105,7 @@ export async function uploadChatMedia(files: File[]): Promise<string[]> {
   const formData = new FormData()
   files.forEach((file) => formData.append('files', file))
 
-  const response = await fetch('/api/chat/media/upload', {
-    method: 'POST',
-    body: formData,
-  })
-
-  if (!response.ok) {
-    throw new Error('첨부 업로드에 실패했습니다.')
-  }
-
-  const payload = await response.json() as ApiResponse<string[]>
+  const response = await api.post<ApiResponse<string[]>>('/chat/media/upload', formData)
+  const payload = response.data
   return payload.data
 }

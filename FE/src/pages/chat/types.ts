@@ -66,14 +66,14 @@ export interface PendingAttachment {
   isImage: boolean
 }
 
+export interface FriendCandidate {
+  userId: number
+  nickname: string
+}
+
 export interface CreateChatRoomResponse {
   chatId: number
   type: ChatRoomType
   name: string | null
   displayName: string | null
-}
-
-export interface TestUser {
-  id: number
-  nickname: string
 }
