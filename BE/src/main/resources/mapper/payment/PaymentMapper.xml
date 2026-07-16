@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cwww.payment.mapper.PaymentMapper">
+
+    <insert id="insertOrder" useGeneratedKeys="true" keyProperty="orderId" keyColumn="order_id">
+        INSERT INTO orders (user_id, acorn_amount, price, status, order_uid, created_at)
+        VALUES (#{userId}, #{acornAmount}, #{price}, #{status}, #{orderUid}, now())
+    </insert>
+
+    <select id="findOrderByUidForUpdate" resultType="com.cwww.payment.domain.Order">
+        SELECT order_id, user_id, acorn_amount, price, status, order_uid, created_at, updated_at
+        FROM orders
+        WHERE order_uid = #{orderUid}
+            FOR UPDATE
+    </select>
+
+    <update id="updateOrderStatus">
+        UPDATE orders SET status = #{status}, updated_at = now()
+        WHERE order_id = #{orderId}
+    </update>
+
+    <insert id="insertPayment">
+        INSERT INTO payment (order_id, pg_tx_id, method, amount, status, paid_at)
+        VALUES (#{orderId}, #{pgTxId}, #{method}, #{amount}, #{status}, now())
+    </insert>
+
+    <select id="findWalletForUpdate" resultType="com.cwww.payment.domain.AcornWallet">
+        SELECT wallet_id, user_id, balance
+        FROM acorn_wallet
+        WHERE user_id = #{userId}
+            FOR UPDATE
+    </select>
+
+    <insert id="insertWallet">
+        INSERT INTO acorn_wallet (user_id, balance, created_at)
+        VALUES (#{userId}, 0, now())
+    </insert>
+
+    <update id="addWalletBalance">
+        UPDATE acorn_wallet SET balance = balance + #{amount}, updated_at = now()
+        WHERE user_id = #{userId}
+    </update>
+
+    <insert id="insertAcornTransaction">
+        INSERT INTO acorn_transaction (user_id, amount, balance_after, reason, ref_id, created_at)
+        VALUES (#{userId}, #{amount}, #{balanceAfter}, #{reason}, #{refId}, now())
+    </insert>
+
+    <select id="findAcornHistory" resultType="com.cwww.payment.dto.AcornHistoryResponse">
+        SELECT amount, balance_after, reason, created_at
+        FROM acorn_transaction
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC, acorn_tx_id DESC
+            LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="findWalletByUserId" resultType="com.cwww.payment.domain.AcornWallet">
+        SELECT wallet_id, user_id, balance
+        FROM acorn_wallet
+        WHERE user_id = #{userId}
+    </select>
+
+    <select id="findPgTxIdByOrderId" resultType="string">
+        SELECT pg_tx_id
+        FROM payment
+        WHERE order_id = #{orderId}
+    </select>
+
+    <update id="updatePaymentStatus">
+        UPDATE payment SET status = #{status}
+        WHERE order_id = #{orderId}
+    </update>
+
+</mapper>

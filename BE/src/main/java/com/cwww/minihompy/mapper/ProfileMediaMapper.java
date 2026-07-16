@@ -18,6 +18,8 @@ public interface ProfileMediaMapper {
     int updateMedia(Media media);
 
     // media 삭제
-    void deleteMedia(@Param("targetType") Media.TargetType targetType, @Param("targetId") Long targetId);
+    void deleteMedia(
+            @Param("targetType") Media.TargetType targetType,
+            @Param("targetId") Long targetId);
 
 }
