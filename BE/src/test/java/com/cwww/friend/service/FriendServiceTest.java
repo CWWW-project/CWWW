@@ -5,6 +5,7 @@ import com.cwww.friend.dto.response.FriendResponse;
 import com.cwww.friend.mapper.FriendMapper;
 import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
+import com.cwww.user.mapper.UserMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +26,7 @@ import static org.mockito.Mockito.verify;
 class FriendServiceTest {
 
     @Mock private FriendMapper friendMapper;
+    @Mock private UserMapper userMapper;
 
     @InjectMocks
     private FriendServiceImpl friendService;

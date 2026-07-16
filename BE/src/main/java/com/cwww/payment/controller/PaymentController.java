@@ -2,7 +2,6 @@ package com.cwww.payment.controller;
 
 import com.cwww.global.response.ApiResponse;
 import com.cwww.payment.dto.*;
-import com.cwww.payment.service.PaymentCancelFacade;
 import com.cwww.payment.service.PaymentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -54,8 +53,6 @@ public class PaymentController {
     public ResponseEntity<ApiResponse<PaymentCancelResponse>> cancelPayment(
             @AuthenticationPrincipal Long userId,
            @Valid @RequestBody PaymentCancelRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(paymentCancelFacade.cancelPayment(userId, request)));
+        return ResponseEntity.ok(ApiResponse.success(paymentService.cancelPayment(userId, request)));
     }
-    private final PaymentCancelFacade paymentCancelFacade;
-
 }

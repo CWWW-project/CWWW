@@ -1,4 +1,4 @@
--- V12: 결제 정합성 강화 — 상태 제약, 유일성 인덱스, 보정 작업 테이블
+-- V13: 결제 정합성 강화 — 상태 제약, 유일성 인덱스, 보정 작업 테이블
 -- ※ Flyway 10.x (Spring Boot 3.x) 는 SQL 마이그레이션을 트랜잭션으로 감싸므로
 --   CREATE INDEX CONCURRENTLY 대신 일반 CREATE UNIQUE INDEX를 사용한다.
 

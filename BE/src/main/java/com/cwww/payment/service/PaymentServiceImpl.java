@@ -2,192 +2,180 @@ package com.cwww.payment.service;
 
 import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
+import com.cwww.payment.client.TossBusinessException;
+import com.cwww.payment.client.TossCancelResponse;
 import com.cwww.payment.client.TossConfirmResponse;
 import com.cwww.payment.client.TossPaymentClient;
-import com.cwww.payment.domain.AcornTxReason;
+import com.cwww.payment.client.TossUncertainException;
 import com.cwww.payment.domain.AcornWallet;
 import com.cwww.payment.domain.Order;
 import com.cwww.payment.domain.OrderStatus;
 import com.cwww.payment.dto.*;
 import com.cwww.payment.mapper.PaymentMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
 
-    private static final int ACORN_UNIT = 100;      // 판매 단위: 100개
-    private static final int PRICE_PER_UNIT = 1000; // 100개당 1,000원
+    private static final int ACORN_UNIT         = 100;
+    private static final int PRICE_PER_UNIT     = 1000;
     private static final int MAX_ACORN_PER_ORDER = 10000;
-    private static final int MAX_PAGE_SIZE = 100;
+    private static final int MAX_PAGE_SIZE       = 100;
 
     private final PaymentMapper paymentMapper;
     private final TossPaymentClient tossPaymentClient;
+    private final PaymentTxHelper paymentTxHelper;
 
     @Override
+    @Transactional
     public OrderCreateResponse createOrder(Long userId, int acornAmount) {
+        if (userId == null) throw new BusinessException(ErrorCode.FORBIDDEN);
         if (acornAmount < ACORN_UNIT
                 || acornAmount % ACORN_UNIT != 0
                 || acornAmount > MAX_ACORN_PER_ORDER) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
-        int price = (acornAmount / ACORN_UNIT) * PRICE_PER_UNIT;
-        String orderUid = UUID.randomUUID().toString();
+        int price    = (acornAmount / ACORN_UNIT) * PRICE_PER_UNIT;
+        String uid   = UUID.randomUUID().toString();
 
-        Order order = Order.builder()
+        Order order  = Order.builder()
                 .userId(userId)
                 .acornAmount(acornAmount)
                 .price(price)
                 .status(OrderStatus.PENDING.name())
-                .orderUid(orderUid)
+                .orderUid(uid)
                 .build();
         paymentMapper.insertOrder(order);
 
         return OrderCreateResponse.builder()
-                .orderUid(orderUid)
+                .orderUid(uid)
                 .acornAmount(acornAmount)
                 .price(price)
                 .build();
     }
 
+    /**
+     * 결제 승인 — 내구성 있는 3단계 흐름
+     *
+     * 1) [짧은 TX] 검증 + CONFIRMING 전이 + CONFIRM 보정 작업 선생성(paymentKey 포함)
+     * 2) [TX 밖]  토스 승인 API 호출
+     * 3) [짧은 TX] 내부 완료 처리 + 보정 작업 DONE 처리 (멱등)
+     *
+     * 2에서 불확실한 오류 → CONFIRMING 유지, 보정 작업이 이미 있으므로 스케줄러가 복구
+     * 2에서 PG 명시 거절  → PENDING 복구 + 보정 작업 DONE
+     * 3에서 실패          → 보정 작업이 이미 있으므로 스케줄러가 복구
+     */
     @Override
-    @Transactional
     public PaymentConfirmResponse confirmPayment(Long userId, PaymentConfirmRequest request) {
-        // ① 주문 조회 + 잠금
-        Order order = paymentMapper.findOrderByUidForUpdate(request.getOrderUid());
-        if (order == null) {
-            throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
-        }
-        // ② 내 주문인지
-        if (!order.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN);
-        }
-        // ③ 중복 승인 방지
-        if (!OrderStatus.PENDING.name().equals(order.getStatus())) {
-            throw new BusinessException(ErrorCode.ALREADY_PROCESSED_ORDER);
-        }
-        // ④ 금액 위변조 검증
-        if (order.getPrice() != request.getAmount()) {
-            throw new BusinessException(ErrorCode.AMOUNT_MISMATCH);
+        // ① 검증 + CONFIRMING 전이 + CONFIRM 보정 작업 선생성
+        Order order = paymentTxHelper.validateAndTransitionToConfirming(
+                userId, request.getOrderUid(), request.getAmount(), request.getPaymentKey());
+
+        // ② 토스 승인 (트랜잭션 밖)
+        TossConfirmResponse toss;
+        try {
+            toss = tossPaymentClient.confirm(
+                    request.getPaymentKey(), request.getOrderUid(), request.getAmount());
+        } catch (TossBusinessException e) {
+            log.warn("PG 명시 거절 — 주문 PENDING 복구: orderId={}, pgCode={}",
+                    order.getOrderId(), e.getErrorCode());
+            paymentTxHelper.recoverOrderToPending(order.getOrderId());
+            throw new BusinessException(ErrorCode.PAYMENT_PG_REJECTED);
+        } catch (TossUncertainException e) {
+            log.warn("PG 결과 불확실 — CONFIRMING 유지, 보정 작업 스케줄러에 위임: orderId={}", order.getOrderId(), e);
+            throw new BusinessException(ErrorCode.PAYMENT_CONFIRM_FAILED);
         }
 
-        // ⑤ 토스 승인
-        TossConfirmResponse toss = tossPaymentClient.confirm(
-                request.getPaymentKey(), request.getOrderUid(), request.getAmount());
-
-        // ⑥ 결제 기록 + 주문 상태 변경
-        paymentMapper.insertPayment(order.getOrderId(), toss.getPaymentKey(),
-                toss.getMethod(), toss.getTotalAmount(), toss.getStatus());
-        paymentMapper.updateOrderStatus(order.getOrderId(), OrderStatus.PAID.name());
-
-        // ⑦ 지갑 지급 (없으면 생성 — lazy)
-        AcornWallet wallet = paymentMapper.findWalletForUpdate(userId);
-        if (wallet == null) {
-            paymentMapper.insertWallet(userId);
-            wallet = paymentMapper.findWalletForUpdate(userId);
+        // ③ 응답 검증 + ④ 내부 완료 처리 (보정 작업 DONE 처리 포함)
+        // 응답 이상(null·불일치 등)은 PG 명시 거절이 아닌 불확실 상황 — CONFIRMING 유지하고 스케줄러에 위임
+        try {
+            validateConfirmResponse(toss, request.getPaymentKey(), request.getOrderUid(), request.getAmount());
+            return paymentTxHelper.completeConfirm(
+                    order, toss.getPaymentKey(), toss.getMethod(),
+                    toss.getTotalAmount(), toss.getStatus());
+        } catch (Exception e) {
+            log.error("PG 승인 성공 후 내부 처리 실패 — 보정 스케줄러에 위임: orderId={}", order.getOrderId(), e);
+            throw new BusinessException(ErrorCode.PAYMENT_CONFIRM_FAILED);
         }
-        int balanceAfter = wallet.getBalance() + order.getAcornAmount();
-        paymentMapper.addWalletBalance(userId, order.getAcornAmount());
-        paymentMapper.insertAcornTransaction(userId, order.getAcornAmount(),
-                balanceAfter, AcornTxReason.CHARGE.name(), order.getOrderId());
-
-        return PaymentConfirmResponse.builder()
-                .orderUid(order.getOrderUid())
-                .chargedAcorn(order.getAcornAmount())
-                .balance(balanceAfter)
-                .build();
     }
 
     /**
-     * [취소 1단계] 검증 + CANCELING 마킹. 짧은 트랜잭션.
-     * 기존 cancelPayment의 ①~⑤ 검증 로직이 그대로 이동했다.
-     * 주문 상태를 CANCELING으로 바꿔서 커밋하므로, 이후 중복 취소 요청은
-     * ③ 검증(PAID만 취소 가능)에서 자동으로 차단된다.
-     * FOR UPDATE 락은 이 메서드가 끝나는 즉시 풀린다.
+     * 결제 취소 — 내구성 있는 3단계 흐름
+     *
+     * 1) [짧은 TX] 검증 + CANCELING 전이 + 보정 작업 생성 (60초 후 실행)
+     * 2) [TX 밖]  토스 취소 API 호출 + 응답 검증
+     * 3) [짧은 TX] 내부 완료 처리 — 잔액 재검증 포함 (멱등)
+     *
+     * 2에서 불확실한 오류 → CANCELING 유지, 보정 작업 스케줄러가 60초 후 재시도
+     * 2에서 PG 명시 거절  → PAID 복구 + 보정 작업 DONE
+     * 3에서 실패          → 보정 작업이 이미 있으므로 스케줄러가 복구
      */
     @Override
-    @Transactional
-    public String prepareCancel(Long userId, PaymentCancelRequest request) {
-        // ① 주문 조회 + 잠금
-        Order order = paymentMapper.findOrderByUidForUpdate(request.getOrderUid());
-        if (order == null) {
-            throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
-        }
-        // ② 본인 확인
-        if (!order.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN);
-        }
-        // ③ PAID 상태만 취소 가능 (CANCELING/CANCELED면 여기서 차단)
-        if (!OrderStatus.PAID.name().equals(order.getStatus())) {
-            throw new BusinessException(ErrorCode.CANCEL_NOT_ALLOWED);
-        }
-        // ④ 지갑 잠금 + 잔액 검증 (정책: 충전분 미사용 시에만 전액 환불)
-        AcornWallet wallet = paymentMapper.findWalletForUpdate(userId);
-        if (wallet == null || wallet.getBalance() < order.getAcornAmount()) {
-            throw new BusinessException(ErrorCode.REFUND_INSUFFICIENT_BALANCE);
-        }
-        // ⑤ 결제 키 조회
+    public PaymentCancelResponse cancelPayment(Long userId, PaymentCancelRequest request) {
+        // ① 검증 + CANCELING 전이 + 보정 작업 생성
+        Order order = paymentTxHelper.validateAndTransitionToCanceling(userId, request.getOrderUid());
+
+        // ② pgTxId 조회 (TX 밖)
         String pgTxId = paymentMapper.findPgTxIdByOrderId(order.getOrderId());
         if (pgTxId == null) {
+            // payment 행 없음 → PG 호출 전 또는 payment INSERT 실패 → PAID 복구 + 보정 작업 종료
+            log.error("pgTxId 없음 — PAID 복구: orderId={}", order.getOrderId());
+            paymentTxHelper.recoverOrderToPaid(order.getOrderId());
             throw new BusinessException(ErrorCode.PAYMENT_NOT_FOUND);
         }
 
-        // ⑥ 취소 진행중 마킹 (여기서 커밋 → 락 해제)
-        paymentMapper.updateOrderStatus(order.getOrderId(), OrderStatus.CANCELING.name());
-        return pgTxId;
-    }
+        String reason = (request.getReason() == null || request.getReason().isBlank())
+                ? "사용자 요청 취소" : request.getReason();
 
-    /**
-     * [취소 실패 복구] 토스 취소 호출이 실패했을 때 CANCELING → PAID 원복.
-     */
-    @Override
-    @Transactional
-    public void revertCancelStatus(Long userId, PaymentCancelRequest request) {
-        Order order = paymentMapper.findOrderByUidForUpdate(request.getOrderUid());
-        if (order != null && OrderStatus.CANCELING.name().equals(order.getStatus())) {
-            paymentMapper.updateOrderStatus(order.getOrderId(), OrderStatus.PAID.name());
-        }
-    }
-
-    /**
-     * [취소 2단계] 토스 취소 성공 후 내부 상태 갱신. 짧은 트랜잭션.
-     * 기존 cancelPayment의 ⑦ 갱신 로직이 그대로 이동했다.
-     * 이 트랜잭션이 실패하면 주문은 CANCELING 상태로 남아 로그 기반 보정이 가능하다.
-     */
-    @Override
-    @Transactional
-    public PaymentCancelResponse completeCancel(Long userId, PaymentCancelRequest request) {
-        // 상태 재확인 (CANCELING이어야 정상 흐름)
-        Order order = paymentMapper.findOrderByUidForUpdate(request.getOrderUid());
-        if (order == null || !OrderStatus.CANCELING.name().equals(order.getStatus())) {
-            throw new BusinessException(ErrorCode.CANCEL_NOT_ALLOWED);
-        }
-        // 잔액 재검증 (락 해제 후 도토리를 써버렸을 수 있으므로)
-        AcornWallet wallet = paymentMapper.findWalletForUpdate(userId);
-        if (wallet == null || wallet.getBalance() < order.getAcornAmount()) {
-            // 토스는 이미 취소된 상태 — CANCELING으로 남겨 보정 대상이 되게 한다
-            throw new BusinessException(ErrorCode.REFUND_INSUFFICIENT_BALANCE);
+        // ③ 토스 취소 (트랜잭션 밖)
+        TossCancelResponse cancelResp;
+        try {
+            cancelResp = tossPaymentClient.cancel(pgTxId, reason);
+        } catch (TossBusinessException e) {
+            // ALREADY_CANCELED: PG가 이미 취소됨 → 내부 완료 처리 (PAID 복구 X)
+            if ("ALREADY_CANCELED".equals(e.getErrorCode())) {
+                log.info("PG 이미 취소됨 — 내부 취소 완료 처리: orderId={}", order.getOrderId());
+                try {
+                    return paymentTxHelper.completeCancel(order.getOrderId());
+                } catch (Exception ex) {
+                    log.error("ALREADY_CANCELED 내부 처리 실패 — 보정 스케줄러에 위임: orderId={}", order.getOrderId(), ex);
+                    throw new BusinessException(ErrorCode.PAYMENT_CANCEL_FAILED);
+                }
+            }
+            log.warn("PG 취소 명시 거절 — PAID 복구: orderId={}, pgCode={}",
+                    order.getOrderId(), e.getErrorCode());
+            paymentTxHelper.recoverOrderToPaid(order.getOrderId());
+            throw new BusinessException(ErrorCode.PAYMENT_CANCEL_FAILED);
+        } catch (TossUncertainException e) {
+            log.warn("PG 취소 결과 불확실 — CANCELING 유지, 보정 스케줄러에 위임: orderId={}",
+                    order.getOrderId(), e);
+            throw new BusinessException(ErrorCode.PAYMENT_CANCEL_FAILED);
         }
 
-        // ⑦ 상태 변경 + 도토리 회수 + 원장 기록
-        paymentMapper.updatePaymentStatus(order.getOrderId(), OrderStatus.CANCELED.name());
-        paymentMapper.updateOrderStatus(order.getOrderId(), OrderStatus.CANCELED.name());
-        int balanceAfter = wallet.getBalance() - order.getAcornAmount();
-        paymentMapper.addWalletBalance(userId, -order.getAcornAmount());
-        paymentMapper.insertAcornTransaction(userId, -order.getAcornAmount(),
-                balanceAfter, AcornTxReason.REFUND.name(), order.getOrderId());
-
-        return PaymentCancelResponse.builder()
-                .orderUid(order.getOrderUid())
-                .refundedAcorn(order.getAcornAmount())
-                .balance(balanceAfter)
-                .build();
+        // ④ 취소 응답 검증 + ⑤ 내부 완료 처리
+        try {
+            validateCancelResponse(cancelResp, pgTxId, order.getOrderId());
+            return paymentTxHelper.completeCancel(order.getOrderId());
+        } catch (TossUncertainException e) {
+            // PARTIAL_CANCELED를 포함한 응답 이상은 전체 환불을 수행하지 않는다.
+            // CANCELING 및 선생성 보정 작업을 유지해 스케줄러의 수동 처리 경로로 넘긴다.
+            log.error("PG 취소 응답을 전체 취소로 확정할 수 없음 — 보정 스케줄러에 위임: orderId={}",
+                    order.getOrderId(), e);
+            throw new BusinessException(ErrorCode.PAYMENT_CANCEL_FAILED);
+        } catch (Exception e) {
+            log.error("PG 취소 성공 후 내부 처리 실패 — 보정 스케줄러에 위임: orderId={}",
+                    order.getOrderId(), e);
+            throw new BusinessException(ErrorCode.PAYMENT_CANCEL_FAILED);
+        }
     }
 
     @Override
@@ -204,5 +192,50 @@ public class PaymentServiceImpl implements PaymentService {
         AcornWallet wallet = paymentMapper.findWalletByUserId(userId);
         int balance = (wallet == null) ? 0 : wallet.getBalance();
         return AcornBalanceResponse.builder().balance(balance).build();
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+
+    private void validateConfirmResponse(TossConfirmResponse toss,
+                                          String expectedPaymentKey,
+                                          String expectedOrderUid,
+                                          int expectedAmount) {
+        if (toss == null || !"DONE".equals(toss.getStatus())) {
+            throw new TossUncertainException(
+                    "토스 승인 응답 이상: " + (toss == null ? "null" : toss.getStatus()), null);
+        }
+        if (!expectedPaymentKey.equals(toss.getPaymentKey())) {
+            throw new TossUncertainException("paymentKey 불일치", null);
+        }
+        if (!expectedOrderUid.equals(toss.getOrderId())) {
+            throw new TossUncertainException("orderId 불일치", null);
+        }
+        if (toss.getTotalAmount() != expectedAmount) {
+            throw new TossUncertainException(
+                    "금액 불일치: expected=" + expectedAmount + ", actual=" + toss.getTotalAmount(), null);
+        }
+    }
+
+    private void validateCancelResponse(TossCancelResponse resp, String expectedPgTxId, Long orderId) {
+        if (resp == null) {
+            log.warn("토스 취소 응답 null — 보정 스케줄러에 위임: orderId={}", orderId);
+            throw new TossUncertainException("취소 응답 null", null);
+        }
+        // 부분 취소는 현재 주문/지갑/원장 모델에서 지원하지 않는다. 전체 취소 완료로
+        // 처리하면 주문 전체 도토리를 회수하게 되므로, 보정 작업이 수동 처리 대상으로
+        // 종료할 때까지 CANCELING 상태를 유지한다.
+        if ("PARTIAL_CANCELED".equals(resp.getStatus())) {
+            log.error("토스 부분 취소 응답 — 전체 취소 완료 처리 금지, 보정 작업에 위임: orderId={}", orderId);
+            throw new TossUncertainException("PARTIAL_CANCELED 미지원", null);
+        }
+        if (!"CANCELED".equals(resp.getStatus())) {
+            log.warn("토스 취소 응답 상태 이상 — 보정 스케줄러에 위임: orderId={}, status={}",
+                    orderId, resp.getStatus());
+            throw new TossUncertainException("취소 응답 상태 이상: " + resp.getStatus(), null);
+        }
+        if (!expectedPgTxId.equals(resp.getPaymentKey())) {
+            log.warn("토스 취소 응답 paymentKey 불일치: expected={}, actual={}", expectedPgTxId, resp.getPaymentKey());
+            throw new TossUncertainException("paymentKey 불일치", null);
+        }
     }
 }
