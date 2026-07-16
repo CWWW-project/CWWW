@@ -43,4 +43,8 @@ public interface PaymentMapper {
 
     AcornWallet findWalletByUserId(@Param("userId") Long userId);
 
+    String findPgTxIdByOrderId(@Param("orderId") Long orderId);
+
+    void updatePaymentStatus(@Param("orderId") Long orderId, @Param("status") String status);
+
 }

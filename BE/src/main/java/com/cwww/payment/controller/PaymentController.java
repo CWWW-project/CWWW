@@ -3,6 +3,7 @@ package com.cwww.payment.controller;
 import com.cwww.global.response.ApiResponse;
 import com.cwww.payment.dto.*;
 import com.cwww.payment.service.PaymentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,7 +31,7 @@ public class PaymentController {
     @PostMapping("/confirm")
     public ResponseEntity<ApiResponse<PaymentConfirmResponse>> confirmPayment(
             @AuthenticationPrincipal Long userId,
-            @RequestBody PaymentConfirmRequest request) {
+           @Valid @RequestBody PaymentConfirmRequest request) {
         return ResponseEntity.ok(ApiResponse.success(paymentService.confirmPayment(userId, request)));
     }
 
@@ -46,6 +47,13 @@ public class PaymentController {
     public ResponseEntity<ApiResponse<AcornBalanceResponse>> getBalance(
             @AuthenticationPrincipal Long userId) {
         return ResponseEntity.ok(ApiResponse.success(paymentService.getBalance(userId)));
+    }
+
+    @PostMapping("/cancel")
+    public ResponseEntity<ApiResponse<PaymentCancelResponse>> cancelPayment(
+            @AuthenticationPrincipal Long userId,
+           @Valid @RequestBody PaymentCancelRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(paymentService.cancelPayment(userId, request)));
     }
 
 }
