@@ -19,9 +19,8 @@ public class Media {
     private LocalDateTime createdAt;
 
     public enum TargetType {
-        PROFILE
+        PROFILE,
+        BGM // BGM 아이템의 실제 오디오 파일 (target_id = item_id)
     }
 
 }
-
-

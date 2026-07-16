@@ -23,6 +23,9 @@ public enum ErrorCode {
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "A005", "이미 사용 중인 이메일입니다."),
     REREGISTRATION_BLOCKED(HttpStatus.FORBIDDEN, "A006", "탈퇴 후 15일간 재가입이 불가합니다."),
     DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "A007", "이미 사용 중인 닉네임입니다."),
+    EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN, "A008", "이메일 인증이 완료되지 않았습니다."),
+    INVALID_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "A009", "인증 코드가 유효하지 않습니다."),
+    MAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "A010", "이메일 발송에 실패했습니다."),
 
     // Media
     INVALID_FILE_EXTENSION(HttpStatus.BAD_REQUEST, "M001", "허용되지 않는 파일 확장자입니다."),
@@ -60,6 +63,9 @@ public enum ErrorCode {
     // Guestbook
     GUESTBOOK_NOT_FOUND(HttpStatus.NOT_FOUND, "H004", "방명록을 찾을 수 없습니다."),
     GUESTBOOK_FORBIDDEN(HttpStatus.FORBIDDEN, "H005", "방명록에 대한 권한이 없습니다."),
+
+    // Bgm
+    BGM_NOT_OWNED(HttpStatus.FORBIDDEN, "H006", "보유하지 않은 BGM입니다."),
 
     // Item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "I001", "아이템을 찾을 수 없습니다."),

@@ -1,7 +1,10 @@
 package com.cwww.minihompy.controller;
 
 import com.cwww.global.response.ApiResponse;
+import com.cwww.minihompy.dto.request.BgmApplyRequest;
 import com.cwww.minihompy.dto.request.MinihompySettingsRequest;
+import com.cwww.minihompy.dto.response.BgmApplyResponse;
+import com.cwww.minihompy.dto.response.BgmOptionResponse;
 import com.cwww.minihompy.dto.response.MinihompyMainResponse;
 import com.cwww.minihompy.dto.response.ProfileImageResponse;
 import jakarta.validation.Valid;
@@ -12,6 +15,8 @@ import com.cwww.minihompy.service.MinihompyService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/minihompy")
@@ -75,6 +80,31 @@ public class MinihompyController {
 	) {
 
 		MinihompyMainResponse response = minihompyService.updateSettings(userId, request);
+		return ApiResponse.success(response);
+
+	}
+
+
+	// 내가 구매한 BGM 조회
+	@GetMapping("/bgm-options")
+	public ApiResponse<List<BgmOptionResponse>> getBgmOptions(
+			@AuthenticationPrincipal Long userId
+	) {
+
+		List<BgmOptionResponse> response = minihompyService.getBgmOptions(userId);
+		return ApiResponse.success(response);
+
+	}
+
+
+	// BGM 적용/끄지
+	@PutMapping("/bgm")
+	public ApiResponse<BgmApplyResponse> applyBgm(
+			@AuthenticationPrincipal Long userId,
+			@RequestBody BgmApplyRequest request
+	) {
+
+		BgmApplyResponse response = minihompyService.applyBgm(userId, request.getItemId());
 		return ApiResponse.success(response);
 
 	}
