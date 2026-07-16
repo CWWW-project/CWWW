@@ -531,64 +531,86 @@ export default function FeedPage() {
               TODAY <span className="text-[#ba1a1a]">42</span> | TOTAL 12,345
             </div>
 
-            {/* 내 프로필 */}
-            <div className="window-inset p-2 flex flex-col items-center gap-2">
-              <div className="w-full aspect-square border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                <span className="material-symbols-outlined text-[80px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+            {/* 내 프로필 or 로그인 유도 */}
+            {user ? (
+              <div className="window-inset p-2 flex flex-col items-center gap-2">
+                <div className="w-full aspect-square border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[80px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                </div>
+                <div className="w-full text-center">
+                  <h2 className="font-['Bricolage_Grotesque',sans-serif] text-[20px] font-bold text-[#a33e00] mb-1">
+                    {user.nickname}의 홈피
+                  </h2>
+                  <p className="text-[14px] text-[#5a4136] bg-[#eeeeee] p-1 window-inset min-h-[40px] flex items-center justify-center">
+                    열심히 살자 💪
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136] w-full bg-[#f9f9f9] py-1 px-2 window-inset">
+                  <span className="material-symbols-outlined text-[#a33e00] text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>sentiment_satisfied</span>
+                  오늘의 기분: 맑음
+                </div>
+                <div className="flex flex-col gap-1 w-full mt-auto">
+                  <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
+                    onClick={() => navigate('/home/me')}>
+                    <span className="material-symbols-outlined text-base">home</span> 내 홈피 가기
+                  </button>
+                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
+                    onClick={openModal}>
+                    <span className="material-symbols-outlined text-base">edit_note</span> 다이어리 쓰기
+                  </button>
+                </div>
               </div>
-              <div className="w-full text-center">
-                <h2 className="font-['Bricolage_Grotesque',sans-serif] text-[20px] font-bold text-[#a33e00] mb-1">
-                  {user?.nickname ?? '내'}의 홈피
-                </h2>
-                <p className="text-[14px] text-[#5a4136] bg-[#eeeeee] p-1 window-inset min-h-[40px] flex items-center justify-center">
-                  열심히 살자 💪
-                </p>
-              </div>
-              <div className="flex items-center gap-1 font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136] w-full bg-[#f9f9f9] py-1 px-2 window-inset">
-                <span className="material-symbols-outlined text-[#a33e00] text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>sentiment_satisfied</span>
-                오늘의 기분: 맑음
-              </div>
-              <div className="flex flex-col gap-1 w-full mt-auto">
-                <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                  onClick={() => navigate('/home/me')}>
-                  <span className="material-symbols-outlined text-base">home</span> 내 홈피 가기
+            ) : (
+              <div className="window-inset p-4 flex flex-col items-center gap-3">
+                <span className="material-symbols-outlined text-[64px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>account_circle</span>
+                <p className="font-[Geist,monospace] text-[12px] text-[#5a4136] text-center">로그인하고 일촌 소식을 확인하세요!</p>
+                <button
+                  className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 w-full flex items-center justify-center gap-1"
+                  onClick={() => navigate('/auth/login')}
+                >
+                  <span className="material-symbols-outlined text-base">login</span> 로그인
                 </button>
-                <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                  onClick={openModal}>
-                  <span className="material-symbols-outlined text-base">edit_note</span> 다이어리 쓰기
+                <button
+                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 w-full flex items-center justify-center gap-1"
+                  onClick={() => navigate('/auth/signup')}
+                >
+                  <span className="material-symbols-outlined text-base">person_add</span> 회원가입
                 </button>
               </div>
-            </div>
+            )}
 
-            {/* 접속 중인 일촌 */}
-            <div className="window-inset flex flex-col">
-              <div className="bg-[#e2e2e2] px-2 py-1 border-b border-[#8e7164] font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c] flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">group</span>
-                접속 중인 일촌
-                <span className="ml-auto bg-[#a33e00] text-white font-[Geist,monospace] text-[10px] px-1 rounded-full">3</span>
-              </div>
-              <div className="p-2 flex flex-col gap-1">
-                {ONLINE_FRIENDS.map(f => (
-                  <div key={f.name} className="flex items-center gap-2 cursor-pointer hover:bg-[#eeeeee] p-1 rounded">
-                    <div className="w-7 h-7 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex-shrink-0 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-[20px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c]">{f.name}</p>
-                      <p className={`text-[10px] ${f.color}`}>● {f.status}</p>
-                    </div>
+            {/* 접속 중인 일촌 + 일촌 관리 — 로그인 유저만 */}
+            {user && (
+              <>
+                <div className="window-inset flex flex-col">
+                  <div className="bg-[#e2e2e2] px-2 py-1 border-b border-[#8e7164] font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c] flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">group</span>
+                    접속 중인 일촌
+                    <span className="ml-auto bg-[#a33e00] text-white font-[Geist,monospace] text-[10px] px-1 rounded-full">3</span>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="p-2 flex flex-col gap-1">
+                    {ONLINE_FRIENDS.map(f => (
+                      <div key={f.name} className="flex items-center gap-2 cursor-pointer hover:bg-[#eeeeee] p-1 rounded">
+                        <div className="w-7 h-7 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex-shrink-0 flex items-center justify-center">
+                          <span className="material-symbols-outlined text-[20px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c]">{f.name}</p>
+                          <p className={`text-[10px] ${f.color}`}>● {f.status}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-            {/* 일촌 관리 */}
-            <button
-              className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-              onClick={() => navigate('/friends')}
-            >
-              <span className="material-symbols-outlined text-base">group</span> 일촌 관리
-            </button>
+                <button
+                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
+                  onClick={() => navigate('/friends')}
+                >
+                  <span className="material-symbols-outlined text-base">group</span> 일촌 관리
+                </button>
+              </>
+            )}
           </aside>
 
           {/* 피드 */}
