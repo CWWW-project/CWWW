@@ -70,8 +70,6 @@ public enum ErrorCode {
 
     // Item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "I001", "아이템을 찾을 수 없습니다."),
-    ITEM_ALREADY_OWNED(HttpStatus.CONFLICT, "I002", "이미 보유한 아이템입니다."),
-    INSUFFICIENT_ACORN_BALANCE(HttpStatus.CONFLICT, "I003", "도토리 잔액이 부족합니다."),
 
     // Payment
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "PAY001", "주문을 찾을 수 없습니다."),

@@ -135,10 +135,4 @@
         LIMIT #{size} OFFSET #{offset}
     </select>
 
-    <!-- USE 원장 삽입 — 아이템 구매 (ref_id 없음, 멱등 불필요) -->
-    <insert id="insertAcornTransactionUse">
-        INSERT INTO acorn_transaction (user_id, amount, balance_after, reason, created_at)
-        VALUES (#{userId}, #{amount}, #{balanceAfter}, 'USE', now())
-    </insert>
-
 </mapper>
