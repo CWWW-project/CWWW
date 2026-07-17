@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { postApi } from '../../api/post'
 import { commentApi } from '../../api/comment'
-import type { PostResponse, CommentResponse } from '../../types'
+import { roomApi } from '../../api/room'
+import type { PostResponse, CommentResponse, RoomResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
 
 function formatTime(iso: string): string {
@@ -33,6 +34,117 @@ interface WriteForm {
 
 const EMPTY_FORM: WriteForm = { title: '', content: '', visibility: 'ALL', hashtags: [], mediaUrls: [] }
 
+const MINIROOM_ASSET_ROOT = '/miniroom-assets'
+const MINIROOM_WIDTH = 750
+const MINIROOM_HEIGHT = 606
+
+function MiniroomFeedPreview({ room, nickname }: { room: RoomResponse | null; nickname?: string }) {
+  const backgroundUrl = room?.backgroundAssetUrl ?? `${MINIROOM_ASSET_ROOT}/rooms/room-pink.svg`
+  const savedItems = [...(room?.items ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)
+  const hasSavedItems = savedItems.length > 0
+  const avatar = room?.avatar
+  const hasRoomContent = hasSavedItems || Boolean(avatar?.avatarInventoryId)
+  const shouldShowFallbackItems = room == null
+
+  return (
+    <div className="relative w-full bg-[#dff6f4]" style={{ height: 280, overflow: 'hidden' }}>
+      <img
+        src={backgroundUrl}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ imageRendering: 'auto' }}
+      />
+
+      {hasRoomContent ? (
+        <>
+          {savedItems.map(item => (
+            <div
+              key={item.roomItemId}
+              className="absolute"
+              title={item.name}
+              style={{
+                left: `${(item.posX / MINIROOM_WIDTH) * 100}%`,
+                top: `${(item.posY / MINIROOM_HEIGHT) * 100}%`,
+                width: `${((item.assetWidth ?? 80) / MINIROOM_WIDTH) * 100}%`,
+                zIndex: item.sortOrder,
+                transform: `scale(${item.scale ?? 1}) rotate(${item.rotation ?? 0}deg)`,
+                transformOrigin: 'center bottom',
+                filter: 'drop-shadow(2px 5px 2px rgba(44, 58, 65, 0.16))',
+              }}
+            >
+              {item.assetUrl ? (
+                <img
+                  src={item.assetUrl}
+                  alt=""
+                  className="block w-full"
+                  style={{
+                    imageRendering: 'pixelated',
+                    transform: `scaleX(${item.flipped ? -1 : 1})`,
+                  }}
+                />
+              ) : (
+                <span className="material-symbols-outlined text-[#a33e00]" style={{ fontSize: 42, fontVariationSettings: "'FILL' 1" }}>
+                  {item.category === 'AVATAR' ? 'face' : 'inventory_2'}
+                </span>
+              )}
+            </div>
+          ))}
+          {avatar?.avatarInventoryId ? (
+            <div
+              className="absolute flex flex-col items-center"
+              style={{
+                left: `${((avatar.posX ?? 318) / MINIROOM_WIDTH) * 100}%`,
+                top: `${((avatar.posY ?? 438) / MINIROOM_HEIGHT) * 100}%`,
+                zIndex: 10000,
+                transform: `scale(${avatar.scale ?? 1})`,
+                transformOrigin: 'center bottom',
+              }}
+            >
+              <img
+                src={`${MINIROOM_ASSET_ROOT}/avatars-grafxkid/grafxkid_avatar_01.png`}
+                alt=""
+                style={{
+                  width: 36,
+                  imageRendering: 'pixelated',
+                  transform: `scaleX(${avatar.flipped ? -1 : 1})`,
+                }}
+              />
+            </div>
+          ) : null}
+        </>
+      ) : shouldShowFallbackItems ? (
+        <>
+          <div className="absolute" style={{ left: '50%', top: '52%', transform: 'translate(-50%, -50%)' }}>
+            <img
+              src={`${MINIROOM_ASSET_ROOT}/items/sofa_blue.png`}
+              alt=""
+              style={{ width: 126, imageRendering: 'pixelated' }}
+            />
+          </div>
+          <div className="absolute flex flex-col items-center" style={{ left: '43%', top: '48%' }}>
+            <img
+              src={`${MINIROOM_ASSET_ROOT}/avatars-grafxkid/grafxkid_avatar_01.png`}
+              alt=""
+              style={{ width: 36, imageRendering: 'pixelated' }}
+            />
+            <div style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid #ccc', padding: '1px 6px', fontSize: 9, fontFamily: 'Geist, monospace', marginTop: 2, whiteSpace: 'nowrap' }}>
+              {nickname ?? '미니미'}
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      <div className="absolute flex items-center gap-1" style={{ top: 6, left: 8, background: 'rgba(255,255,255,0.85)', border: '1px solid #ccc', padding: '2px 7px' }}>
+        <span style={{ fontSize: 10, fontFamily: 'Geist, monospace', color: '#5a4136' }}>TODAY <span style={{ color: '#ba1a1a', fontWeight: 700 }}>123</span> | TOTAL 45,678</span>
+      </div>
+      <div className="absolute flex items-center gap-1" style={{ top: 6, right: 8, background: 'rgba(255,255,255,0.85)', border: '1px solid #ccc', padding: '2px 7px' }}>
+        <span className="material-symbols-outlined text-[#a33e00]" style={{ fontSize: 11 }}>music_note</span>
+        <span style={{ fontSize: 10, fontFamily: 'Geist, monospace', color: '#5a4136' }}>프리스타일 - Y</span>
+      </div>
+    </div>
+  )
+}
+
 export default function FeedPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -62,6 +174,7 @@ export default function FeedPage() {
   const [searchCursor, setSearchCursor] = useState<number | undefined>(undefined)
   const [searchHasNext, setSearchHasNext] = useState(false)
   const [searchError, setSearchError] = useState(false)
+  const [roomPreview, setRoomPreview] = useState<RoomResponse | null>(null)
 
   // 다이어리 작성 모달
   const [showModal, setShowModal] = useState(false)
@@ -93,6 +206,26 @@ export default function FeedPage() {
   }, [])
 
   useEffect(() => { loadFeed() }, [loadFeed])
+
+  useEffect(() => {
+    if (!localStorage.getItem('accessToken')) {
+      setRoomPreview(null)
+      return
+    }
+
+    let ignore = false
+    roomApi.getMyRoom()
+      .then(response => {
+        if (!ignore) setRoomPreview(response.data.data)
+      })
+      .catch(() => {
+        if (!ignore) setRoomPreview(null)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [user?.id])
 
   const toggleLike = async (postId: number) => {
     if (pendingLikeIds.has(postId)) return
@@ -662,14 +795,15 @@ export default function FeedPage() {
             <div className="window-inset border border-[#8e7164] overflow-hidden bg-white flex flex-col">
               <div className="bg-[#baeaff] px-2 py-1 border-b border-[#8e7164] font-[Geist,monospace] text-[12px] font-semibold text-[#09657f] flex items-center gap-1">
                 <span className="material-symbols-outlined text-sm">house</span>
-                Miniroom
+                미니룸
                 <span className="text-[#5a4136] font-normal ml-1">· 프리스타일 - Y</span>
                 <button className="retro-btn font-[Geist,monospace] text-[11px] font-semibold px-2 py-1 ml-auto flex items-center gap-1"
                   onClick={() => navigate('/room')}>
                   <span className="material-symbols-outlined text-[13px]">edit</span> 꾸미기
                 </button>
               </div>
-              <div className="relative w-full" style={{ height: 280, overflow: 'hidden' }}>
+              <MiniroomFeedPreview room={roomPreview} nickname={user?.nickname} />
+              <div className="hidden">
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, #c8e6f5 0%, #d9eff8 58%, #c4a882 58%, #b8976e 100%)' }} />
                 <div className="absolute inset-0" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.15) 40px)', height: '58%', top: 0 }} />
                 <div className="absolute left-0 right-0" style={{ top: '58%', bottom: 0, backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 49px, rgba(0,0,0,0.08) 50px)' }} />
