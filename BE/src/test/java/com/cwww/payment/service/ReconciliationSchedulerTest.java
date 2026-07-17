@@ -93,6 +93,8 @@ class ReconciliationSchedulerTest {
         given(pgDone.getStatus()).willReturn("DONE");
         given(pgDone.getMethod()).willReturn("카드");
         given(pgDone.getTotalAmount()).willReturn(10_000);
+        given(pgDone.getPaymentKey()).willReturn(PG_TX_ID);   // 교차검증: paymentKey 일치
+        given(pgDone.getOrderId()).willReturn("uid-1");        // 교차검증: orderId 일치
 
         given(reconciliationTxHelper.claimNextJob()).willReturn(confirmJob).willReturn(null);
         given(paymentMapper.findOrderById(ORDER_ID)).willReturn(confirming);
@@ -105,6 +107,26 @@ class ReconciliationSchedulerTest {
         verify(paymentMapper, never()).findPgTxIdByOrderId(any());
         verify(paymentTxHelper).completeConfirm(confirming, PG_TX_ID, "카드", 10_000, "DONE");
         // completeConfirm 내부에서 markDoneByOrderAndOperation 호출됨 (별도 verify 불필요)
+    }
+
+    @Test
+    @DisplayName("CONFIRM_PG_DONE_교차검증실패_FAILED처리")
+    void confirm_PG_DONE_교차검증실패() {
+        // Arrange — PG 응답의 paymentKey가 잡에 저장된 값과 다름 (첫 번째 검증에서 즉시 실패)
+        TossPaymentResponse pgDone = mock(TossPaymentResponse.class);
+        given(pgDone.getStatus()).willReturn("DONE");
+        given(pgDone.getPaymentKey()).willReturn("other-pk");  // 불일치 → 여기서 검증 실패, 이후 필드 미조회
+
+        given(reconciliationTxHelper.claimNextJob()).willReturn(confirmJob).willReturn(null);
+        given(paymentMapper.findOrderById(ORDER_ID)).willReturn(confirming);
+        given(tossPaymentClient.getPayment(PG_TX_ID)).willReturn(pgDone);
+
+        // Act
+        scheduler.process();
+
+        // Assert: 교차검증 실패 → FAILED, completeConfirm 호출 안 됨
+        verify(reconciliationTxHelper).markFailed(eq(JOB_ID), eq(VERSION), contains("교차 검증 실패"));
+        verify(paymentTxHelper, never()).completeConfirm(any(), any(), any(), anyInt(), any());
     }
 
     @Test
@@ -167,7 +189,7 @@ class ReconciliationSchedulerTest {
     }
 
     @Test
-    @DisplayName("CANCEL_PG_PARTIAL_CANCELED_FAILED처리")
+    @DisplayName("CANCEL_PG_PARTIAL_CANCELED_FAILED처리_후_PAID복구")
     void cancel_PG_PARTIAL_CANCELED_FAILED() {
         // Arrange
         TossPaymentResponse pgPartial = mock(TossPaymentResponse.class);
@@ -181,9 +203,59 @@ class ReconciliationSchedulerTest {
         // Act
         scheduler.process();
 
-        // Assert: 부분 취소 미지원 → FAILED
+        // Assert: 부분 취소 미지원 → FAILED + PAID 복구 (예약금 해제, 주문 고착 방지)
+        // PARTIAL_CANCELED는 PG 상태가 명확하므로 자동 복구 안전
         verify(reconciliationTxHelper).markFailed(eq(JOB_ID), eq(VERSION), contains("PARTIAL_CANCELED"));
         verify(paymentTxHelper, never()).completeCancel(any());
+        verify(paymentTxHelper).recoverOrderToPaid(ORDER_ID);
+    }
+
+    @Test
+    @DisplayName("CANCEL_PG_PARTIAL_CANCELED_복구실패_예외무시_잡은FAILED유지")
+    void cancel_PG_PARTIAL_CANCELED_복구실패() {
+        // Arrange
+        TossPaymentResponse pgPartial = mock(TossPaymentResponse.class);
+        given(pgPartial.getStatus()).willReturn("PARTIAL_CANCELED");
+
+        given(reconciliationTxHelper.claimNextJob()).willReturn(cancelJob).willReturn(null);
+        given(paymentMapper.findOrderById(ORDER_ID)).willReturn(canceling);
+        given(paymentMapper.findPgTxIdByOrderId(ORDER_ID)).willReturn(PG_TX_ID);
+        given(tossPaymentClient.getPayment(PG_TX_ID)).willReturn(pgPartial);
+        doThrow(new RuntimeException("DB 오류")).when(paymentTxHelper).recoverOrderToPaid(ORDER_ID);
+
+        // Act — 복구 실패해도 예외가 전파되지 않아야 함
+        scheduler.process();
+
+        // Assert: 잡은 FAILED 상태로 유지됨 (markFailed는 복구 실패와 무관하게 호출됨)
+        verify(reconciliationTxHelper).markFailed(eq(JOB_ID), eq(VERSION), contains("PARTIAL_CANCELED"));
+        verify(paymentTxHelper).recoverOrderToPaid(ORDER_ID);
+    }
+
+    @Test
+    @DisplayName("CANCEL_최대재시도초과_PG불확실_PAID자동복구안함")
+    void cancel_최대재시도초과_불확실_자동복구없음() {
+        // Arrange — CANCEL 잡이 TossUncertainException으로 max retry 소진
+        ReconciliationJob exhaustedCancelJob = ReconciliationJob.builder()
+                .jobId(JOB_ID).orderId(ORDER_ID)
+                .operation(JobOperation.CANCEL.name())
+                .status(JobStatus.PROCESSING.name())
+                .retryCount(5).maxRetries(5)
+                .version(VERSION)
+                .nextAttemptAt(LocalDateTime.now().minusSeconds(10))
+                .build();
+
+        given(reconciliationTxHelper.claimNextJob()).willReturn(exhaustedCancelJob).willReturn(null);
+        given(paymentMapper.findOrderById(ORDER_ID)).willReturn(canceling);
+        given(paymentMapper.findPgTxIdByOrderId(ORDER_ID)).willReturn(PG_TX_ID);
+        given(tossPaymentClient.getPayment(PG_TX_ID))
+                .willThrow(new TossUncertainException("네트워크 타임아웃", null));
+
+        // Act
+        scheduler.process();
+
+        // Assert: PG 상태 불확실 → PAID 자동 복구 금지 (운영팀 수동 처리)
+        // PG가 실제로 취소 완료했을 수 있어 자동 복구 시 PG=CANCELED, DB=PAID 불일치 위험
+        verify(reconciliationTxHelper).markFailed(eq(JOB_ID), eq(VERSION), contains("최대 재시도 초과"));
         verify(paymentTxHelper, never()).recoverOrderToPaid(any());
     }
 

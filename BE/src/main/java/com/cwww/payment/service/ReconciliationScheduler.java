@@ -209,20 +209,13 @@ public class ReconciliationScheduler {
     private void reschedule(ReconciliationJob job, String error) {
         int newRetry = job.getRetryCount() + 1;
         if (newRetry > job.getMaxRetries()) {
-            log.error("보정 작업 최대 재시도 초과: jobId={}, lastError={}", job.getJobId(), error);
+            // 재시도 경로는 PG 상태가 불확실한 케이스 (TossUncertainException, 진행 중 상태 등)
+            // CANCEL 잡이라도 PG가 실제로 취소 완료했을 수 있으므로 자동 PAID 복구하지 않음
+            // → 복구 시 PG=CANCELED, DB=PAID 불일치 위험
+            // 운영팀이 PG 원장 대조 후 수동 처리해야 함
+            log.error("보정 작업 최대 재시도 초과 — 운영팀 수동 처리 필요: jobId={}, operation={}, orderId={}, lastError={}",
+                    job.getJobId(), job.getOperation(), job.getOrderId(), error);
             reconciliationTxHelper.markFailed(job.getJobId(), job.getVersion(), "최대 재시도 초과: " + error);
-            // CANCEL 잡 최대 재시도 초과 시 예약금 해제 + PAID 복구 (주문 고착 방지)
-            // CONFIRM 잡은 이중 충전 위험이 있으므로 자동 복구하지 않고 운영팀 확인 대상
-            if (JobOperation.CANCEL.name().equals(job.getOperation())) {
-                try {
-                    paymentTxHelper.recoverOrderToPaid(job.getOrderId());
-                    log.warn("CANCEL 잡 최대 재시도 초과 — PAID 복구 완료: jobId={}, orderId={}",
-                            job.getJobId(), job.getOrderId());
-                } catch (Exception e) {
-                    log.error("CANCEL 잡 최대 재시도 초과 — PAID 복구 실패: jobId={}, orderId={}",
-                            job.getJobId(), job.getOrderId(), e);
-                }
-            }
             return;
         }
         long backoffSec = Math.min((long) Math.pow(2, newRetry) * 30L, MAX_BACKOFF_SECONDS);
