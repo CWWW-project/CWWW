@@ -13,4 +13,15 @@ public interface ItemMapper {
     int countAll();
 
     Item findById(@Param("itemId") Long itemId);
+
+    List<Item> findByIds(@Param("itemIds") List<Long> itemIds);
+
+    /** 이미 보유한 아이템 ID 목록 반환 — 중복 구매 체크용 */
+    List<Long> findOwnedItemIds(@Param("userId") Long userId,
+                                @Param("itemIds") List<Long> itemIds);
+
+    /** 인벤토리 삽입 — uq_user_inventory_user_item 충돌 시 DO NOTHING */
+    void insertUserInventory(@Param("userId") Long userId, @Param("itemId") Long itemId);
+
+    List<Item> findUserInventory(@Param("userId") Long userId);
 }

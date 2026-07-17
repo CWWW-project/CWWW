@@ -7,4 +7,5 @@ import lombok.Getter;
 @Builder
 public class AcornBalanceResponse {
     private int balance;
+    private int availableBalance;
 }

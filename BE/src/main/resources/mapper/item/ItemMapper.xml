@@ -29,4 +29,41 @@
         FROM item
         WHERE item_id = #{itemId}
     </select>
+
+    <select id="findByIds" resultType="com.cwww.item.domain.Item">
+        SELECT item_id, category, name, description, price,
+               status, reject_reason, sales_count, creator_id,
+               created_at, updated_at
+        FROM item
+        WHERE item_id IN
+        <foreach item="id" collection="itemIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="findOwnedItemIds" resultType="long">
+        SELECT item_id
+        FROM user_inventory
+        WHERE user_id = #{userId}
+          AND item_id IN
+        <foreach item="id" collection="itemIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <insert id="insertUserInventory">
+        INSERT INTO user_inventory (user_id, item_id, acquired_at)
+        VALUES (#{userId}, #{itemId}, now())
+        ON CONFLICT (user_id, item_id) DO NOTHING
+    </insert>
+
+    <select id="findUserInventory" resultType="com.cwww.item.domain.Item">
+        SELECT i.item_id, i.category, i.name, i.description, i.price,
+               i.status, i.reject_reason, i.sales_count, i.creator_id,
+               i.created_at, i.updated_at
+        FROM user_inventory ui
+        JOIN item i ON ui.item_id = i.item_id
+        WHERE ui.user_id = #{userId}
+        ORDER BY ui.acquired_at DESC
+    </select>
 </mapper>

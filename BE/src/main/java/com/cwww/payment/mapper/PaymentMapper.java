@@ -82,4 +82,9 @@ public interface PaymentMapper {
     List<AcornHistoryResponse> findAcornHistory(@Param("userId") Long userId,
                                                 @Param("size") int size,
                                                 @Param("offset") long offset);
+
+    /** USE 원장 삽입 — 아이템 구매 (ref_id 없음, 단순 삽입) */
+    void insertAcornTransactionUse(@Param("userId") Long userId,
+                                   @Param("amount") int amount,
+                                   @Param("balanceAfter") int balanceAfter);
 }

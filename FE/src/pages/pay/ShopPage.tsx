@@ -1,66 +1,104 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { itemApi, type Item } from '../../api/item'
 
-interface CartItem {
-  id: number
-  name: string
-  price: number
+const CATEGORY_MAP: Record<string, string> = {
+  '전체': '전체',
+  '🎨 스킨': 'SKIN',
+  '🏠 미니룸': 'MINI_ROOM',
+  '🎵 BGM': 'BGM',
+  '🎁 아이템': 'ITEM',
+  '👤 미니미': 'MINI_ME',
 }
 
-interface ShopItem {
-  id: number
-  name: string
-  price: number
-  icon: string
-  iconColor: string
-  bg: string
-  category: string
-  badge?: string
-  badgeColor?: string
+const CATEGORIES = Object.keys(CATEGORY_MAP)
+
+const CATEGORY_ICON_MAP: Record<string, { icon: string; color: string }> = {
+  SKIN:      { icon: 'palette',    color: '#0c6780' },
+  MINI_ROOM: { icon: 'chair',      color: '#8B4513' },
+  BGM:       { icon: 'music_note', color: '#a33e00' },
+  ITEM:      { icon: 'favorite',   color: '#ba1a1a' },
+  MINI_ME:   { icon: 'face',       color: '#e91e63' },
 }
 
-const SHOP_ITEMS: ShopItem[] = [
-  { id: 1, name: '봄벚꽃 스킨', price: 500, icon: 'palette', iconColor: '#0c6780', bg: '#e8f4fb', category: '스킨', badge: 'NEW', badgeColor: '#ff6600' },
-  { id: 2, name: '클래식 소파', price: 300, icon: 'chair', iconColor: '#8B4513', bg: '#fff9e6', category: '미니룸', badge: '인기', badgeColor: '#0c6780' },
-  { id: 3, name: '프리스타일 - Y', price: 100, icon: 'music_note', iconColor: '#a33e00', bg: '#f0f8ff', category: 'BGM' },
-  { id: 4, name: '하트 이펙트', price: 200, icon: 'favorite', iconColor: '#ba1a1a', bg: '#fef3f3', category: '아이템' },
-  { id: 5, name: '레인보우 침대', price: 450, icon: 'bed', iconColor: '#7b3fe4', bg: '#f5f0ff', category: '미니룸' },
-  { id: 6, name: '자연 배경 스킨', price: 600, icon: 'forest', iconColor: '#2e7d32', bg: '#f0fff0', category: '스킨' },
-  { id: 7, name: '무드등 세트', price: 250, icon: 'light', iconColor: '#f59e0b', bg: '#fff8e1', category: '미니룸' },
-  { id: 8, name: '핑크 미니미 세트', price: 800, icon: 'face', iconColor: '#e91e63', bg: '#fce4ec', category: '미니미' },
-]
-
-const CATEGORIES = ['전체', '🎨 스킨', '🏠 미니룸', '🎵 BGM', '🎁 아이템', '👤 미니미']
+function getItemIcon(category: string) {
+  return CATEGORY_ICON_MAP[category] ?? { icon: 'category', color: '#5a4136' }
+}
 
 export default function ShopPage() {
   const [activeCategory, setActiveCategory] = useState('전체')
-  const [cart, setCart] = useState<CartItem[]>([{ id: 1, name: '봄벚꽃 스킨', price: 500 }])
-  const [nextId, setNextId] = useState(100)
+  const [items, setItems] = useState<Item[]>([])
+  const [inventory, setInventory] = useState<Set<number>>(new Set())
+  const [cart, setCart] = useState<Item[]>([])
+  const [acorns, setAcorns] = useState(0)
+  const [availableBalance, setAvailableBalance] = useState(0)
   const [showPayment, setShowPayment] = useState(false)
-  const [toast, setToast] = useState(false)
-  const [acorns] = useState(2400)
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+  const [purchasing, setPurchasing] = useState(false)
+  const [loadingItems, setLoadingItems] = useState(true)
+
+  useEffect(() => {
+    Promise.all([
+      itemApi.getItems(1, 50),
+      itemApi.getInventory(),
+      itemApi.getBalance(),
+    ]).then(([itemsRes, inventoryRes, balanceRes]) => {
+      setItems(itemsRes.data.data)
+      setInventory(new Set(inventoryRes.data.data.map(i => i.itemId)))
+      setAcorns(balanceRes.data.data.balance)
+      setAvailableBalance(balanceRes.data.data.availableBalance)
+    }).catch(() => {
+      showToast('error', '데이터를 불러오지 못했습니다.')
+    }).finally(() => {
+      setLoadingItems(false)
+    })
+  }, [])
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0)
 
-  const addCart = (e: React.MouseEvent, name: string, price: number) => {
+  const showToast = (type: 'success' | 'error', msg: string) => {
+    setToast({ type, msg })
+    setTimeout(() => setToast(null), 2500)
+  }
+
+  const addCart = (e: React.MouseEvent, item: Item) => {
     e.stopPropagation()
-    setCart(prev => [...prev, { id: nextId, name, price }])
-    setNextId(n => n + 1)
+    if (inventory.has(item.itemId)) return
+    if (cart.some(c => c.itemId === item.itemId)) return
+    setCart(prev => [...prev, item])
   }
 
-  const removeCart = (id: number) => {
-    setCart(prev => prev.filter(item => item.id !== id))
+  const removeCart = (itemId: number) => {
+    setCart(prev => prev.filter(item => item.itemId !== itemId))
   }
 
-  const confirmPayment = () => {
-    setShowPayment(false)
-    setCart([])
-    setToast(true)
-    setTimeout(() => setToast(false), 2500)
+  const confirmPayment = async () => {
+    if (cart.length === 0 || purchasing) return
+    setPurchasing(true)
+    try {
+      const res = await itemApi.purchaseItems(cart.map(i => i.itemId))
+      const result = res.data.data
+      setInventory(prev => {
+        const next = new Set(prev)
+        result.purchasedItems.forEach(i => next.add(i.itemId))
+        return next
+      })
+      setAcorns(result.balance)
+      setAvailableBalance(result.availableBalance)
+      setCart([])
+      setShowPayment(false)
+      showToast('success', `${result.purchasedItems.length}개 아이템 구매 완료!`)
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message ?? '구매에 실패했습니다.'
+      showToast('error', msg)
+    } finally {
+      setPurchasing(false)
+    }
   }
 
   const filtered = activeCategory === '전체'
-    ? SHOP_ITEMS
-    : SHOP_ITEMS.filter(item => activeCategory.includes(item.category) || item.category === activeCategory.replace(/^[^\s]+\s/, ''))
+    ? items
+    : items.filter(item => item.category === CATEGORY_MAP[activeCategory])
 
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
@@ -93,7 +131,7 @@ export default function ShopPage() {
                     내 도토리
                   </div>
                   <div className="window-frame px-2 py-1 font-bold text-[#a33e00] text-lg">
-                    {acorns.toLocaleString()} 개
+                    {availableBalance.toLocaleString()} 개
                   </div>
                   <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1">
                     <span className="material-symbols-outlined text-sm">add_circle</span> 충전
@@ -133,49 +171,58 @@ export default function ShopPage() {
 
               {/* 아이템 그리드 */}
               <div className="window-inset p-2">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                  {filtered.map(item => (
-                    <div
-                      key={item.id}
-                      className="item-card p-1 flex flex-col gap-1 cursor-pointer"
-                    >
-                      <div className="w-full aspect-square flex items-center justify-center border border-[#e3bfb1] relative"
-                        style={{ background: item.bg }}>
-                        <span className="material-symbols-outlined text-[40px]"
-                          style={{ fontVariationSettings: "'FILL' 1", color: item.iconColor }}>
-                          {item.icon}
-                        </span>
-                        {item.badge && (
-                          <div className="absolute top-0 right-0 text-white text-[9px] px-1"
-                            style={{ background: item.badgeColor, fontFamily: 'Geist, monospace' }}>
-                            {item.badge}
+                {loadingItems ? (
+                  <div className="text-center py-8 font-[Geist,monospace] text-[12px] text-[#5a4136]">
+                    불러오는 중...
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <div className="text-center py-8 font-[Geist,monospace] text-[12px] text-[#5a4136]">
+                    아이템이 없습니다.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    {filtered.map(item => {
+                      const { icon, color } = getItemIcon(item.category)
+                      const owned = inventory.has(item.itemId)
+                      const inCart = cart.some(c => c.itemId === item.itemId)
+                      return (
+                        <div
+                          key={item.itemId}
+                          className="item-card p-1 flex flex-col gap-1 cursor-pointer"
+                        >
+                          <div className="w-full aspect-square flex items-center justify-center border border-[#e3bfb1] relative"
+                            style={{ background: '#f5f0eb' }}>
+                            <span className="material-symbols-outlined text-[40px]"
+                              style={{ fontVariationSettings: "'FILL' 1", color }}>
+                              {icon}
+                            </span>
+                            {owned && (
+                              <div className="absolute top-0 right-0 text-white text-[9px] px-1"
+                                style={{ background: '#4caf50', fontFamily: 'Geist, monospace' }}>
+                                보유
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                      <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">{item.name}</div>
-                      <div className="flex items-center justify-between">
-                        <span className="acorn-badge">🌰 {item.price}</span>
-                        <span className="text-[10px] text-[#5a4136]" style={{ fontFamily: 'Geist, monospace' }}>{item.category}</span>
-                      </div>
-                      <div className="flex gap-1">
-                        <button className="retro-btn flex-1 font-[Geist,monospace] text-[10px] font-semibold py-1">미리보기</button>
-                        <button
-                          className="retro-btn retro-btn-primary flex-1 font-[Geist,monospace] text-[10px] font-semibold py-1"
-                          onClick={(e) => addCart(e, item.name, item.price)}
-                        >담기</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 페이지네이션 */}
-              <div className="flex items-center justify-center gap-1">
-                <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1">◀</button>
-                <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold px-2 py-1">1</button>
-                <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1">2</button>
-                <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1">3</button>
-                <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1">▶</button>
+                          <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">{item.name}</div>
+                          <div className="flex items-center justify-between">
+                            <span className="acorn-badge">🌰 {item.price}</span>
+                            <span className="text-[10px] text-[#5a4136]" style={{ fontFamily: 'Geist, monospace' }}>{item.category}</span>
+                          </div>
+                          <div className="flex gap-1">
+                            <button className="retro-btn flex-1 font-[Geist,monospace] text-[10px] font-semibold py-1">미리보기</button>
+                            <button
+                              className={`retro-btn flex-1 font-[Geist,monospace] text-[10px] font-semibold py-1${owned || inCart ? '' : ' retro-btn-primary'}`}
+                              onClick={(e) => addCart(e, item)}
+                              disabled={owned || inCart}
+                            >
+                              {owned ? '보유중' : inCart ? '담김' : '담기'}
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -190,12 +237,12 @@ export default function ShopPage() {
                 </div>
                 <div className="p-2 flex flex-col gap-1">
                   {cart.map(item => (
-                    <div key={item.id} className="cart-item flex items-center justify-between pb-1">
+                    <div key={item.itemId} className="cart-item flex items-center justify-between pb-1">
                       <div className="flex flex-col">
                         <span className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">{item.name}</span>
                         <span className="acorn-badge mt-1" style={{ display: 'inline-block', width: 'fit-content' }}>🌰 {item.price}</span>
                       </div>
-                      <button className="retro-btn px-1 py-1 text-[10px]" onClick={() => removeCart(item.id)}>✕</button>
+                      <button className="retro-btn px-1 py-1 text-[10px]" onClick={() => removeCart(item.itemId)}>✕</button>
                     </div>
                   ))}
                   {cart.length === 0 && (
@@ -229,20 +276,23 @@ export default function ShopPage() {
               <div className="window-frame flex flex-col">
                 <div className="retro-title-bar">
                   <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>inventory_2</span>
-                  보유 아이템
+                  보유 아이템 ({inventory.size})
                 </div>
-                <div className="p-2 flex flex-col gap-1">
-                  {[
-                    { icon: 'music_note', color: '#0c6780', name: 'Y (Please Tell Me Why)', cat: 'BGM' },
-                    { icon: 'chair', color: '#a33e00', name: '나무 책상', cat: '미니룸' },
-                    { icon: 'palette', color: '#e91e63', name: '블루 기본 스킨', cat: '스킨' },
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center gap-1 py-1 border-b border-[#e3bfb1] last:border-0">
-                      <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1", color: item.color }}>{item.icon}</span>
-                      <span className="font-[Geist,monospace] text-[12px] text-[#1a1c1c] flex-1">{item.name}</span>
-                      <span className="text-[10px] text-[#5a4136]" style={{ fontFamily: 'Geist, monospace' }}>{item.cat}</span>
-                    </div>
-                  ))}
+                <div className="p-2 flex flex-col gap-1 max-h-48 overflow-y-auto">
+                  {items.filter(i => inventory.has(i.itemId)).length === 0 ? (
+                    <p className="text-[12px] text-[#5a4136] text-center py-2" style={{ fontFamily: 'Geist, monospace' }}>보유한 아이템이 없습니다</p>
+                  ) : (
+                    items.filter(i => inventory.has(i.itemId)).map(item => {
+                      const { icon, color } = getItemIcon(item.category)
+                      return (
+                        <div key={item.itemId} className="flex items-center gap-1 py-1 border-b border-[#e3bfb1] last:border-0">
+                          <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1", color }}>{icon}</span>
+                          <span className="font-[Geist,monospace] text-[12px] text-[#1a1c1c] flex-1 truncate">{item.name}</span>
+                          <span className="text-[10px] text-[#5a4136]" style={{ fontFamily: 'Geist, monospace' }}>{item.category}</span>
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
               </div>
 
@@ -296,8 +346,8 @@ export default function ShopPage() {
             <div className="p-4 flex flex-col gap-2">
               <div className="window-inset p-2">
                 <div className="flex justify-between font-[Geist,monospace] text-[12px] mb-1">
-                  <span className="text-[#5a4136]">보유 도토리</span>
-                  <span className="font-bold text-[#0c6780]">🌰 {acorns.toLocaleString()}</span>
+                  <span className="text-[#5a4136]">사용 가능 도토리</span>
+                  <span className="font-bold text-[#0c6780]">🌰 {availableBalance.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between font-[Geist,monospace] text-[12px] mb-1">
                   <span className="text-[#5a4136]">결제 금액</span>
@@ -305,15 +355,28 @@ export default function ShopPage() {
                 </div>
                 <div className="border-t border-[#e3bfb1] pt-1 flex justify-between font-[Geist,monospace] text-[12px]">
                   <span className="text-[#5a4136]">결제 후 잔액</span>
-                  <span className="font-bold text-[#1a1c1c]">🌰 {(acorns - cartTotal).toLocaleString()}</span>
+                  <span className={`font-bold ${availableBalance - cartTotal < 0 ? 'text-[#ba1a1a]' : 'text-[#1a1c1c]'}`}>
+                    🌰 {(availableBalance - cartTotal).toLocaleString()}
+                  </span>
                 </div>
               </div>
+              {availableBalance < cartTotal && (
+                <div className="text-[12px] text-[#ba1a1a] text-center font-[Geist,monospace]">
+                  도토리가 부족합니다. 충전 후 다시 시도하세요.
+                </div>
+              )}
               <div className="text-[14px] text-[#5a4136] text-center">
                 {cart.length}개 아이템을 구매합니다.<br />도토리로 결제하시겠습니까?
               </div>
               <div className="flex gap-2">
                 <button className="retro-btn flex-1 font-[Geist,monospace] text-[12px] font-semibold py-2" onClick={() => setShowPayment(false)}>취소</button>
-                <button className="retro-btn retro-btn-primary flex-1 font-[Geist,monospace] text-[12px] font-semibold py-2" onClick={confirmPayment}>결제하기</button>
+                <button
+                  className="retro-btn retro-btn-primary flex-1 font-[Geist,monospace] text-[12px] font-semibold py-2"
+                  onClick={confirmPayment}
+                  disabled={purchasing || availableBalance < cartTotal}
+                >
+                  {purchasing ? '처리 중...' : '결제하기'}
+                </button>
               </div>
             </div>
           </div>
@@ -323,8 +386,10 @@ export default function ShopPage() {
       {/* 토스트 */}
       {toast && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] window-frame px-4 py-2 font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c] flex items-center gap-1">
-          <span className="material-symbols-outlined text-base text-[#0c6780]">check_circle</span>
-          구매가 완료되었습니다!
+          <span className={`material-symbols-outlined text-base ${toast.type === 'success' ? 'text-[#0c6780]' : 'text-[#ba1a1a]'}`}>
+            {toast.type === 'success' ? 'check_circle' : 'error'}
+          </span>
+          {toast.msg}
         </div>
       )}
     </div>

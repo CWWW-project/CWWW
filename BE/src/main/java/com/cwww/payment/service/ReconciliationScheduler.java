@@ -114,6 +114,12 @@ public class ReconciliationScheduler {
                                    String pgTxId, TossPaymentResponse pgState) {
         switch (pgState.getStatus()) {
             case "DONE" -> {
+                // P2: PG 교차 검증 — 잘못 저장된 paymentKey·금액 불일치로 인한 오충전 방지
+                if (!isConfirmPgStateValid(job, order, pgTxId, pgState)) {
+                    reconciliationTxHelper.markFailed(job.getJobId(), job.getVersion(),
+                            "PG 응답 교차 검증 실패 — 운영팀 확인 필요");
+                    return;
+                }
                 try {
                     paymentTxHelper.completeConfirm(
                             order, pgTxId, pgState.getMethod(),
@@ -134,6 +140,30 @@ public class ReconciliationScheduler {
         }
     }
 
+    /**
+     * P2: CONFIRM 보정 시 PG 응답 교차 검증
+     * paymentKey·orderId·금액 불일치 시 자동 충전하지 않고 FAILED 처리
+     */
+    private boolean isConfirmPgStateValid(ReconciliationJob job, Order order,
+                                           String pgTxId, TossPaymentResponse pgState) {
+        if (!pgTxId.equals(pgState.getPaymentKey())) {
+            log.error("보정 CONFIRM 교차 검증 실패 — paymentKey 불일치: jobId={}, expected={}, actual={}",
+                    job.getJobId(), pgTxId, pgState.getPaymentKey());
+            return false;
+        }
+        if (!order.getOrderUid().equals(pgState.getOrderId())) {
+            log.error("보정 CONFIRM 교차 검증 실패 — orderId 불일치: jobId={}, expected={}, actual={}",
+                    job.getJobId(), order.getOrderUid(), pgState.getOrderId());
+            return false;
+        }
+        if (order.getPrice() != pgState.getTotalAmount()) {
+            log.error("보정 CONFIRM 교차 검증 실패 — 금액 불일치: jobId={}, expected={}, actual={}",
+                    job.getJobId(), order.getPrice(), pgState.getTotalAmount());
+            return false;
+        }
+        return true;
+    }
+
     private void handleCancelJob(ReconciliationJob job, TossPaymentResponse pgState) {
         switch (pgState.getStatus()) {
             case "CANCELED" -> {
@@ -147,11 +177,17 @@ public class ReconciliationScheduler {
                 }
             }
             case "PARTIAL_CANCELED" -> {
-                // 부분 취소는 현재 서비스에서 미지원 — 운영팀 수동 처리 대상
+                // P2: 부분 취소는 미지원 — 운영팀 수동 처리 대상
+                // 예약금은 해제하고 PAID로 복구하여 주문 고착 방지
                 log.error("보정 CANCEL PARTIAL_CANCELED 미지원 — 운영팀 확인 필요: jobId={}, orderId={}",
                         job.getJobId(), job.getOrderId());
                 reconciliationTxHelper.markFailed(job.getJobId(), job.getVersion(),
                         "PARTIAL_CANCELED 미지원 — 운영팀 확인 필요");
+                try {
+                    paymentTxHelper.recoverOrderToPaid(job.getOrderId());
+                } catch (Exception e) {
+                    log.error("PARTIAL_CANCELED PAID 복구 실패 — 예약금 수동 해제 필요: jobId={}", job.getJobId(), e);
+                }
             }
             case "DONE" -> {
                 // 취소 명시 거절 (PG는 여전히 DONE) → PAID 복구
@@ -175,6 +211,18 @@ public class ReconciliationScheduler {
         if (newRetry > job.getMaxRetries()) {
             log.error("보정 작업 최대 재시도 초과: jobId={}, lastError={}", job.getJobId(), error);
             reconciliationTxHelper.markFailed(job.getJobId(), job.getVersion(), "최대 재시도 초과: " + error);
+            // CANCEL 잡 최대 재시도 초과 시 예약금 해제 + PAID 복구 (주문 고착 방지)
+            // CONFIRM 잡은 이중 충전 위험이 있으므로 자동 복구하지 않고 운영팀 확인 대상
+            if (JobOperation.CANCEL.name().equals(job.getOperation())) {
+                try {
+                    paymentTxHelper.recoverOrderToPaid(job.getOrderId());
+                    log.warn("CANCEL 잡 최대 재시도 초과 — PAID 복구 완료: jobId={}, orderId={}",
+                            job.getJobId(), job.getOrderId());
+                } catch (Exception e) {
+                    log.error("CANCEL 잡 최대 재시도 초과 — PAID 복구 실패: jobId={}, orderId={}",
+                            job.getJobId(), job.getOrderId(), e);
+                }
+            }
             return;
         }
         long backoffSec = Math.min((long) Math.pow(2, newRetry) * 30L, MAX_BACKOFF_SECONDS);
