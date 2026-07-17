@@ -80,4 +80,10 @@
 		WHERE user_id = #{userId}
 	</update>
 
+
+	<!-- 미니홈피 존재 확인 + 행 잠금 (동시 배경 전환 요청이 서로 겹치지 않도록 직렬화) -->
+	<select id="lockMinihompyByUserId" resultType="Long">
+		SELECT minihompy_id FROM minihompy WHERE user_id = #{userId} FOR UPDATE
+	</select>
+
 </mapper>

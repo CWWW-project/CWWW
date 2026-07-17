@@ -48,6 +48,11 @@ public class BackgroundService {
     @Transactional
     public BackgroundResponse applyDotBackground(Long userId, String code) {
 
+        // 존재 확인 + 행 잠금 (동시에 사진 업로드 요청이 들어와도 이 트랜잭션 끝날 때까지 대기하게 함)
+        if (minihompyMapper.lockMinihompyByUserId(userId) == null) {
+            throw new BusinessException(ErrorCode.MINIHOMPY_NOT_FOUND);
+        }
+
         // 색상 코드 받아서 일치하는 코드가 있는지 확인
         BackgroundDotOption option = BackgroundDotOption.fromCode(code);
 
@@ -75,6 +80,11 @@ public class BackgroundService {
     // 사진 배경 업로드 (공용 StorageService 사용)
     @Transactional
     public BackgroundResponse uploadPhotoBackground(Long userId, MultipartFile file) {
+
+        // 존재 확인 + 행 잠금 (동시에 도트 적용 요청이 들어와도 이 트랜잭션 끝날 때까지 대기하게 함)
+        if (minihompyMapper.lockMinihompyByUserId(userId) == null) {
+            throw new BusinessException(ErrorCode.MINIHOMPY_NOT_FOUND);
+        }
 
         // 검증 -> 저장소 업로드 -> media 테이블 upsert까지 MediaUpsertHelper가 전부 처리
         String imageUrl = mediaUpsertHelper.upload(Media.TargetType.BACKGROUND, userId, file);

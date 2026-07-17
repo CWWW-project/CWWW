@@ -6,9 +6,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.io.InputStream;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 
@@ -21,6 +23,9 @@ public class ImageValidator {
 
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
     private static final List<String> ALLOWED_EXTENSIONS = List.of("jpg", "jpeg", "png");
+
+    // 압축 폭탄 방지 - 작은 파일이 디코딩 시 거대한 래스터로 부풀려지는 것을 막기 위한 최대 픽셀 수 (약 2000x2000)
+    private static final long MAX_PIXELS = 4_000_000L;
 
     public void validateImageFile(MultipartFile file) {
 
@@ -51,23 +56,66 @@ public class ImageValidator {
             throw new BusinessException(ErrorCode.INVALID_FILE_EXTENSION);
         }
 
-        // 확장자만 바꿔치기한 위장 파일 방지 - 실제로 이미지로 디코딩 가능한지 확인
-        BufferedImage image;
+        /*
+         * 확장자만 바꿔치기한 위장 파일 방지 + 압축 폭탄 방지
+         * ImageIO.read()로 바로 전체 디코딩하면, 작은 압축 파일이 거대한 픽셀로 풀리면서
+         * 서버 메모리(힙)를 소진시킬 수 있음(압축 폭탄).
+         * 그래서 ImageReader로 가로/세로만 먼저 가볍게 읽어서 픽셀 수를 검증한 뒤,
+         * 문제없을 때만 실제 전체 디코딩(read)을 진행함
+         */
+        try(ImageInputStream iis = ImageIO.createImageInputStream(file.getInputStream())) {
 
-        try (InputStream inputStream = file.getInputStream()) {
+            // 이미지 파일을 읽을 준비 자체가 안 되는 경우 (파일이 심각하게 손상됐거나 형식이 이상함)
+            if(iis == null) {
+                throw new BusinessException(ErrorCode.INVALID_FILE_EXTENSION);
+            }
+
             /*
-             * 진짜 이미지로 해석할 수 있는지 시도
-             * - 진짜 이미지 파일이면 내용을 성공적으로 해석해서 BufferedImage 반환
-             * - 가짜일 경우 해석 실패로 null 반환
+             * ImageReader = "이미지 해석 전문가" 같은 존재.
+             * jpg/png 등 형식에 맞는 해석기를 자동으로 찾아줌.
+             * getImageReaders()는 "이 파일을 해석할 수 있는 후보들"을 리스트로 돌려줌.
              */
-            image = ImageIO.read(inputStream);
-        } catch (IOException e) {
-            // 파일을 읽는 과정 자체에서 문제가 생길 경우
-            throw new BusinessException(ErrorCode.INVALID_FILE_EXTENSION);
-        }
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
 
-        // 파일명은 .jpg(이미지 확장자)인데 내용은 진짜 이미지가 아닌 경우
-        if(image == null) {
+            if(!readers.hasNext()) {
+                // 이미지로 해석할 수 있는 리더가 없음 = 진짜 이미지가 아님
+                throw new BusinessException(ErrorCode.INVALID_FILE_EXTENSION);
+            }
+
+            // 후보들 중 첫 번째 리더를 사용
+            ImageReader reader = readers.next();
+
+            try {
+
+                // 이 리더한테 "이 파일을 읽을 준비를 해라"고 지정해줌
+                reader.setInput(iis, true, true);
+
+                // 가로/세로만 먼저 읽음 (대부분의 포맷에서 전체 픽셀 디코딩 없이 헤더만으로 가능)
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+
+                // 가로 X 세로 = 총 픽셀 수. int끼리 곱하면 숫자가 넘칠 수 있어서 long으로 계산
+                long pixels = (long) width * (long) height;
+
+                // 정해둔 한도(약 2000x2000 = 400만 픽셀)보다 크면, 더 이상 진행하지 않고 바로 거부
+                if(pixels > MAX_PIXELS) {
+                    throw new BusinessException(ErrorCode.IMAGE_DIMENSION_EXCEEDED);
+                }
+
+                // 픽셀 수 검증 통과했을 때만 실제 전체 디코딩 (진짜 이미지인지 최종 확인)
+                BufferedImage image = reader.read(0);
+
+                if(image == null) {
+                    throw new BusinessException(ErrorCode.INVALID_FILE_EXTENSION);
+                }
+
+            } finally {
+                // 리더가 쓰던 내부 자원을 정리 (안 하면 메모리 누수 발생 가능)
+                reader.dispose();
+            }
+
+        } catch(IOException e) {
+            // 파일을 읽는 과정 자체에서 예상 못한 문제가 생긴 경우
             throw new BusinessException(ErrorCode.INVALID_FILE_EXTENSION);
         }
 

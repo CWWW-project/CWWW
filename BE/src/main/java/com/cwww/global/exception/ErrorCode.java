@@ -68,6 +68,9 @@ public enum ErrorCode {
     // Bgm
     BGM_NOT_OWNED(HttpStatus.FORBIDDEN, "H006", "보유하지 않은 BGM입니다."),
 
+    // Minihompy-Image
+    IMAGE_DIMENSION_EXCEEDED(HttpStatus.BAD_REQUEST, "H007", "이미지 해상도가 너무 큽니다."),
+
     // Item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "I001", "아이템을 찾을 수 없습니다."),
 
