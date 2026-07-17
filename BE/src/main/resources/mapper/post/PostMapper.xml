@@ -18,7 +18,7 @@
     </select>
 
     <update id="incrementViewCount">
-        UPDATE post SET view_count = view_count + 1 WHERE post_id = #{postId}
+        UPDATE post SET view_count = view_count + 1 WHERE post_id = #{postId} AND deleted_at IS NULL
     </update>
 
     <update id="update">
@@ -62,7 +62,7 @@
             <![CDATA[AND p.post_id < #{cursor}]]>
           </if>
         ORDER BY p.post_id DESC
-        LIMIT #{size} + 1
+        LIMIT #{size}
     </select>
 
     <update id="incrementLikeCount">

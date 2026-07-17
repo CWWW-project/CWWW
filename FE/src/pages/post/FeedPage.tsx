@@ -107,6 +107,7 @@ export default function FeedPage() {
       const updater = (p: PostResponse) => p.postId === postId ? { ...p, likeCount: p.likeCount + delta } : p
       setPosts(prev => prev.map(updater))
       setSearchPosts(prev => prev.map(updater))
+      setBookmarkPosts(prev => prev.map(updater))
     }
     applyLikeCount(liked ? -1 : 1)
     try {
@@ -148,6 +149,8 @@ export default function FeedPage() {
   const addTag = () => {
     const tag = tagInput.trim().replace(/^#/, '')
     if (!tag || form.hashtags.includes(tag)) { setTagInput(''); return }
+    if (tag.length > 50) { setTagInput(''); return }
+    if (form.hashtags.length >= 30) { setTagInput(''); return }
     setForm(prev => ({ ...prev, hashtags: [...prev.hashtags, tag] }))
     setTagInput('')
   }
@@ -235,10 +238,17 @@ export default function FeedPage() {
       bookmarked ? next.delete(postId) : next.add(postId)
       return next
     })
+    // unbookmark 시 목록에서 즉시 제거 (낙관적 업데이트), 실패 시 복구
+    let removedPost: PostResponse | undefined
+    if (bookmarked) {
+      setBookmarkPosts(prev => {
+        removedPost = prev.find(p => p.postId === postId)
+        return prev.filter(p => p.postId !== postId)
+      })
+    }
     try {
       if (bookmarked) {
         await postApi.unbookmark(postId)
-        setBookmarkPosts(prev => prev.filter(p => p.postId !== postId))
       } else {
         await postApi.bookmark(postId)
       }
@@ -248,6 +258,13 @@ export default function FeedPage() {
         bookmarked ? next.add(postId) : next.delete(postId)
         return next
       })
+      if (bookmarked && removedPost) {
+        setBookmarkPosts(prev => {
+          const idx = prev.findIndex(p => p.postId < postId)
+          if (idx === -1) return [...prev, removedPost!]
+          return [...prev.slice(0, idx), removedPost!, ...prev.slice(idx)]
+        })
+      }
     } finally {
       setPendingBookmarkIds(prev => { const next = new Set(prev); next.delete(postId); return next })
     }
@@ -284,6 +301,7 @@ export default function FeedPage() {
       const incComment = (p: PostResponse) => p.postId === postId ? { ...p, commentCount: p.commentCount + 1 } : p
       setPosts(prev => prev.map(incComment))
       setSearchPosts(prev => prev.map(incComment))
+      setBookmarkPosts(prev => prev.map(incComment))
       try {
         const res = await commentApi.getComments(postId)
         setPostComments(prev => ({ ...prev, [postId]: res.data.data }))
@@ -307,6 +325,7 @@ export default function FeedPage() {
       const decComment = (p: PostResponse) => p.postId === postId ? { ...p, commentCount: Math.max(0, p.commentCount - 1) } : p
       setPosts(prev => prev.map(decComment))
       setSearchPosts(prev => prev.map(decComment))
+      setBookmarkPosts(prev => prev.map(decComment))
     } catch {
       // 조용히 실패
     }
@@ -357,6 +376,7 @@ export default function FeedPage() {
   }
 
   const filteredPosts = posts.filter(p => {
+    if (filter === '일촌만') return p.userId !== user?.id
     if (filter === '사진만') return p.mediaUrls.length > 0
     return true
   })
