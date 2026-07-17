@@ -87,6 +87,19 @@ public class ImageValidator {
 
             try {
 
+                // 실제 이미지 포맷(png/jpg)이 맞는지 확인 (다른 이미지 포맷으로 위장한 경우 차단)
+                String formatName = reader.getFormatName().toLowerCase(Locale.ROOT);
+                boolean formatMatchesExtension = switch(ext) {
+                    case "png" -> formatName.contains("png");
+                    case "jpg", "jpeg" -> formatName.contains("jpeg") || formatName.contains("jpg");
+                    default -> false;
+                };
+
+                // 실제 이미지 포맷(png/jpg)이 아닌 경우
+                if (!formatMatchesExtension) {
+                    throw new BusinessException(ErrorCode.INVALID_FILE_EXTENSION);
+                }
+
                 // 이 리더한테 "이 파일을 읽을 준비를 해라"고 지정해줌
                 reader.setInput(iis, true, true);
 
