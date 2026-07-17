@@ -26,6 +26,8 @@ public class MinihompyMainResponse {
 	private Minihompy.AccessLevel accessLevel; // 공개 범위 (ALL/FRIEND/PRIVATE)
 	private LocalDateTime createdAt;
 	private String bgmUrl;
+	private String backgroundColor;      // 도트 배경 색상 hex (사진 쓰면 null)
+	private String backgroundImageUrl;   // 업로드한 배경 사진 URL (색상 쓰면 null)
 
 	private VisitorCount visitorCount; // 방문자 수 (Today/Total)
 

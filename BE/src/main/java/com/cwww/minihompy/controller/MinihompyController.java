@@ -49,7 +49,7 @@ public class MinihompyController {
 	}
 
 	// 프로필 사진 업로드/변경 (있으면 교체, 없으면 생성)
-	@PutMapping("/profile-image")
+	@PutMapping(value ="/profile-image", consumes = "multipart/form-data")
 	public ApiResponse<ProfileImageResponse> uploadProfileImage(
 			@AuthenticationPrincipal Long userId,
 			@RequestParam("file")MultipartFile file
