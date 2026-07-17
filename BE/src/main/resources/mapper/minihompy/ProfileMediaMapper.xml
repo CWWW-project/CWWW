@@ -23,6 +23,7 @@
         FROM media
         WHERE target_type = #{targetType}
         AND target_id = #{targetId}
+        AND deleted_at IS NULL
     </select>
 
 
