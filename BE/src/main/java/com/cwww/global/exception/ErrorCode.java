@@ -79,7 +79,10 @@ public enum ErrorCode {
 
     PAYMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "PAY005", "결제 정보를 찾을 수 없습니다."),
     CANCEL_NOT_ALLOWED(HttpStatus.CONFLICT, "PAY006", "취소할 수 없는 주문 상태입니다."),
-    REFUND_INSUFFICIENT_BALANCE(HttpStatus.CONFLICT, "PAY007", "도토리 잔액이 부족하여 환불할 수 없습니다.");
+    REFUND_INSUFFICIENT_BALANCE(HttpStatus.CONFLICT, "PAY007", "도토리 잔액이 부족하여 환불할 수 없습니다."),
+    PAYMENT_CANCEL_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "PAY008", "결제 취소에 실패했습니다. 잠시 후 자동으로 처리됩니다."),
+    PAYMENT_PG_REJECTED(HttpStatus.BAD_REQUEST, "PAY009", "PG사에서 결제를 거절했습니다."),
+    ORDER_IN_PROGRESS(HttpStatus.CONFLICT, "PAY010", "처리 중인 주문입니다. 잠시 후 다시 시도해주세요.");
 
 
     private final HttpStatus httpStatus;
