@@ -114,6 +114,12 @@ public class ReconciliationScheduler {
                                    String pgTxId, TossPaymentResponse pgState) {
         switch (pgState.getStatus()) {
             case "DONE" -> {
+                // P2: PG 교차 검증 — 잘못 저장된 paymentKey·금액 불일치로 인한 오충전 방지
+                if (!isConfirmPgStateValid(job, order, pgTxId, pgState)) {
+                    reconciliationTxHelper.markFailed(job.getJobId(), job.getVersion(),
+                            "PG 응답 교차 검증 실패 — 운영팀 확인 필요");
+                    return;
+                }
                 try {
                     paymentTxHelper.completeConfirm(
                             order, pgTxId, pgState.getMethod(),
@@ -134,6 +140,30 @@ public class ReconciliationScheduler {
         }
     }
 
+    /**
+     * P2: CONFIRM 보정 시 PG 응답 교차 검증
+     * paymentKey·orderId·금액 불일치 시 자동 충전하지 않고 FAILED 처리
+     */
+    private boolean isConfirmPgStateValid(ReconciliationJob job, Order order,
+                                           String pgTxId, TossPaymentResponse pgState) {
+        if (!pgTxId.equals(pgState.getPaymentKey())) {
+            log.error("보정 CONFIRM 교차 검증 실패 — paymentKey 불일치: jobId={}, expected={}, actual={}",
+                    job.getJobId(), pgTxId, pgState.getPaymentKey());
+            return false;
+        }
+        if (!order.getOrderUid().equals(pgState.getOrderId())) {
+            log.error("보정 CONFIRM 교차 검증 실패 — orderId 불일치: jobId={}, expected={}, actual={}",
+                    job.getJobId(), order.getOrderUid(), pgState.getOrderId());
+            return false;
+        }
+        if (order.getPrice() != pgState.getTotalAmount()) {
+            log.error("보정 CONFIRM 교차 검증 실패 — 금액 불일치: jobId={}, expected={}, actual={}",
+                    job.getJobId(), order.getPrice(), pgState.getTotalAmount());
+            return false;
+        }
+        return true;
+    }
+
     private void handleCancelJob(ReconciliationJob job, TossPaymentResponse pgState) {
         switch (pgState.getStatus()) {
             case "CANCELED" -> {
@@ -147,11 +177,17 @@ public class ReconciliationScheduler {
                 }
             }
             case "PARTIAL_CANCELED" -> {
-                // 부분 취소는 현재 서비스에서 미지원 — 운영팀 수동 처리 대상
+                // P2: 부분 취소는 미지원 — 운영팀 수동 처리 대상
+                // 예약금은 해제하고 PAID로 복구하여 주문 고착 방지
                 log.error("보정 CANCEL PARTIAL_CANCELED 미지원 — 운영팀 확인 필요: jobId={}, orderId={}",
                         job.getJobId(), job.getOrderId());
                 reconciliationTxHelper.markFailed(job.getJobId(), job.getVersion(),
                         "PARTIAL_CANCELED 미지원 — 운영팀 확인 필요");
+                try {
+                    paymentTxHelper.recoverOrderToPaid(job.getOrderId());
+                } catch (Exception e) {
+                    log.error("PARTIAL_CANCELED PAID 복구 실패 — 예약금 수동 해제 필요: jobId={}", job.getJobId(), e);
+                }
             }
             case "DONE" -> {
                 // 취소 명시 거절 (PG는 여전히 DONE) → PAID 복구
@@ -173,7 +209,12 @@ public class ReconciliationScheduler {
     private void reschedule(ReconciliationJob job, String error) {
         int newRetry = job.getRetryCount() + 1;
         if (newRetry > job.getMaxRetries()) {
-            log.error("보정 작업 최대 재시도 초과: jobId={}, lastError={}", job.getJobId(), error);
+            // 재시도 경로는 PG 상태가 불확실한 케이스 (TossUncertainException, 진행 중 상태 등)
+            // CANCEL 잡이라도 PG가 실제로 취소 완료했을 수 있으므로 자동 PAID 복구하지 않음
+            // → 복구 시 PG=CANCELED, DB=PAID 불일치 위험
+            // 운영팀이 PG 원장 대조 후 수동 처리해야 함
+            log.error("보정 작업 최대 재시도 초과 — 운영팀 수동 처리 필요: jobId={}, operation={}, orderId={}, lastError={}",
+                    job.getJobId(), job.getOperation(), job.getOrderId(), error);
             reconciliationTxHelper.markFailed(job.getJobId(), job.getVersion(), "최대 재시도 초과: " + error);
             return;
         }
