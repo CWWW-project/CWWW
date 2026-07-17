@@ -64,7 +64,7 @@ public class PostController {
             @AuthenticationPrincipal Long userId,
             @PathVariable Long postId) {
         postService.deletePost(userId, postId);
-        return ResponseEntity.ok(ApiResponse.success(null));
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/feed")
@@ -85,19 +85,20 @@ public class PostController {
     }
 
     @DeleteMapping("/{postId}/like")
-    public ResponseEntity<ApiResponse<Void>> unlikePost(
+    public ResponseEntity<Void> unlikePost(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long postId) {
         postService.unlikePost(userId, postId);
-        return ResponseEntity.ok(ApiResponse.success(null));
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<FeedResponse>> searchByHashtag(
+            @AuthenticationPrincipal Long userId,
             @RequestParam @NotBlank String tag,
             @RequestParam(required = false) Long cursor,
             @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size) {
-        FeedResponse response = postService.searchByHashtag(tag, cursor, size);
+        FeedResponse response = postService.searchByHashtag(userId, tag, cursor, size);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

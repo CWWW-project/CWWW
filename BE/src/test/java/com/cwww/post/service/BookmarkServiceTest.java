@@ -7,6 +7,7 @@ import com.cwww.post.dto.FeedResponse;
 import com.cwww.post.mapper.BookmarkMapper;
 import com.cwww.post.mapper.HashtagMapper;
 import com.cwww.post.mapper.MediaMapper;
+import com.cwww.post.mapper.PostLikeMapper;
 import com.cwww.post.mapper.PostMapper;
 import com.cwww.user.domain.User;
 import com.cwww.user.mapper.UserMapper;
@@ -36,6 +37,7 @@ class BookmarkServiceTest {
     @Mock private UserMapper userMapper;
     @Mock private HashtagMapper hashtagMapper;
     @Mock private MediaMapper mediaMapper;
+    @Mock private PostLikeMapper postLikeMapper;
 
     @InjectMocks
     private BookmarkServiceImpl bookmarkService;
@@ -145,6 +147,7 @@ class BookmarkServiceTest {
         ));
         given(hashtagMapper.findAllByPostIds(anyList())).willReturn(List.of());
         given(mediaMapper.findAllByTargets(anyString(), anyList())).willReturn(List.of());
+        given(postLikeMapper.findLikedPostIds(any(), anyList())).willReturn(java.util.Set.of());
 
         // Act
         FeedResponse response = bookmarkService.getBookmarks(userId, null, 10);
@@ -178,6 +181,7 @@ class BookmarkServiceTest {
         ));
         given(hashtagMapper.findAllByPostIds(anyList())).willReturn(List.of());
         given(mediaMapper.findAllByTargets(anyString(), anyList())).willReturn(List.of());
+        given(postLikeMapper.findLikedPostIds(any(), anyList())).willReturn(java.util.Set.of());
 
         // Act
         FeedResponse response = bookmarkService.getBookmarks(userId, null, 10);
