@@ -1,5 +1,7 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { minihompyApi } from '../../api/minihompy'
+import type { MinihompyMainResponse } from '../../types'
 
 type Tab = '다이어리' | '사진첩' | '방명록' | '일촌'
 
@@ -44,9 +46,21 @@ const ILCHON = [
 
 export default function MinihompyPage() {
   const navigate = useNavigate()
+  const { userId } = useParams<{ userId: string }>()  // 'me' 또는 '123'
+  const isMe = userId === 'me'
+  const [main, setMain] = useState<MinihompyMainResponse | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>('다이어리')
   const [guestInput, setGuestInput] = useState('')
   const [guestbook, setGuestbook] = useState(GUESTBOOK)
+
+  useEffect(() => {
+    const fetchMinihompy = isMe
+      ? minihompyApi.getMyMinihompy()
+      : minihompyApi.getMinihompyMain(Number(userId))
+    fetchMinihompy
+      .then(res => setMain(res.data.data))
+      .catch(err => console.error('미니홈피 조회 실패', err))
+  }, [userId, isMe])
 
   const submitGuest = () => {
     if (!guestInput.trim()) return
@@ -102,7 +116,7 @@ export default function MinihompyPage() {
               {/* 프로필 정보 */}
               <div className="p-3 flex flex-col gap-2 border-b border-[#e3bfb1]">
                 <div className="text-center">
-                  <h2 className="font-['Bricolage_Grotesque',sans-serif] text-[20px] font-bold text-[#a33e00]">김채린</h2>
+                  <h2 className="font-['Bricolage_Grotesque',sans-serif] text-[20px] font-bold text-[#a33e00]">{main?.nickname}</h2>
                   <p className="font-[Geist,monospace] text-[10px] text-[#5a4136] mt-1">HOME 도메인 담당</p>
                 </div>
                 <div className="window-inset p-2 text-[13px] text-[#1a1c1c] text-center min-h-[48px] flex items-center justify-center">

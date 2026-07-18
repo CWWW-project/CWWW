@@ -3,8 +3,12 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { postApi } from '../../api/post'
 import { commentApi } from '../../api/comment'
 import { roomApi } from '../../api/room'
-import type { PostResponse, CommentResponse, RoomResponse } from '../../types'
+import type { PostResponse, CommentResponse, RoomResponse, MinihompyMainResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
+import { minihompyApi } from '../../api/minihompy'
+import MinihompySettingsModal from '../../components/MinihompySettingsModal'
+import { parseMood } from '../../utils/mood'
+import ProfileImageMenuModal from '../../components/ProfileImageMenuModal'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -175,6 +179,15 @@ export default function FeedPage() {
   const [searchHasNext, setSearchHasNext] = useState(false)
   const [searchError, setSearchError] = useState(false)
   const [roomPreview, setRoomPreview] = useState<RoomResponse | null>(null)
+  const [main, setMain] = useState<MinihompyMainResponse | null>(null)
+
+// 프로필 사진 메뉴(팝업) 열림/닫힘
+const [showProfileMenu, setShowProfileMenu] = useState(false)
+// 숨겨진 input을 클릭시키기 위한 ref
+const profileInputRef = useRef<HTMLInputElement>(null)
+  
+  // 미니홈피 설정 모달
+  const [showSettings, setShowSettings] = useState(false)
 
   // 다이어리 작성 모달
   const [showModal, setShowModal] = useState(false)
@@ -226,6 +239,27 @@ export default function FeedPage() {
       ignore = true
     }
   }, [user?.id])
+
+  // 미니홈피 메인 조회
+  useEffect(() => {
+  if (!localStorage.getItem('accessToken')) {
+    setMain(null)
+    return
+  }
+
+  let ignore = false
+  minihompyApi.getMyMinihompy()
+    .then(res => {
+      if (!ignore) setMain(res.data.data)
+    })
+    .catch(() => {
+      if (!ignore) setMain(null)
+    })
+
+  return () => {
+    ignore = true
+  }
+}, [user?.id])
 
   const toggleLike = async (postId: number) => {
     if (pendingLikeIds.has(postId)) return
@@ -515,8 +549,38 @@ export default function FeedPage() {
   })
   const displayPosts = selectedTag ? searchPosts : filter === '북마크' ? bookmarkPosts : filteredPosts
 
+  const { emoji: moodEmoji, text: moodText } = parseMood(main?.mood)
+
+  const minihompyBackgroundStyle: React.CSSProperties = main?.backgroundImageUrl
+    ? {
+        backgroundImage: `url(${main.backgroundImageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }
+    : {
+        backgroundColor: main?.backgroundColor ?? '#89d0ed',
+        backgroundImage: 'radial-gradient(rgba(255,255,255,0.5) 2px, transparent 2px)',
+        backgroundSize: '16px 16px',
+      }
+
+  const handleChangeProfile = () => {
+    setShowProfileMenu(false)
+    profileInputRef.current?.click()
+  }    
+
+  const handleDeleteProfile = async () => {
+    await minihompyApi.deleteProfileImage()
+
+    const res = await minihompyApi.getMyMinihompy()
+
+    setMain(res.data.data)
+    setShowProfileMenu(false)
+  } 
+
   return (
-    <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
+    <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start"
+    style={minihompyBackgroundStyle}
+    >
 
       {/* 다이어리 작성 모달 */}
       {showModal && (
@@ -664,6 +728,24 @@ export default function FeedPage() {
         </div>
       )}
 
+      {/* 미니홈피 설정 모달 — 별도 컴포넌트 */}
+      {showSettings && (
+        <MinihompySettingsModal
+          main={main}
+          onClose={() => setShowSettings(false)}
+          onSaved={(updated) => { setMain(updated); setShowSettings(false) }}
+        />
+      )}
+
+      {/* 프로필 사진 메뉴 */}
+      {showProfileMenu && (
+        <ProfileImageMenuModal
+          onClose={() => setShowProfileMenu(false)}
+          onChange={handleChangeProfile}
+          onDelete={handleDeleteProfile}
+        />
+      )}
+
       {/* 모바일 헤더 */}
       <header className="md:hidden flex justify-between items-center px-4 h-16 w-full fixed top-0 z-50 bg-[#f9f9f9] border-b-2 border-[#e3bfb1]" style={{ boxShadow: '2px 2px 0px rgba(0,0,0,0.1)' }}>
         <div className="font-['Bricolage_Grotesque',sans-serif] text-[28px] font-bold text-[#a33e00]">싸이월드</div>
@@ -682,26 +764,59 @@ export default function FeedPage() {
 
             {/* TODAY/TOTAL */}
             <div className="text-center font-[Geist,monospace] text-[12px] font-semibold text-[#a33e00] bg-[#baeaff] py-2 window-inset">
-              TODAY <span className="text-[#ba1a1a]">42</span> | TOTAL 12,345
+              TODAY <span className="text-[#ba1a1a]">{main?.visitorCount.today ?? 0}</span> | TOTAL {(main?.visitorCount.total ?? 0).toLocaleString()}
             </div>
 
             {/* 내 프로필 or 로그인 유도 */}
             {user ? (
               <div className="window-inset p-2 flex flex-col items-center gap-2">
-                <div className="w-full aspect-square border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[80px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                <div
+                  className="w-full aspect-square border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-90 transition"
+                  onClick={() => setShowProfileMenu(true)}
+                >
+                  {main?.profileImageUrl ? (
+                    <img
+                      src={main.profileImageUrl}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span
+                      className="material-symbols-outlined text-[80px] text-[#a33e00]"
+                      style={{ fontVariationSettings: "'FILL' 1" }}
+                    >
+                      face
+                    </span>
+                  )}
+                  <input
+                    ref={profileInputRef}
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+
+                      await minihompyApi.uploadProfileImage(file)
+
+                      const res = await minihompyApi.getMyMinihompy()
+                      setMain(res.data.data)
+
+                      e.target.value = ''
+                    }}
+                  />
                 </div>
                 <div className="w-full text-center">
                   <h2 className="font-['Bricolage_Grotesque',sans-serif] text-[20px] font-bold text-[#a33e00] mb-1">
-                    {user.nickname}의 홈피
+                    {main?.title}
                   </h2>
-                  <p className="text-[14px] text-[#5a4136] bg-[#eeeeee] p-1 window-inset min-h-[40px] flex items-center justify-center">
-                    열심히 살자 💪
+                  <p className="text-[13px] font-semibold text-[#5a4136] bg-[#eeeeee] border-2 border-[#c9c9c9] rounded-lg p-3 min-h-[40px] flex items-center justify-center text-center">
+                    {main?.introduction || '소개글이 없습니다'}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136] w-full bg-[#f9f9f9] py-1 px-2 window-inset">
-                  <span className="material-symbols-outlined text-[#a33e00] text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>sentiment_satisfied</span>
-                  오늘의 기분: 맑음
+                  <span className="text-sm">{moodEmoji}</span>
+                  오늘의 기분: {moodText || '알 수 없음'}
                 </div>
                 <div className="flex flex-col gap-1 w-full mt-auto">
                   <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
@@ -1052,6 +1167,14 @@ export default function FeedPage() {
               )
             })
           })()}
+
+          {/* ↓ 설정 버튼(프로필 사진, 배경화면, 소개글 등 설정) — 기존 탭 목록과 완전히 분리, 모달이라 path 필요없음 */}
+          <button
+            onClick={() => setShowSettings(true)}
+            className="tab-item bg-[#f3f3f3] text-[#5a4136] hover:bg-[#e2e2e2] py-2 px-1 text-center font-[Geist,monospace] text-[12px] font-semibold flex flex-col items-center gap-1 cursor-pointer border-none">
+            <span className="material-symbols-outlined text-lg">settings</span>
+            설정
+          </button>
         </nav>
       </div>
 

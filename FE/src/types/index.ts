@@ -180,3 +180,51 @@ export interface SaveRoomRequest {
   } | null
   items: SaveRoomItemRequest[]
 }
+
+export interface VisitorCount {
+  today: number
+  total: number
+}
+
+export type AccessLevel = 'ALL' | 'FRIEND' | 'PRIVATE'
+
+export interface MinihompyMainResponse {
+  ownerId: number
+  nickname: string
+  profileImageUrl: string | null
+  title: string
+  introduction: string
+  mood: string | null
+  accessLevel: AccessLevel
+  createdAt: string
+  bgmUrl: string | null
+  backgroundColor: string | null
+  backgroundImageUrl: string | null
+  owner: boolean
+  visitorCount: VisitorCount
+}
+
+export interface BgmOptionResponse {
+  itemId: number
+  name: string        // "제목 - 아티스트"
+  mediaUrl: string
+  applied: boolean
+}
+
+export interface BgmApplyResponse {
+  itemId: number | null
+  mediaUrl: string | null
+}
+
+export interface ProfileImageResponse {
+  profileImageUrl: string
+}
+
+export interface BackgroundResponse {
+  value: string
+}
+
+export interface BackgroundDotOptionResponse {
+  code: string
+  hex: string
+}
