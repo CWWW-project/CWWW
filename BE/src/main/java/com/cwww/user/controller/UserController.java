@@ -87,7 +87,6 @@ public class UserController {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);
         }
         userMapper.withdraw(userId);
-        userMapper.deleteRefreshToken(userId);
         return ResponseEntity.noContent().build();
     }
 }

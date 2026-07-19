@@ -48,7 +48,8 @@ public class AuthServiceImpl implements AuthService {
     public void forgotPassword(String email) {
         User user = userMapper.findByEmail(email);
         if (user == null) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+            // 계정 존재 여부를 응답으로 노출하지 않기 위해 존재하지 않아도 동일하게 성공 처리
+            return;
         }
         String resetToken = UUID.randomUUID().toString();
         userMapper.updateResetToken(email, resetToken, LocalDateTime.now().plusMinutes(30));
@@ -86,7 +87,10 @@ public class AuthServiceImpl implements AuthService {
         if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);
         }
-        userMapper.updatePassword(userId, passwordEncoder.encode(newPassword));
+        int updated = userMapper.updatePassword(userId, passwordEncoder.encode(newPassword));
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
     }
 
 

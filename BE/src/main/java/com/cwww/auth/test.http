@@ -34,7 +34,7 @@ Content-Type: application/json; charset=UTF-8
 
 {
   "email": "test2@cwww.com",
-  "password": "test1234"
+  "password": "newpass1234"
 }
 
 ###
