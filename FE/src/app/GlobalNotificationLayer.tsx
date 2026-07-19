@@ -8,8 +8,8 @@ import { formatNotificationActorName, formatNotificationTime } from './utils'
 
 export function GlobalNotificationLayer() {
   const location = useLocation()
-  const { accessToken } = useAuthStore()
-  const [userId, setUserId] = useState(() => Number(localStorage.getItem('userId') ?? 0))
+  const { accessToken, user } = useAuthStore()
+  const userId = user?.id ?? Number(localStorage.getItem('userId') ?? 0)
   const [toastNotifications, setToastNotifications] = useState<NotificationItem[]>([])
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
@@ -17,20 +17,11 @@ export function GlobalNotificationLayer() {
   const socketRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
-    const handleUserIdChanged = (event: Event) => {
-      const nextUserId = Number((event as CustomEvent<number>).detail ?? localStorage.getItem('userId') ?? 0)
-      setUserId(nextUserId)
-      setToastNotifications([])
-      setNotifications([])
-      setUnreadNotificationCount(0)
-      setIsNotificationPanelOpen(false)
-    }
-
-    window.addEventListener('user-id-changed', handleUserIdChanged as EventListener)
-    return () => {
-      window.removeEventListener('user-id-changed', handleUserIdChanged as EventListener)
-    }
-  }, [])
+    setToastNotifications([])
+    setNotifications([])
+    setUnreadNotificationCount(0)
+    setIsNotificationPanelOpen(false)
+  }, [userId])
 
   useEffect(() => {
     if (!accessToken || !userId) {
