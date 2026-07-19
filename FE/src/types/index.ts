@@ -228,3 +228,22 @@ export interface BackgroundDotOptionResponse {
   code: string
   hex: string
 }
+
+export interface GuestbookResponse {
+  guestbookId: number
+  writerId: number
+  writerNickname: string
+  content: string | null   // 비밀글이고 볼 권한 없으면 null
+  visible: boolean         // 지금 요청자가 content를 볼 수 있는지
+  isSecret: boolean        // @JsonProperty("isSecret") 그대로 매핑
+  canEdit: boolean
+  canDelete: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface GuestbookFeedResponse {
+  guestbooks: GuestbookResponse[]
+  nextCursor: number | null
+  hasNext: boolean
+}

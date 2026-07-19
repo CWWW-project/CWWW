@@ -10,6 +10,7 @@ import MinihompySettingsModal from '../../components/MinihompySettingsModal'
 import { parseMood } from '../../utils/mood'
 import ProfileImageMenuModal from '../../components/ProfileImageMenuModal'
 import BgmPlayer from '../../components/BgmPlayer'
+import { useMinihompyStore } from '../../store/minihompyStore'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -180,7 +181,7 @@ export default function FeedPage() {
   const [searchHasNext, setSearchHasNext] = useState(false)
   const [searchError, setSearchError] = useState(false)
   const [roomPreview, setRoomPreview] = useState<RoomResponse | null>(null)
-  const [main, setMain] = useState<MinihompyMainResponse | null>(null)
+const { main, setMain, clearMain } = useMinihompyStore()
 
 // 프로필 사진 메뉴(팝업) 열림/닫힘
 const [showProfileMenu, setShowProfileMenu] = useState(false)
@@ -555,18 +556,6 @@ const profileInputRef = useRef<HTMLInputElement>(null)
 
   const { emoji: moodEmoji, text: moodText } = parseMood(main?.mood)
 
-  const minihompyBackgroundStyle: React.CSSProperties = main?.backgroundImageUrl
-    ? {
-        backgroundImage: `url(${main.backgroundImageUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }
-    : {
-        backgroundColor: main?.backgroundColor ?? '#89d0ed',
-        backgroundImage: 'radial-gradient(rgba(255,255,255,0.5) 2px, transparent 2px)',
-        backgroundSize: '16px 16px',
-      }
-
   const handleChangeProfile = () => {
     setShowProfileMenu(false)
     profileInputRef.current?.click()
@@ -584,9 +573,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
 
 
   return (
-    <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start"
-    style={minihompyBackgroundStyle}
-    >
+    <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
 
       {/* 다이어리 작성 모달 */}
       {showModal && (
@@ -834,7 +821,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                     <span className="material-symbols-outlined text-base">edit_note</span> 다이어리 쓰기
                   </button>
                   <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ba1a1a]"
-                    onClick={() => { clearAuth(); navigate('/auth/login') }}>
+                    onClick={() => { clearAuth(); clearMain(); navigate('/auth/login') }}>
                     <span className="material-symbols-outlined text-base">logout</span> 로그아웃
                   </button>
                 </div>
@@ -900,7 +887,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
               <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">홈 피드</div>
               <BgmPlayer
                 main={main}
-                onBgmChanged={(bgmUrl) => setMain(prev => prev ? { ...prev, bgmUrl } : prev)}
+                onBgmChanged={(bgmUrl) => setMain(main ? { ...main, bgmUrl } : null)}
                 onTrackNameChange={setCurrentTrackName}
               />
             </div>
@@ -1150,7 +1137,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
               { icon: 'home', label: '홈', path: '/' },
               { icon: 'edit_note', label: '다이어리', path: `/home/${user?.id ?? 'me'}` },
               { icon: 'photo_library', label: '사진첩', path: `/home/${user?.id ?? 'me'}` },
-              { icon: 'forum', label: '방명록', path: `/home/${user?.id ?? 'me'}` },
+              { icon: 'forum', label: '방명록', path: `/guestbook/${user?.id}` },
               { icon: 'storefront', label: '상점', path: '/shop' },
             ]
             // 첫 번째 매칭 탭만 active → 동일 경로 탭 중복 active 방지

@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { minihompyApi } from '../api/minihompy'
+import { getAudioElement } from '../store/audioPlayer'
 import type { BgmOptionResponse, MinihompyMainResponse } from '../types'
 
 interface Props {
@@ -33,14 +34,15 @@ function MarqueeText({ text }: { text: string }) {
 }
 
 export default function BgmPlayer({ main, onBgmChanged, onTrackNameChange }: Props) {
-  const audioRef = useRef<HTMLAudioElement>(null)
-  const [isPlaying, setIsPlaying] = useState(false)
+  const audio = getAudioElement()
+
+  const [isPlaying, setIsPlaying] = useState(!audio.paused)
   const [showBgmList, setShowBgmList] = useState(false)
   const [bgmOptions, setBgmOptions] = useState<BgmOptionResponse[]>([])
   const [bgmLoading, setBgmLoading] = useState(false)
-  const [volume, setVolume] = useState(0.7)   // 0~1 사이 값, 기본 70%
+  const [volume, setVolumeState] = useState(() => audio.volume)
 
-  // bgmUrl이 있으면 진입 시 바로 목록을 불러와서 곡 이름을 알 수 있게 함
+  // 곡 이름 조회만 (재생 트리거는 절대 안 함 — App.tsx가 유일한 트리거)
   useEffect(() => {
     if (!main?.bgmUrl) {
       onTrackNameChange?.(null)
@@ -53,25 +55,23 @@ export default function BgmPlayer({ main, onBgmChanged, onTrackNameChange }: Pro
     })
   }, [main?.bgmUrl])
 
+  // 실제 오디오의 재생 상태를 버튼 아이콘에 동기화
   useEffect(() => {
-    if (!audioRef.current || !main?.bgmUrl) return
-    audioRef.current.load()
-    audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false))
-  }, [main?.bgmUrl])
-
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume
+    const handlePlay = () => setIsPlaying(true)
+    const handlePause = () => setIsPlaying(false)
+    audio.addEventListener('play', handlePlay)
+    audio.addEventListener('pause', handlePause)
+    return () => {
+      audio.removeEventListener('play', handlePlay)
+      audio.removeEventListener('pause', handlePause)
     }
-  }, [volume])
+  }, [])
 
   const togglePlay = () => {
-    if (!audioRef.current) return
-    if (isPlaying) {
-      audioRef.current.pause()
-      setIsPlaying(false)
+    if (audio.paused) {
+      audio.play().catch(() => {})
     } else {
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {})
+      audio.pause()
     }
   }
 
@@ -85,27 +85,23 @@ export default function BgmPlayer({ main, onBgmChanged, onTrackNameChange }: Pro
     }
   }
 
+  // 곡 선택 → main.bgmUrl만 갱신. 실제 재생은 App.tsx의 useGlobalBgm이 감지해서 처리
   const selectBgm = async (itemId: number) => {
     try {
       const res = await minihompyApi.applyBgm(itemId)
       const selected = bgmOptions.find(o => o.itemId === itemId)
       setBgmOptions(prev => prev.map(o => ({ ...o, applied: o.itemId === itemId })))
       onBgmChanged(res.data.data.mediaUrl)
-      onTrackNameChange?.(selected?.name ?? null)   // 추가
-
-      if (audioRef.current && res.data.data.mediaUrl) {
-        audioRef.current.src = res.data.data.mediaUrl
-        audioRef.current.load()
-        await audioRef.current.play()
-        setIsPlaying(true)
-      }
-
+      onTrackNameChange?.(selected?.name ?? null)
       setShowBgmList(false)
     } catch (e) {
       console.error('BGM 적용 실패', e)
-      setIsPlaying(false)
     }
-    
+  }
+
+  const setVolume = (v: number) => {
+    audio.volume = v
+    setVolumeState(v)
   }
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,22 +112,17 @@ export default function BgmPlayer({ main, onBgmChanged, onTrackNameChange }: Pro
 
   return (
     <div className="flex items-center gap-2 bg-[#f9f9f9] window-inset px-2 py-1 relative">
-      {main?.bgmUrl && <audio ref={audioRef} src={main.bgmUrl} loop />}
-
       <span className="material-symbols-outlined text-sm text-[#a33e00]">music_note</span>
       <div className="w-36 overflow-hidden">
-        <div className="w-40 overflow-hidden">
-          <MarqueeText text={main?.bgmUrl ? (currentTrackName ?? 'BGM 재생 중') : 'BGM이 설정되지 않았습니다'} />
-        </div>
+        <MarqueeText text={main?.bgmUrl ? (currentTrackName ?? 'BGM 재생 중') : 'BGM이 설정되지 않았습니다'} />
       </div>
       <div className="flex gap-1">
-        <button className="retro-btn p-1" onClick={togglePlay} disabled={!main?.bgmUrl}>
+        <button className="retro-btn p-1" onClick={togglePlay} disabled={!audio.src}>
           <span className="material-symbols-outlined text-[12px]">{isPlaying ? 'pause' : 'play_arrow'}</span>
         </button>
         <button className="retro-btn p-1" onClick={openBgmList}>
           <span className="material-symbols-outlined text-[12px]">queue_music</span>
         </button>
-        {/* 볼륨 슬라이더 */}
         <input
           type="range"
           min={0}
