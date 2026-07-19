@@ -11,6 +11,7 @@ import { parseMood } from '../../utils/mood'
 import ProfileImageMenuModal from '../../components/ProfileImageMenuModal'
 import BgmPlayer from '../../components/BgmPlayer'
 import { useMinihompyStore } from '../../store/minihompyStore'
+import UserNameLink from '../../components/UserNameLink'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -1010,7 +1011,11 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-baseline gap-1 mb-1">
-                            <span className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00] cursor-pointer">{post.nickname}</span>
+                            <UserNameLink
+                              userId={post.userId}
+                              nickname={post.nickname}
+                              className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00] cursor-pointer hover:underline"
+                            />
                             <span className="bg-[#baeaff] text-[#09657f] font-[Geist,monospace] text-[10px] px-1 rounded">일촌</span>
                             <span className="text-[#5a4136] font-[Geist,monospace] text-[12px] ml-auto">{formatTime(post.createdAt)}</span>
                           </div>
