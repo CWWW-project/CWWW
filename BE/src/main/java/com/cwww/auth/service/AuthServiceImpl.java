@@ -11,14 +11,20 @@ import com.cwww.global.exception.ErrorCode;
 import com.cwww.user.domain.User;
 import com.cwww.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.mail.MailException;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -28,10 +34,65 @@ public class AuthServiceImpl implements AuthService {
     private static final String OAUTH_CODE_PREFIX = "oauth:code:";
     private static final ZoneId ZONE = ZoneId.systemDefault();
 
+    private final JavaMailSender mailSender;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final RedisTemplate<String, String> redisTemplate;
+
+    @Value("${spring.mail.username}")
+    private String mailUsername;
+
+    // 비밀번호
+    @Override
+    public void forgotPassword(String email) {
+        User user = userMapper.findByEmail(email);
+        if (user == null) {
+            // 계정 존재 여부를 응답으로 노출하지 않기 위해 존재하지 않아도 동일하게 성공 처리
+            return;
+        }
+        String resetToken = UUID.randomUUID().toString();
+        userMapper.updateResetToken(email, resetToken, LocalDateTime.now().plusMinutes(30));
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(email);
+        message.setFrom(mailUsername);
+        message.setSubject("[CWWW] 비밀번호 재설정");
+        message.setText("아래 토큰으로 30분 이내에 비밀번호를 재설정해주세요:\n" + resetToken);
+        try {
+            mailSender.send(message);
+        } catch (MailException e) {
+            throw new BusinessException(ErrorCode.MAIL_SEND_FAILED);
+        }
+    }
+
+    @Override
+    public void resetPassword(String resetToken, String newPassword) {
+        User user = userMapper.findByResetToken(resetToken);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.INVALID_RESET_TOKEN);
+        }
+        if (user.getResetTokenExpiresAt() == null || user.getResetTokenExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new BusinessException(ErrorCode.EXPIRED_RESET_TOKEN);
+        }
+        userMapper.resetPassword(user.getUserId(), passwordEncoder.encode(newPassword));
+    }
+
+    @Override
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        User user = userMapper.findById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+        }
+        int updated = userMapper.updatePassword(userId, passwordEncoder.encode(newPassword));
+        if (updated != 1) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+    }
+
 
     @Override
     @Transactional

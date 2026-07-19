@@ -7,6 +7,7 @@ import com.cwww.user.domain.User;
 import com.cwww.user.dto.UserMeResponse;
 import com.cwww.user.dto.UserSearchResponse;
 import com.cwww.user.dto.UserUpdateRequest;
+import com.cwww.user.dto.WithdrawRequest;
 import com.cwww.user.mapper.UserMapper;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -14,12 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -28,8 +25,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserController {
 
+    private final PasswordEncoder passwordEncoder;
     private static final int USER_SEARCH_LIMIT = 10;
-
     private final UserMapper userMapper;
 
     @GetMapping("/me")
@@ -72,5 +69,24 @@ public class UserController {
                 .map(UserSearchResponse::from)
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    // 회원탈퇴 (마이페이지)
+    @DeleteMapping("/me")
+    public ResponseEntity<ApiResponse<Void>> withdraw(
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody WithdrawRequest request) {
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        User user = userMapper.findById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+        }
+        userMapper.withdraw(userId);
+        return ResponseEntity.noContent().build();
     }
 }

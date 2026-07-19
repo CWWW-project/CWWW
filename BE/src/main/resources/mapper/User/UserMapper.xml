@@ -73,4 +73,40 @@
         UPDATE users SET nickname = #{nickname}, updated_at = NOW()
         WHERE user_id = #{userId}
     </update>
+
+    <update id="updateResetToken">
+        UPDATE users SET reset_token = #{resetToken}, reset_token_expires_at = #{expiresAt}, updated_at = NOW()
+        WHERE email = #{email} AND deleted_at IS NULL
+    </update>
+
+    <select id="findByResetToken" resultType="com.cwww.user.domain.User">
+        SELECT * FROM users WHERE reset_token = #{resetToken} AND deleted_at IS NULL
+    </select>
+
+    <update id="resetPassword">
+        UPDATE users SET password = #{password},
+                        reset_token = NULL,
+                        reset_token_expires_at = NULL,
+                        refresh_token = NULL,
+                        refresh_token_expires_at = NULL,
+                        updated_at = NOW()
+        WHERE user_id = #{userId} AND deleted_at IS NULL
+    </update>
+
+    <update id="updatePassword">
+        UPDATE users SET password = #{password},
+                        reset_token = NULL,
+                        reset_token_expires_at = NULL,
+                        updated_at = NOW()
+        WHERE user_id = #{userId} AND deleted_at IS NULL
+    </update>
+
+
+    <!-- 회원탈퇴: soft delete와 동시에 refresh token도 함께 폐기(원자적 처리) -->
+    <update id="withdraw">
+        UPDATE users SET deleted_at = NOW(), updated_at = NOW(),
+                        refresh_token = NULL, refresh_token_expires_at = NULL
+        WHERE user_id = #{userId} AND deleted_at IS NULL
+    </update>
+
 </mapper>
