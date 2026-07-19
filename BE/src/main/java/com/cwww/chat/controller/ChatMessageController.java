@@ -3,10 +3,6 @@ package com.cwww.chat.controller;
 import com.cwww.chat.dto.request.ChatMessageRequest;
 import com.cwww.chat.dto.response.ChatListUpdateResponse;
 import com.cwww.chat.dto.response.ChatMessageResponse;
-import com.cwww.chat.domain.ChatParticipant;
-import com.cwww.chat.domain.ChatRoom;
-import com.cwww.chat.mapper.ChatParticipantMapper;
-import com.cwww.chat.mapper.ChatRoomMapper;
 import com.cwww.chat.redis.RedisPublisher;
 import com.cwww.chat.service.ChatMessageService;
 import com.cwww.chat.service.ChatRoomService;
@@ -30,8 +26,6 @@ import java.util.List;
 public class ChatMessageController {
     private final ChatMessageService chatMessageService;
     private final ChatRoomService chatRoomService;
-    private final ChatRoomMapper chatRoomMapper;
-    private final ChatParticipantMapper chatParticipantMapper;
     private final RedisPublisher redisPublisher;
     private final StorageService storageService;
 
@@ -47,17 +41,11 @@ public class ChatMessageController {
         ChatMessageResponse savedMessage = chatMessageService.sendMessage(senderId, request);
         redisPublisher.publishMessage(savedMessage);
 
-        ChatRoom room = chatRoomMapper.findById(savedMessage.getChatId());
-        List<ChatParticipant> participants = chatParticipantMapper.findByChatId(savedMessage.getChatId());
-        List<Long> participantUserIds = new java.util.ArrayList<>();
-
-        for (ChatParticipant participant : participants) {
-            participantUserIds.add(participant.getUserId());
-        }
+        List<Long> participantUserIds = chatRoomService.getActiveParticipantUserIds(savedMessage.getChatId());
 
         List<ChatListUpdateResponse> chatListUpdates = chatRoomService.createChatListUpdateResponses(
                 participantUserIds,
-                room.getChatId()
+                savedMessage.getChatId()
         );
 
         for (ChatListUpdateResponse chatListUpdate : chatListUpdates) {

@@ -248,8 +248,13 @@ public class ChatRoomService {
     @Transactional(readOnly = true)
     public List<ChatListUpdateResponse> createChatListUpdateResponses(List<Long> userIds, Long chatId) {
         List<ChatListUpdateResponse> responses = new ArrayList<>();
+        Set<Long> activeUserIds = new HashSet<>(getActiveParticipantUserIds(chatId));
 
         for (Long userId : userIds) {
+            if (!activeUserIds.contains(userId)) {
+                continue;
+            }
+
             ChatListUpdateResponse response = createChatListUpdateResponse(userId, chatId);
             responses.add(response);
         }
@@ -345,6 +350,9 @@ public class ChatRoomService {
     private ChatParticipant validateParticipant(Long chatId, Long userId) {
         ChatParticipant participant = chatParticipantMapper.findByChatIdAndUserId(chatId, userId);
         if (participant == null) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+        if (participant.getLeftAt() != null) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
         return participant;
