@@ -12,7 +12,7 @@ public class ChatListUpdateResponse {
     private Long userId;
     private Long chatId;
     private ChatRoomType type;
-    private String roomName;
+    private String displayName;
     private String lastMessage;
     private LocalDateTime lastMessageCreatedAt;
     private Integer unreadCount;
@@ -20,7 +20,7 @@ public class ChatListUpdateResponse {
     public static ChatListUpdateResponse from(Long userId,
                                               Long chatId,
                                               ChatRoomType type,
-                                              String roomName,
+                                              String displayName,
                                               String lastMessage,
                                               LocalDateTime lastMessageCreatedAt,
                                               Integer unreadCount) {
@@ -28,7 +28,7 @@ public class ChatListUpdateResponse {
                 .userId(userId)
                 .chatId(chatId)
                 .type(type)
-                .roomName(roomName)
+                .displayName(displayName)
                 .lastMessage(lastMessage)
                 .lastMessageCreatedAt(lastMessageCreatedAt)
                 .unreadCount(unreadCount)
