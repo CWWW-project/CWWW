@@ -9,6 +9,7 @@ import com.cwww.chat.dto.request.CreateChatRoomRequest;
 import com.cwww.chat.dto.request.InviteParticipantsRequest;
 import com.cwww.chat.dto.response.ChatListUpdateResponse;
 import com.cwww.chat.dto.response.ChatMessageResponse;
+import com.cwww.chat.dto.response.ChatParticipantResponse;
 import com.cwww.chat.dto.response.ChatRoomResponse;
 import com.cwww.chat.dto.response.CreateChatRoomResponse;
 import com.cwww.chat.mapper.ChatMessageMapper;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -243,6 +245,45 @@ public class ChatRoomService {
         return userIds;
     }
 
+    @Transactional(readOnly = true)
+    public List<ChatListUpdateResponse> createChatListUpdateResponses(List<Long> userIds, Long chatId) {
+        List<ChatListUpdateResponse> responses = new ArrayList<>();
+        Set<Long> activeUserIds = new HashSet<>(getActiveParticipantUserIds(chatId));
+
+        for (Long userId : userIds) {
+            if (!activeUserIds.contains(userId)) {
+                continue;
+            }
+
+            ChatListUpdateResponse response = createChatListUpdateResponse(userId, chatId);
+            responses.add(response);
+        }
+
+        return responses;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChatParticipantResponse> getActiveParticipants(Long userId, Long chatId) {
+        ChatRoom chatRoom = validateChatRoom(chatId);
+        validateParticipant(chatId, userId);
+
+        List<ChatParticipant> participants = chatParticipantMapper.findByChatId(chatRoom.getChatId());
+        List<ChatParticipantResponse> responses = new ArrayList<>();
+
+        for (ChatParticipant participant : participants) {
+            if (participant.getLeftAt() != null) {
+                continue;
+            }
+
+            responses.add(ChatParticipantResponse.from(
+                    participant.getUserId(),
+                    findNickname(participant.getUserId())
+            ));
+        }
+
+        return responses;
+    }
+
     private void validateParticipants(CreateChatRoomRequest request) {
         List<Long> participantUserIds = request.getParticipantUserIds();
 
@@ -311,6 +352,9 @@ public class ChatRoomService {
         if (participant == null) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
+        if (participant.getLeftAt() != null) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
         return participant;
     }
 
@@ -362,7 +406,7 @@ public class ChatRoomService {
                 chatMessage.getSenderId()
         );
 
-        return ChatMessageResponse.from(chatMessage, unreadMemberCount);
+        return ChatMessageResponse.from(chatMessage, unreadMemberCount, "MESSAGE", Collections.emptyList());
     }
 
     private String resolveCreateDisplayName(Long userId,

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 
+import { GlobalNotificationLayer } from './app/GlobalNotificationLayer'
 import LoginPage from './pages/auth/LoginPage'
 import SignupPage from './pages/auth/SignupPage'
 import FeedPage from './pages/post/FeedPage'
@@ -61,6 +62,7 @@ function GlobalMobileNav() {
 function App() {
   return (
     <BrowserRouter>
+      <GlobalNotificationLayer />
       <GlobalMobileNav />
       <Routes>
         {/* AUTH - 윤주원 */}
