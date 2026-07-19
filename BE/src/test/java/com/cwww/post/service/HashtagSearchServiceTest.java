@@ -4,6 +4,7 @@ import com.cwww.post.domain.Post;
 import com.cwww.post.dto.FeedResponse;
 import com.cwww.post.mapper.HashtagMapper;
 import com.cwww.post.mapper.MediaMapper;
+import com.cwww.post.mapper.PostLikeMapper;
 import com.cwww.post.mapper.PostMapper;
 import com.cwww.user.domain.User;
 import com.cwww.user.mapper.UserMapper;
@@ -28,6 +29,7 @@ class HashtagSearchServiceTest {
     @Mock private UserMapper userMapper;
     @Mock private HashtagMapper hashtagMapper;
     @Mock private MediaMapper mediaMapper;
+    @Mock private PostLikeMapper postLikeMapper;
 
     @InjectMocks
     private PostServiceImpl postService;
@@ -48,7 +50,7 @@ class HashtagSearchServiceTest {
         given(mediaMapper.findAllByTargets(anyString(), anyList())).willReturn(List.of());
 
         // Act
-        FeedResponse response = postService.searchByHashtag("일상", null, 10);
+        FeedResponse response = postService.searchByHashtag(null, "일상", null, 10);
 
         // Assert
         assertThat(response.getPosts()).hasSize(2);
@@ -62,7 +64,7 @@ class HashtagSearchServiceTest {
         given(postMapper.findByHashtag("없는태그", null, 11)).willReturn(List.of());
 
         // Act
-        FeedResponse response = postService.searchByHashtag("없는태그", null, 10);
+        FeedResponse response = postService.searchByHashtag(null, "없는태그", null, 10);
 
         // Assert
         assertThat(response.getPosts()).isEmpty();
@@ -95,7 +97,7 @@ class HashtagSearchServiceTest {
         given(mediaMapper.findAllByTargets(anyString(), anyList())).willReturn(List.of());
 
         // Act
-        FeedResponse response = postService.searchByHashtag("일상", null, 10);
+        FeedResponse response = postService.searchByHashtag(null, "일상", null, 10);
 
         // Assert
         assertThat(response.getPosts()).hasSize(10);

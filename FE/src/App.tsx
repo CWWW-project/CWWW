@@ -29,7 +29,7 @@ function GlobalMobileNav() {
 
   const tabs = MOBILE_TABS.map(tab => ({
     ...tab,
-    path: 'pathFn' in tab ? tab.pathFn(user?.id) : (tab as { path: string }).path,
+    path: typeof tab.pathFn === 'function' ? tab.pathFn(user?.id) : tab.path,
   }))
 
   // 오른쪽에서 탐색해 마지막 매칭 탭 우선 (내 홈피 > 다이어리)

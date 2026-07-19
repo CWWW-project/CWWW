@@ -5,8 +5,10 @@ import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
 import com.cwww.post.domain.Post;
 import com.cwww.post.dto.PostResponse;
+import com.cwww.post.mapper.BookmarkMapper;
 import com.cwww.post.mapper.HashtagMapper;
 import com.cwww.post.mapper.MediaMapper;
+import com.cwww.post.mapper.PostLikeMapper;
 import com.cwww.post.mapper.PostMapper;
 import com.cwww.user.mapper.UserMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +35,8 @@ class PostGetServiceTest {
     @Mock private MediaMapper mediaMapper;
     @Mock private HashtagMapper hashtagMapper;
     @Mock private FriendMapper friendMapper;
+    @Mock private PostLikeMapper postLikeMapper;
+    @Mock private BookmarkMapper bookmarkMapper;
     @Mock private UserMapper userMapper;
 
     @InjectMocks

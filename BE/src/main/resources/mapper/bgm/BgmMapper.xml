@@ -5,22 +5,23 @@
 
 <mapper namespace="com.cwww.bgm.mapper.BgmItemMapper">
 
-    <!-- 같은 이름의 BGM 아이템이 이미 있는지 확인 (중복 등록 방지) -->
-    <select id="countBgmItemByName" resultType="int">
-        SELECT COUNT(*) FROM item
-        WHERE category = 'BGM'
-        AND name = #{name}
-    </select>
-
     <!--
         BGM 아이템을 item 테이블에 등록
-        category='BGM', status='APPROVED'로 고정
-        creator_id는 시스템(관리자) 계정 또는 null 허용 여부 확인 필요
+        TODO category='BGM', status='APPROVED'로 고정 (실제 값은 확인 필요)
+        TODO creator_id는 시스템(관리자) 계정 또는 null 허용 여부 확인 필요
+
+        uq_item_bgm_name(name WHERE category='BGM') 기준으로
+        동일한 이름의 BGM이 이미 존재하면 ON CONFLICT DO NOTHING으로 중복 등록을 방지한다.
+
+        count 후 insert 하는 방식은 동시 실행 시 중복이 발생할 수 있으므로,
+        원자적인 INSERT ... ON CONFLICT DO NOTHING을 사용한다.
     -->
     <insert id="insertBgmItem" parameterType="com.cwww.bgm.mapper.BgmItemMapper$BgmItemInsertParam"
             useGeneratedKeys="true" keyProperty="itemId" keyColumn="item_id">
         INSERT INTO item (category, name, description, price, status, sales_count, created_at, updated_at)
         VALUES ('BGM', #{name}, #{description}, #{price}, 'APPROVED', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT (name) WHERE category = 'BGM'
+        DO NOTHING
     </insert>
 
 </mapper>

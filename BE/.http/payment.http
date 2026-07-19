@@ -1,0 +1,69 @@
+### 결제 API (도토리 충전)
+### Base URL: http://localhost:7777
+### Authorization: Bearer {accessToken} (로그인 후 발급)
+
+@base = http://localhost:7777
+@token = eyJhbGciOiJIUzI1NiJ9...   # 로그인 후 발급받은 accessToken
+
+# ──────────────────────────────────────────────────────────────────
+# 1. 주문 생성 (acornAmount: 100 단위, 최대 10000)
+# ──────────────────────────────────────────────────────────────────
+POST {{base}}/api/payments/orders
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "acornAmount": 1000
+}
+
+###
+
+# ──────────────────────────────────────────────────────────────────
+# 2. 결제 승인 (토스 결제창에서 성공 후 호출)
+# ──────────────────────────────────────────────────────────────────
+POST {{base}}/api/payments/confirm
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "paymentKey": "toss_paymentKey_여기에",
+  "orderUid": "위에서받은_orderUid",
+  "amount": 10000
+}
+
+###
+
+# ──────────────────────────────────────────────────────────────────
+# 3. 결제 취소
+# ──────────────────────────────────────────────────────────────────
+POST {{base}}/api/payments/cancel
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "orderUid": "취소할_orderUid",
+  "reason": "단순 변심"
+}
+
+###
+
+# ──────────────────────────────────────────────────────────────────
+# 4. 도토리 잔액 조회
+# ──────────────────────────────────────────────────────────────────
+GET {{base}}/api/payments/balance
+Authorization: Bearer {{token}}
+
+###
+
+# ──────────────────────────────────────────────────────────────────
+# 5. 도토리 충전/사용 내역 조회 (페이지네이션)
+# ──────────────────────────────────────────────────────────────────
+GET {{base}}/api/payments/history?page=1&size=10
+Authorization: Bearer {{token}}
+
+###
+
+# ──────────────────────────────────────────────────────────────────
+# 6. 미인증 요청 → 401 응답 확인
+# ──────────────────────────────────────────────────────────────────
+GET {{base}}/api/payments/balance

@@ -1,0 +1,20 @@
+### 내 정보 조회
+GET http://localhost:8080/api/users/me
+Authorization: Bearer {{accessToken}}
+
+###
+
+### 닉네임 수정
+PATCH http://localhost:8080/api/users/me
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "nickname": "새닉네임"
+}
+
+###
+
+### 닉네임 검색
+GET http://localhost:8080/api/users/search?nickname=테스트
+Authorization: Bearer {{accessToken}}

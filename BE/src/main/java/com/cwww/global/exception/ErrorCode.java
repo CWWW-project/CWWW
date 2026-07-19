@@ -68,8 +68,14 @@ public enum ErrorCode {
     // Bgm
     BGM_NOT_OWNED(HttpStatus.FORBIDDEN, "H006", "보유하지 않은 BGM입니다."),
 
+    // Minihompy-Image
+    IMAGE_DIMENSION_EXCEEDED(HttpStatus.BAD_REQUEST, "H007", "이미지 해상도가 너무 큽니다."),
+
     // Item
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "I001", "아이템을 찾을 수 없습니다."),
+    CART_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "I002", "장바구니 아이템을 찾을 수 없습니다."),
+    EMPTY_CART(HttpStatus.BAD_REQUEST, "I003", "장바구니가 비어 있습니다."),
+    INSUFFICIENT_ACORNS(HttpStatus.BAD_REQUEST, "I004", "도토리 잔액이 부족합니다."),
 
     // Payment
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "PAY001", "주문을 찾을 수 없습니다."),
@@ -79,7 +85,10 @@ public enum ErrorCode {
 
     PAYMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "PAY005", "결제 정보를 찾을 수 없습니다."),
     CANCEL_NOT_ALLOWED(HttpStatus.CONFLICT, "PAY006", "취소할 수 없는 주문 상태입니다."),
-    REFUND_INSUFFICIENT_BALANCE(HttpStatus.CONFLICT, "PAY007", "도토리 잔액이 부족하여 환불할 수 없습니다.");
+    REFUND_INSUFFICIENT_BALANCE(HttpStatus.CONFLICT, "PAY007", "도토리 잔액이 부족하여 환불할 수 없습니다."),
+    PAYMENT_CANCEL_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "PAY008", "결제 취소에 실패했습니다. 잠시 후 자동으로 처리됩니다."),
+    PAYMENT_PG_REJECTED(HttpStatus.BAD_REQUEST, "PAY009", "PG사에서 결제를 거절했습니다."),
+    ORDER_IN_PROGRESS(HttpStatus.CONFLICT, "PAY010", "처리 중인 주문입니다. 잠시 후 다시 시도해주세요.");
 
 
     private final HttpStatus httpStatus;

@@ -20,19 +20,19 @@ public class BookmarkController {
     private final BookmarkService bookmarkService;
 
     @PostMapping("/{postId}/bookmark")
-    public ResponseEntity<ApiResponse<Void>> bookmark(
+    public ResponseEntity<Void> bookmark(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long postId) {
         bookmarkService.bookmark(userId, postId);
-        return ResponseEntity.ok(ApiResponse.success(null));
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).build();
     }
 
     @DeleteMapping("/{postId}/bookmark")
-    public ResponseEntity<ApiResponse<Void>> unbookmark(
+    public ResponseEntity<Void> unbookmark(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long postId) {
         bookmarkService.unbookmark(userId, postId);
-        return ResponseEntity.ok(ApiResponse.success(null));
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/bookmarks")
