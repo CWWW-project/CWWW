@@ -37,6 +37,7 @@ export function ChatPageView({
   inviteUserId,
   isReady,
   isRoomViewportSettling,
+  isSending,
   isSocketConnected,
   loadingMoreRoomId,
   loadOlderMessages,
@@ -498,16 +499,16 @@ export function ChatPageView({
                 onKeyDown={handleTextareaKeyDown}
                 placeholder={pendingAttachments.length > 0 ? '첨부와 함께 보낼 메시지를 입력하세요...' : '메시지를 입력하세요...'}
                 style={{ flex: 1, height: '100%', resize: 'none', padding: 8, fontFamily: 'Be Vietnam Pro', fontSize: 14, outline: 'none' }}
-                disabled={activeId === null}
+                disabled={activeId === null || isSending}
               />
               <button
                 className="retro-btn retro-btn-primary"
                 onClick={sendMessage}
-                disabled={connectionStatus !== 'connected' || activeId === null || (!input.trim() && pendingAttachments.length === 0)}
-                style={{ height: '100%', padding: '0 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: (connectionStatus === 'connected' && activeId !== null && (input.trim() || pendingAttachments.length > 0)) ? 1 : 0.6 }}
+                disabled={isSending || connectionStatus !== 'connected' || activeId === null || (!input.trim() && pendingAttachments.length === 0)}
+                style={{ height: '100%', padding: '0 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: (!isSending && connectionStatus === 'connected' && activeId !== null && (input.trim() || pendingAttachments.length > 0)) ? 1 : 0.6 }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 20, fontVariationSettings: "'FILL' 1" }}>send</span>
-                <span>전송</span>
+                <span>{isSending ? '전송 중' : '전송'}</span>
               </button>
             </div>
           </div>

@@ -67,6 +67,7 @@ export function useChatPage() {
   const [isReady, setIsReady] = useState(false)
   const [isInitialRoomsLoaded, setIsInitialRoomsLoaded] = useState(false)
   const [isSocketReady, setIsSocketReady] = useState(false)
+  const [isSocketAttemptFinished, setIsSocketAttemptFinished] = useState(false)
   const [createType, setCreateType] = useState<ChatRoomType>('PRIVATE')
   const [createName, setCreateName] = useState('')
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<number[]>([])
@@ -77,16 +78,26 @@ export function useChatPage() {
   const [openMessageMenuId, setOpenMessageMenuId] = useState<number | null>(null)
   const [inviteUserId, setInviteUserId] = useState<number | null>(null)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
+  const [isSending, setIsSending] = useState(false)
   const messageContainerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const socketRef = useRef<WebSocket | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const activeIdRef = useRef<number | null>(null)
+  const previousActiveIdRef = useRef<number | null>(null)
   const subscriptionIdRef = useRef<string | null>(null)
   const pendingScrollActionRef = useRef<'bottom' | 'preserve' | null>(null)
   const previousScrollHeightRef = useRef(0)
   const previousScrollTopRef = useRef(0)
   const attachmentCleanupRef = useRef<PendingAttachment[]>([])
+
+  const clearPendingAttachments = () => {
+    setPendingAttachments((prev) => {
+      prev.forEach((attachment) => URL.revokeObjectURL(attachment.previewUrl))
+      return []
+    })
+  }
 
   const activeRoom = useMemo(
     () => chatRooms.find((room) => room.id === activeId) ?? null,
@@ -99,6 +110,14 @@ export function useChatPage() {
   useEffect(() => {
     attachmentCleanupRef.current = pendingAttachments
   }, [pendingAttachments])
+
+  useEffect(() => {
+    if (previousActiveIdRef.current !== activeId) {
+      clearPendingAttachments()
+      previousActiveIdRef.current = activeId
+    }
+    activeIdRef.current = activeId
+  }, [activeId])
 
   const refreshChatRooms = async () => {
     const rooms = await getChatRooms()
@@ -178,6 +197,7 @@ export function useChatPage() {
     setIsReady(false)
     setIsInitialRoomsLoaded(false)
     setIsSocketReady(false)
+    setIsSocketAttemptFinished(false)
     setSelectedParticipantIds([])
   }, [currentUserId])
 
@@ -269,6 +289,7 @@ export function useChatPage() {
     if (!accessToken || !currentUserId) {
       setConnectionStatus('disconnected')
       setIsSocketReady(false)
+      setIsSocketAttemptFinished(true)
       return
     }
 
@@ -291,18 +312,11 @@ export function useChatPage() {
         if (frame.command === 'CONNECTED') {
           setConnectionStatus('connected')
           setIsSocketReady(true)
+          setIsSocketAttemptFinished(true)
           socket.send(buildFrame('SUBSCRIBE', {
             id: `sub-list-${currentUserId}`,
             destination: `/sub/chat/list/${currentUserId}`,
           }))
-          if (activeId !== null) {
-            const subscriptionId = `sub-room-${activeId}`
-            subscriptionIdRef.current = subscriptionId
-            socket.send(buildFrame('SUBSCRIBE', {
-              id: subscriptionId,
-              destination: `/sub/chat/room/${activeId}`,
-            }))
-          }
           return
         }
 
@@ -342,8 +356,9 @@ export function useChatPage() {
 
         const payload = JSON.parse(frame.body) as ChatMessagePayload
         const nextMessage = mapMessage(payload)
+        const currentActiveId = activeIdRef.current
 
-        if (payload.eventType === 'MESSAGE' && payload.chatId === activeId) {
+        if (payload.eventType === 'MESSAGE' && payload.chatId === currentActiveId) {
           pendingScrollActionRef.current = 'bottom'
         }
 
@@ -364,49 +379,68 @@ export function useChatPage() {
           }
         })
 
-        if (payload.chatId === activeId && payload.senderId !== currentUserId && payload.eventType === 'MESSAGE') {
+        if (payload.chatId === currentActiveId && payload.senderId !== currentUserId && payload.eventType === 'MESSAGE') {
           markChatRoomAsRead(payload.chatId).catch(() => {
             setCreateError('읽음 처리에 실패했습니다.')
           })
         }
 
-        if (payload.eventType === 'MESSAGE') {
-          setChatRooms((prev) => prev.map((room) => {
-            if (room.id !== payload.chatId) return room
-            return {
-              ...room,
-              lastMsg: payload.content,
-              time: formatChatTime(payload.createdAt),
-              unread: payload.chatId === activeId || payload.senderId === currentUserId ? 0 : (room.unread ?? 0) + 1,
-            }
-          }))
-        }
       })
     }
 
     socket.onerror = () => {
       setConnectionStatus('disconnected')
       setIsSocketReady(false)
+      setIsSocketAttemptFinished(true)
     }
 
     socket.onclose = () => {
       setConnectionStatus('disconnected')
       setIsSocketReady(false)
+      setIsSocketAttemptFinished(true)
     }
 
     return () => {
-      if (socket.readyState === WebSocket.OPEN && subscriptionIdRef.current) {
-        socket.send(buildFrame('UNSUBSCRIBE', { id: subscriptionIdRef.current }))
-      }
       socket.close()
     }
-  }, [accessToken, activeId, currentUserId])
+  }, [accessToken, currentUserId])
 
   useEffect(() => {
-    if (isInitialRoomsLoaded && isSocketReady) {
+    const socket = socketRef.current
+
+    if (!socket || socket.readyState !== WebSocket.OPEN || !isSocketReady) {
+      return
+    }
+
+    if (subscriptionIdRef.current) {
+      socket.send(buildFrame('UNSUBSCRIBE', { id: subscriptionIdRef.current }))
+      subscriptionIdRef.current = null
+    }
+
+    if (activeId === null) {
+      return
+    }
+
+    const subscriptionId = `sub-room-${activeId}`
+    subscriptionIdRef.current = subscriptionId
+    socket.send(buildFrame('SUBSCRIBE', {
+      id: subscriptionId,
+      destination: `/sub/chat/room/${activeId}`,
+    }))
+
+    return () => {
+      if (socket.readyState === WebSocket.OPEN && subscriptionIdRef.current === subscriptionId) {
+        socket.send(buildFrame('UNSUBSCRIBE', { id: subscriptionId }))
+        subscriptionIdRef.current = null
+      }
+    }
+  }, [activeId, isSocketReady])
+
+  useEffect(() => {
+    if (isInitialRoomsLoaded && isSocketAttemptFinished) {
       setIsReady(true)
     }
-  }, [isInitialRoomsLoaded, isSocketReady])
+  }, [isInitialRoomsLoaded, isSocketAttemptFinished])
 
   const handleCreateChatRoom = async () => {
     if (!currentUserId) {
@@ -475,7 +509,9 @@ export function useChatPage() {
     if (!trimmedInput && !hasAttachments) return
     if (activeId === null) return
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return
+    if (isSending) return
 
+    setIsSending(true)
     try {
       const mediaUrls = hasAttachments
         ? await uploadChatMedia(pendingAttachments.map((attachment) => attachment.file))
@@ -493,11 +529,12 @@ export function useChatPage() {
         mediaUrls,
       })))
 
-      pendingAttachments.forEach((attachment) => URL.revokeObjectURL(attachment.previewUrl))
-      setPendingAttachments([])
+      clearPendingAttachments()
       setInput('')
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : '메시지 전송에 실패했습니다.')
+    } finally {
+      setIsSending(false)
     }
   }
 
@@ -562,6 +599,7 @@ export function useChatPage() {
     inviteUserId,
     isReady,
     isRoomViewportSettling,
+    isSending,
     isSocketConnected,
     loadingMoreRoomId,
     loadOlderMessages,
