@@ -3,12 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { postApi } from '../../api/post'
 import { commentApi } from '../../api/comment'
 import { roomApi } from '../../api/room'
-import type { PostResponse, CommentResponse, RoomResponse, MinihompyMainResponse } from '../../types'
+import type { PostResponse, CommentResponse, RoomResponse, MinihompyMainResponse, BgmOptionResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
 import { minihompyApi } from '../../api/minihompy'
 import MinihompySettingsModal from '../../components/MinihompySettingsModal'
 import { parseMood } from '../../utils/mood'
 import ProfileImageMenuModal from '../../components/ProfileImageMenuModal'
+import BgmPlayer from '../../components/BgmPlayer'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -188,6 +189,9 @@ const profileInputRef = useRef<HTMLInputElement>(null)
   
   // 미니홈피 설정 모달
   const [showSettings, setShowSettings] = useState(false)
+
+  // BGM
+  const [currentTrackName, setCurrentTrackName] = useState<string | null>(null)
 
   // 다이어리 작성 모달
   const [showModal, setShowModal] = useState(false)
@@ -577,6 +581,8 @@ const profileInputRef = useRef<HTMLInputElement>(null)
     setShowProfileMenu(false)
   } 
 
+
+
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start"
     style={minihompyBackgroundStyle}
@@ -820,7 +826,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                 </div>
                 <div className="flex flex-col gap-1 w-full mt-auto">
                   <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                    onClick={() => navigate(`/home/${user.id}`)}>
+                    onClick={() => navigate(`/`)}>
                     <span className="material-symbols-outlined text-base">home</span> 내 홈피 가기
                   </button>
                   <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
@@ -892,18 +898,11 @@ const profileInputRef = useRef<HTMLInputElement>(null)
             {/* BGM 바 */}
             <div className="window-frame p-1 bg-[#eeeeee] flex items-center justify-between">
               <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">홈 피드</div>
-              <div className="flex items-center gap-2 bg-[#f9f9f9] window-inset px-2 py-1">
-                <span className="material-symbols-outlined text-sm text-[#a33e00]">music_note</span>
-                <div className="w-36 overflow-hidden">
-                  <span className="font-[Geist,monospace] text-[12px] text-[#5a4136] inline-block" style={{ animation: 'marquee 10s linear infinite', whiteSpace: 'nowrap' }}>
-                    프리스타일 - Y (Please Tell Me Why)
-                  </span>
-                </div>
-                <div className="flex gap-1">
-                  <button className="retro-btn p-1"><span className="material-symbols-outlined text-[12px]">play_arrow</span></button>
-                  <button className="retro-btn p-1"><span className="material-symbols-outlined text-[12px]">skip_next</span></button>
-                </div>
-              </div>
+              <BgmPlayer
+                main={main}
+                onBgmChanged={(bgmUrl) => setMain(prev => prev ? { ...prev, bgmUrl } : prev)}
+                onTrackNameChange={setCurrentTrackName}
+              />
             </div>
 
             {/* 미니룸 프리뷰 */}
@@ -911,7 +910,9 @@ const profileInputRef = useRef<HTMLInputElement>(null)
               <div className="bg-[#baeaff] px-2 py-1 border-b border-[#8e7164] font-[Geist,monospace] text-[12px] font-semibold text-[#09657f] flex items-center gap-1">
                 <span className="material-symbols-outlined text-sm">house</span>
                 미니룸
-                <span className="text-[#5a4136] font-normal ml-1">· 프리스타일 - Y</span>
+                <span className="text-[#5a4136] font-normal ml-1">
+                  {currentTrackName ? `· ${currentTrackName}` : ''}
+                </span>
                 <button className="retro-btn font-[Geist,monospace] text-[11px] font-semibold px-2 py-1 ml-auto flex items-center gap-1"
                   onClick={() => navigate('/room')}>
                   <span className="material-symbols-outlined text-[13px]">edit</span> 꾸미기
@@ -1168,13 +1169,16 @@ const profileInputRef = useRef<HTMLInputElement>(null)
             })
           })()}
 
-          {/* ↓ 설정 버튼(프로필 사진, 배경화면, 소개글 등 설정) — 기존 탭 목록과 완전히 분리, 모달이라 path 필요없음 */}
-          <button
-            onClick={() => setShowSettings(true)}
-            className="tab-item bg-[#f3f3f3] text-[#5a4136] hover:bg-[#e2e2e2] py-2 px-1 text-center font-[Geist,monospace] text-[12px] font-semibold flex flex-col items-center gap-1 cursor-pointer border-none">
-            <span className="material-symbols-outlined text-lg">settings</span>
-            설정
-          </button>
+          {/* 설정 버튼(프로필 사진, 배경화면, 소개글 등 설정) — 기존 탭 목록과 완전히 분리, 모달이라 path 필요없음 */}
+          {main?.owner && (
+            <button
+              onClick={() => setShowSettings(true)}
+              className="tab-item bg-[#f3f3f3] text-[#5a4136] hover:bg-[#e2e2e2] py-2 px-1 text-center font-[Geist,monospace] text-[12px] font-semibold flex flex-col items-center gap-1 cursor-pointer border-none"
+            >
+              <span className="material-symbols-outlined text-lg">settings</span>
+              설정
+            </button>
+          )}
         </nav>
       </div>
 

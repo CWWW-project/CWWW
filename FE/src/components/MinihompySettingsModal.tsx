@@ -146,7 +146,7 @@ export default function MinihompySettingsModal({ main, onClose, onSaved }: Props
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136]">공개범위</label>
+            <label className="font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136]">미니홈피 공개범위</label>
             <div className="flex gap-1">
               {(['ALL', 'FRIEND', 'PRIVATE'] as const).map(v => (
                 <button
