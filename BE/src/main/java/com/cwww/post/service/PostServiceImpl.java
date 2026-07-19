@@ -166,7 +166,7 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true)
-    public FeedResponse searchByHashtag(String tag, Long cursor, int size) {
+    public FeedResponse searchByHashtag(Long viewerId, String tag, Long cursor, int size) {
         List<Post> posts = postMapper.findByHashtag(tag, cursor, size + 1);
 
         boolean hasNext = posts.size() > size;
@@ -176,7 +176,7 @@ public class PostServiceImpl implements PostService {
 
         Long nextCursor = hasNext ? posts.get(posts.size() - 1).getPostId() : null;
 
-        List<PostResponse> responses = toPostResponses(posts, null);
+        List<PostResponse> responses = toPostResponses(posts, viewerId);
 
         return FeedResponse.builder()
                 .posts(responses)
@@ -240,6 +240,9 @@ public class PostServiceImpl implements PostService {
         for (String name : hashtags) {
             hashtagMapper.upsertHashtag(name);
             Hashtag hashtag = hashtagMapper.findByName(name);
+            if (hashtag == null) {
+                throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+            }
             hashtagMapper.linkToPost(postId, hashtag.getHashtagId());
         }
     }

@@ -190,8 +190,12 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public AcornBalanceResponse getBalance(Long userId) {
         AcornWallet wallet = paymentMapper.findWalletByUserId(userId);
-        int balance = (wallet == null) ? 0 : wallet.getBalance();
-        return AcornBalanceResponse.builder().balance(balance).build();
+        int balance          = (wallet == null) ? 0 : wallet.getBalance();
+        int availableBalance = (wallet == null) ? 0 : wallet.getAvailableBalance();
+        return AcornBalanceResponse.builder()
+                .balance(balance)
+                .availableBalance(availableBalance)
+                .build();
     }
 
     // ──────────────────────────────────────────────────────────────────────

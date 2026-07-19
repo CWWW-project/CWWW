@@ -2,8 +2,16 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { postApi } from '../../api/post'
 import { commentApi } from '../../api/comment'
-import type { PostResponse, CommentResponse } from '../../types'
+import { roomApi } from '../../api/room'
+import type { PostResponse, CommentResponse, RoomResponse, MinihompyMainResponse, BgmOptionResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
+import { minihompyApi } from '../../api/minihompy'
+import MinihompySettingsModal from '../../components/MinihompySettingsModal'
+import { parseMood } from '../../utils/mood'
+import ProfileImageMenuModal from '../../components/ProfileImageMenuModal'
+import BgmPlayer from '../../components/BgmPlayer'
+import { useMinihompyStore } from '../../store/minihompyStore'
+import UserNameLink from '../../components/UserNameLink'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -32,6 +40,117 @@ interface WriteForm {
 }
 
 const EMPTY_FORM: WriteForm = { title: '', content: '', visibility: 'ALL', hashtags: [], mediaUrls: [] }
+
+const MINIROOM_ASSET_ROOT = '/miniroom-assets'
+const MINIROOM_WIDTH = 750
+const MINIROOM_HEIGHT = 606
+
+function MiniroomFeedPreview({ room, nickname }: { room: RoomResponse | null; nickname?: string }) {
+  const backgroundUrl = room?.backgroundAssetUrl ?? `${MINIROOM_ASSET_ROOT}/rooms/room-pink.svg`
+  const savedItems = [...(room?.items ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)
+  const hasSavedItems = savedItems.length > 0
+  const avatar = room?.avatar
+  const hasRoomContent = hasSavedItems || Boolean(avatar?.avatarInventoryId)
+  const shouldShowFallbackItems = room == null
+
+  return (
+    <div className="relative w-full bg-[#dff6f4]" style={{ height: 280, overflow: 'hidden' }}>
+      <img
+        src={backgroundUrl}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ imageRendering: 'auto' }}
+      />
+
+      {hasRoomContent ? (
+        <>
+          {savedItems.map(item => (
+            <div
+              key={item.roomItemId}
+              className="absolute"
+              title={item.name}
+              style={{
+                left: `${(item.posX / MINIROOM_WIDTH) * 100}%`,
+                top: `${(item.posY / MINIROOM_HEIGHT) * 100}%`,
+                width: `${((item.assetWidth ?? 80) / MINIROOM_WIDTH) * 100}%`,
+                zIndex: item.sortOrder,
+                transform: `scale(${item.scale ?? 1}) rotate(${item.rotation ?? 0}deg)`,
+                transformOrigin: 'center bottom',
+                filter: 'drop-shadow(2px 5px 2px rgba(44, 58, 65, 0.16))',
+              }}
+            >
+              {item.assetUrl ? (
+                <img
+                  src={item.assetUrl}
+                  alt=""
+                  className="block w-full"
+                  style={{
+                    imageRendering: 'pixelated',
+                    transform: `scaleX(${item.flipped ? -1 : 1})`,
+                  }}
+                />
+              ) : (
+                <span className="material-symbols-outlined text-[#a33e00]" style={{ fontSize: 42, fontVariationSettings: "'FILL' 1" }}>
+                  {item.category === 'AVATAR' ? 'face' : 'inventory_2'}
+                </span>
+              )}
+            </div>
+          ))}
+          {avatar?.avatarInventoryId ? (
+            <div
+              className="absolute flex flex-col items-center"
+              style={{
+                left: `${((avatar.posX ?? 318) / MINIROOM_WIDTH) * 100}%`,
+                top: `${((avatar.posY ?? 438) / MINIROOM_HEIGHT) * 100}%`,
+                zIndex: 10000,
+                transform: `scale(${avatar.scale ?? 1})`,
+                transformOrigin: 'center bottom',
+              }}
+            >
+              <img
+                src={`${MINIROOM_ASSET_ROOT}/avatars-grafxkid/grafxkid_avatar_01.png`}
+                alt=""
+                style={{
+                  width: 36,
+                  imageRendering: 'pixelated',
+                  transform: `scaleX(${avatar.flipped ? -1 : 1})`,
+                }}
+              />
+            </div>
+          ) : null}
+        </>
+      ) : shouldShowFallbackItems ? (
+        <>
+          <div className="absolute" style={{ left: '50%', top: '52%', transform: 'translate(-50%, -50%)' }}>
+            <img
+              src={`${MINIROOM_ASSET_ROOT}/items/sofa_blue.png`}
+              alt=""
+              style={{ width: 126, imageRendering: 'pixelated' }}
+            />
+          </div>
+          <div className="absolute flex flex-col items-center" style={{ left: '43%', top: '48%' }}>
+            <img
+              src={`${MINIROOM_ASSET_ROOT}/avatars-grafxkid/grafxkid_avatar_01.png`}
+              alt=""
+              style={{ width: 36, imageRendering: 'pixelated' }}
+            />
+            <div style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid #ccc', padding: '1px 6px', fontSize: 9, fontFamily: 'Geist, monospace', marginTop: 2, whiteSpace: 'nowrap' }}>
+              {nickname ?? '미니미'}
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      <div className="absolute flex items-center gap-1" style={{ top: 6, left: 8, background: 'rgba(255,255,255,0.85)', border: '1px solid #ccc', padding: '2px 7px' }}>
+        <span style={{ fontSize: 10, fontFamily: 'Geist, monospace', color: '#5a4136' }}>TODAY <span style={{ color: '#ba1a1a', fontWeight: 700 }}>123</span> | TOTAL 45,678</span>
+      </div>
+      <div className="absolute flex items-center gap-1" style={{ top: 6, right: 8, background: 'rgba(255,255,255,0.85)', border: '1px solid #ccc', padding: '2px 7px' }}>
+        <span className="material-symbols-outlined text-[#a33e00]" style={{ fontSize: 11 }}>music_note</span>
+        <span style={{ fontSize: 10, fontFamily: 'Geist, monospace', color: '#5a4136' }}>프리스타일 - Y</span>
+      </div>
+    </div>
+  )
+}
 
 export default function FeedPage() {
   const navigate = useNavigate()
@@ -62,6 +181,19 @@ export default function FeedPage() {
   const [searchCursor, setSearchCursor] = useState<number | undefined>(undefined)
   const [searchHasNext, setSearchHasNext] = useState(false)
   const [searchError, setSearchError] = useState(false)
+  const [roomPreview, setRoomPreview] = useState<RoomResponse | null>(null)
+const { main, setMain, clearMain } = useMinihompyStore()
+
+// 프로필 사진 메뉴(팝업) 열림/닫힘
+const [showProfileMenu, setShowProfileMenu] = useState(false)
+// 숨겨진 input을 클릭시키기 위한 ref
+const profileInputRef = useRef<HTMLInputElement>(null)
+  
+  // 미니홈피 설정 모달
+  const [showSettings, setShowSettings] = useState(false)
+
+  // BGM
+  const [currentTrackName, setCurrentTrackName] = useState<string | null>(null)
 
   // 다이어리 작성 모달
   const [showModal, setShowModal] = useState(false)
@@ -94,6 +226,47 @@ export default function FeedPage() {
 
   useEffect(() => { loadFeed() }, [loadFeed])
 
+  useEffect(() => {
+    if (!localStorage.getItem('accessToken')) {
+      setRoomPreview(null)
+      return
+    }
+
+    let ignore = false
+    roomApi.getMyRoom()
+      .then(response => {
+        if (!ignore) setRoomPreview(response.data.data)
+      })
+      .catch(() => {
+        if (!ignore) setRoomPreview(null)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [user?.id])
+
+  // 미니홈피 메인 조회
+  useEffect(() => {
+  if (!localStorage.getItem('accessToken')) {
+    setMain(null)
+    return
+  }
+
+  let ignore = false
+  minihompyApi.getMyMinihompy()
+    .then(res => {
+      if (!ignore) setMain(res.data.data)
+    })
+    .catch(() => {
+      if (!ignore) setMain(null)
+    })
+
+  return () => {
+    ignore = true
+  }
+}, [user?.id])
+
   const toggleLike = async (postId: number) => {
     if (pendingLikeIds.has(postId)) return
     const liked = likedPostIds.has(postId)
@@ -107,6 +280,7 @@ export default function FeedPage() {
       const updater = (p: PostResponse) => p.postId === postId ? { ...p, likeCount: p.likeCount + delta } : p
       setPosts(prev => prev.map(updater))
       setSearchPosts(prev => prev.map(updater))
+      setBookmarkPosts(prev => prev.map(updater))
     }
     applyLikeCount(liked ? -1 : 1)
     try {
@@ -148,6 +322,8 @@ export default function FeedPage() {
   const addTag = () => {
     const tag = tagInput.trim().replace(/^#/, '')
     if (!tag || form.hashtags.includes(tag)) { setTagInput(''); return }
+    if (tag.length > 50) { setTagInput(''); return }
+    if (form.hashtags.length >= 30) { setTagInput(''); return }
     setForm(prev => ({ ...prev, hashtags: [...prev.hashtags, tag] }))
     setTagInput('')
   }
@@ -235,10 +411,17 @@ export default function FeedPage() {
       bookmarked ? next.delete(postId) : next.add(postId)
       return next
     })
+    // unbookmark 시 목록에서 즉시 제거 (낙관적 업데이트), 실패 시 복구
+    let removedPost: PostResponse | undefined
+    if (bookmarked) {
+      setBookmarkPosts(prev => {
+        removedPost = prev.find(p => p.postId === postId)
+        return prev.filter(p => p.postId !== postId)
+      })
+    }
     try {
       if (bookmarked) {
         await postApi.unbookmark(postId)
-        setBookmarkPosts(prev => prev.filter(p => p.postId !== postId))
       } else {
         await postApi.bookmark(postId)
       }
@@ -248,6 +431,13 @@ export default function FeedPage() {
         bookmarked ? next.add(postId) : next.delete(postId)
         return next
       })
+      if (bookmarked && removedPost) {
+        setBookmarkPosts(prev => {
+          const idx = prev.findIndex(p => p.postId < postId)
+          if (idx === -1) return [...prev, removedPost!]
+          return [...prev.slice(0, idx), removedPost!, ...prev.slice(idx)]
+        })
+      }
     } finally {
       setPendingBookmarkIds(prev => { const next = new Set(prev); next.delete(postId); return next })
     }
@@ -284,6 +474,7 @@ export default function FeedPage() {
       const incComment = (p: PostResponse) => p.postId === postId ? { ...p, commentCount: p.commentCount + 1 } : p
       setPosts(prev => prev.map(incComment))
       setSearchPosts(prev => prev.map(incComment))
+      setBookmarkPosts(prev => prev.map(incComment))
       try {
         const res = await commentApi.getComments(postId)
         setPostComments(prev => ({ ...prev, [postId]: res.data.data }))
@@ -307,6 +498,7 @@ export default function FeedPage() {
       const decComment = (p: PostResponse) => p.postId === postId ? { ...p, commentCount: Math.max(0, p.commentCount - 1) } : p
       setPosts(prev => prev.map(decComment))
       setSearchPosts(prev => prev.map(decComment))
+      setBookmarkPosts(prev => prev.map(decComment))
     } catch {
       // 조용히 실패
     }
@@ -357,10 +549,33 @@ export default function FeedPage() {
   }
 
   const filteredPosts = posts.filter(p => {
+    if (filter === '일촌만') return p.userId !== user?.id
     if (filter === '사진만') return p.mediaUrls.length > 0
     return true
   })
   const displayPosts = selectedTag ? searchPosts : filter === '북마크' ? bookmarkPosts : filteredPosts
+
+  const { emoji: moodEmoji, text: moodText } = parseMood(main?.mood)
+
+  const handleChangeProfile = () => {
+    setShowProfileMenu(false)
+    profileInputRef.current?.click()
+  }    
+
+  const handleDeleteProfile = async () => {
+    try {
+      await minihompyApi.deleteProfileImage()
+      const res = await minihompyApi.getMyMinihompy()
+      setMain(res.data.data)
+    } catch (e) {
+      console.error('프로필 사진 삭제 실패', e)
+      alert('프로필 사진 삭제에 실패했습니다. 다시 시도해주세요.')
+    } finally {
+      setShowProfileMenu(false)
+    }
+  }
+
+
 
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
@@ -511,6 +726,24 @@ export default function FeedPage() {
         </div>
       )}
 
+      {/* 미니홈피 설정 모달 — 별도 컴포넌트 */}
+      {showSettings && (
+        <MinihompySettingsModal
+          main={main}
+          onClose={() => setShowSettings(false)}
+          onSaved={(updated) => { setMain(updated); setShowSettings(false) }}
+        />
+      )}
+
+      {/* 프로필 사진 메뉴 */}
+      {showProfileMenu && (
+        <ProfileImageMenuModal
+          onClose={() => setShowProfileMenu(false)}
+          onChange={handleChangeProfile}
+          onDelete={handleDeleteProfile}
+        />
+      )}
+
       {/* 모바일 헤더 */}
       <header className="md:hidden flex justify-between items-center px-4 h-16 w-full fixed top-0 z-50 bg-[#f9f9f9] border-b-2 border-[#e3bfb1]" style={{ boxShadow: '2px 2px 0px rgba(0,0,0,0.1)' }}>
         <div className="font-['Bricolage_Grotesque',sans-serif] text-[28px] font-bold text-[#a33e00]">싸이월드</div>
@@ -529,30 +762,67 @@ export default function FeedPage() {
 
             {/* TODAY/TOTAL */}
             <div className="text-center font-[Geist,monospace] text-[12px] font-semibold text-[#a33e00] bg-[#baeaff] py-2 window-inset">
-              TODAY <span className="text-[#ba1a1a]">42</span> | TOTAL 12,345
+              TODAY <span className="text-[#ba1a1a]">{main?.visitorCount.today ?? 0}</span> | TOTAL {(main?.visitorCount.total ?? 0).toLocaleString()}
             </div>
 
             {/* 내 프로필 or 로그인 유도 */}
             {user ? (
               <div className="window-inset p-2 flex flex-col items-center gap-2">
-                <div className="w-full aspect-square border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[80px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                <div
+                  className="w-full aspect-square border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-90 transition"
+                  onClick={() => setShowProfileMenu(true)}
+                >
+                  {main?.profileImageUrl ? (
+                    <img
+                      src={main.profileImageUrl}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span
+                      className="material-symbols-outlined text-[80px] text-[#a33e00]"
+                      style={{ fontVariationSettings: "'FILL' 1" }}
+                    >
+                      face
+                    </span>
+                  )}
+                  <input
+                    ref={profileInputRef}
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+
+                      try {
+                        await minihompyApi.uploadProfileImage(file)
+                        const res = await minihompyApi.getMyMinihompy()
+                        setMain(res.data.data)
+                      } catch (err) {
+                        console.error('프로필 사진 업로드 실패', err)
+                        alert('프로필 사진 업로드에 실패했습니다. 다시 시도해주세요.')
+                      } finally {
+                        e.target.value = ''
+                      }
+                    }}
+                  />
                 </div>
                 <div className="w-full text-center">
                   <h2 className="font-['Bricolage_Grotesque',sans-serif] text-[20px] font-bold text-[#a33e00] mb-1">
-                    {user.nickname}의 홈피
+                    {main?.title}
                   </h2>
-                  <p className="text-[14px] text-[#5a4136] bg-[#eeeeee] p-1 window-inset min-h-[40px] flex items-center justify-center">
-                    열심히 살자 💪
+                  <p className="text-[13px] font-semibold text-[#5a4136] bg-[#eeeeee] border-2 border-[#c9c9c9] rounded-lg p-3 min-h-[40px] flex items-center justify-center text-center">
+                    {main?.introduction || '소개글이 없습니다'}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136] w-full bg-[#f9f9f9] py-1 px-2 window-inset">
-                  <span className="material-symbols-outlined text-[#a33e00] text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>sentiment_satisfied</span>
-                  오늘의 기분: 맑음
+                  <span className="text-sm">{moodEmoji}</span>
+                  오늘의 기분: {moodText || '알 수 없음'}
                 </div>
                 <div className="flex flex-col gap-1 w-full mt-auto">
                   <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                    onClick={() => navigate(`/home/${user.id}`)}>
+                    onClick={() => navigate(`/`)}>
                     <span className="material-symbols-outlined text-base">home</span> 내 홈피 가기
                   </button>
                   <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
@@ -560,7 +830,7 @@ export default function FeedPage() {
                     <span className="material-symbols-outlined text-base">edit_note</span> 다이어리 쓰기
                   </button>
                   <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ba1a1a]"
-                    onClick={() => { clearAuth(); navigate('/auth/login') }}>
+                    onClick={() => { clearAuth(); clearMain(); navigate('/auth/login') }}>
                     <span className="material-symbols-outlined text-base">logout</span> 로그아웃
                   </button>
                 </div>
@@ -624,32 +894,28 @@ export default function FeedPage() {
             {/* BGM 바 */}
             <div className="window-frame p-1 bg-[#eeeeee] flex items-center justify-between">
               <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">홈 피드</div>
-              <div className="flex items-center gap-2 bg-[#f9f9f9] window-inset px-2 py-1">
-                <span className="material-symbols-outlined text-sm text-[#a33e00]">music_note</span>
-                <div className="w-36 overflow-hidden">
-                  <span className="font-[Geist,monospace] text-[12px] text-[#5a4136] inline-block" style={{ animation: 'marquee 10s linear infinite', whiteSpace: 'nowrap' }}>
-                    프리스타일 - Y (Please Tell Me Why)
-                  </span>
-                </div>
-                <div className="flex gap-1">
-                  <button className="retro-btn p-1"><span className="material-symbols-outlined text-[12px]">play_arrow</span></button>
-                  <button className="retro-btn p-1"><span className="material-symbols-outlined text-[12px]">skip_next</span></button>
-                </div>
-              </div>
+              <BgmPlayer
+                main={main}
+                onBgmChanged={(bgmUrl) => setMain(main ? { ...main, bgmUrl } : null)}
+                onTrackNameChange={setCurrentTrackName}
+              />
             </div>
 
             {/* 미니룸 프리뷰 */}
             <div className="window-inset border border-[#8e7164] overflow-hidden bg-white flex flex-col">
               <div className="bg-[#baeaff] px-2 py-1 border-b border-[#8e7164] font-[Geist,monospace] text-[12px] font-semibold text-[#09657f] flex items-center gap-1">
                 <span className="material-symbols-outlined text-sm">house</span>
-                Miniroom
-                <span className="text-[#5a4136] font-normal ml-1">· 프리스타일 - Y</span>
+                미니룸
+                <span className="text-[#5a4136] font-normal ml-1">
+                  {currentTrackName ? `· ${currentTrackName}` : ''}
+                </span>
                 <button className="retro-btn font-[Geist,monospace] text-[11px] font-semibold px-2 py-1 ml-auto flex items-center gap-1"
                   onClick={() => navigate('/room')}>
                   <span className="material-symbols-outlined text-[13px]">edit</span> 꾸미기
                 </button>
               </div>
-              <div className="relative w-full" style={{ height: 280, overflow: 'hidden' }}>
+              <MiniroomFeedPreview room={roomPreview} nickname={user?.nickname} />
+              <div className="hidden">
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, #c8e6f5 0%, #d9eff8 58%, #c4a882 58%, #b8976e 100%)' }} />
                 <div className="absolute inset-0" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.15) 40px)', height: '58%', top: 0 }} />
                 <div className="absolute left-0 right-0" style={{ top: '58%', bottom: 0, backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 49px, rgba(0,0,0,0.08) 50px)' }} />
@@ -753,7 +1019,11 @@ export default function FeedPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-baseline gap-1 mb-1">
-                            <span className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00] cursor-pointer">{post.nickname}</span>
+                            <UserNameLink
+                              userId={post.userId}
+                              nickname={post.nickname}
+                              className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00] cursor-pointer hover:underline"
+                            />
                             <span className="bg-[#baeaff] text-[#09657f] font-[Geist,monospace] text-[10px] px-1 rounded">일촌</span>
                             <span className="text-[#5a4136] font-[Geist,monospace] text-[12px] ml-auto">{formatTime(post.createdAt)}</span>
                           </div>
@@ -880,7 +1150,7 @@ export default function FeedPage() {
               { icon: 'home', label: '홈', path: '/' },
               { icon: 'edit_note', label: '다이어리', path: `/home/${user?.id ?? 'me'}` },
               { icon: 'photo_library', label: '사진첩', path: `/home/${user?.id ?? 'me'}` },
-              { icon: 'forum', label: '방명록', path: `/home/${user?.id ?? 'me'}` },
+              { icon: 'forum', label: '방명록', path: `/guestbook/${user?.id ?? 'me'}` },
               { icon: 'storefront', label: '상점', path: '/shop' },
             ]
             // 첫 번째 매칭 탭만 active → 동일 경로 탭 중복 active 방지
@@ -898,6 +1168,17 @@ export default function FeedPage() {
               )
             })
           })()}
+
+          {/* 설정 버튼(프로필 사진, 배경화면, 소개글 등 설정) — 기존 탭 목록과 완전히 분리, 모달이라 path 필요없음 */}
+          {main?.owner && (
+            <button
+              onClick={() => setShowSettings(true)}
+              className="tab-item bg-[#f3f3f3] text-[#5a4136] hover:bg-[#e2e2e2] py-2 px-1 text-center font-[Geist,monospace] text-[12px] font-semibold flex flex-col items-center gap-1 cursor-pointer border-none"
+            >
+              <span className="material-symbols-outlined text-lg">settings</span>
+              설정
+            </button>
+          )}
         </nav>
       </div>
 

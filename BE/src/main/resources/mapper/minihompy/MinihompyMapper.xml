@@ -15,29 +15,38 @@
 		<result property="accessLevel" column="access_level"/>
 		<result property="createdAt" column="created_at"/>
 		<result property="bgmUrl" column="bgm_url"/>
+		<result property="backgroundColor" column="background_color"/>
+		<result property="backgroundImageUrl" column="background_image_url"/>
 	</resultMap>
 
 
-	<!-- BGM이나 프로필 사진을 아직 설정 안 한 유저의 경우 null로 채우기 -->
+	<!-- BGM이나 프로필 사진, 배경화면을 아직 설정 안 한 유저의 경우 null로 채우기 -->
 	<select id="selectMinihompyMain" resultMap="minihompyMainMap">
 		SELECT
-		    m.user_id,
-		    u.nickname,
-		    profile.media_url AS profile_image_url,
-		    m.title,
-		    m.introduction,
-		    m.mood,
-		    m.access_level,
-		    m.created_at,
-		    bgm.media_url AS bgm_url
+			m.user_id,
+			u.nickname,
+			profile.media_url AS profile_image_url,
+			m.title,
+			m.introduction,
+			m.mood,
+			m.access_level,
+			m.created_at,
+			bgm.media_url AS bgm_url,
+			m.background_color,
+			background.media_url AS background_image_url
 		FROM minihompy m
 		JOIN users u
-		    ON u.user_id = m.user_id
+			ON u.user_id = m.user_id
 		LEFT JOIN media bgm
-		    ON bgm.media_id = m.media_id
+			ON bgm.media_id = m.media_id
 		LEFT JOIN media profile
-		    ON profile.target_type = 'PROFILE'
-		    AND profile.target_id = m.user_id
+			ON profile.target_type = 'PROFILE'
+			AND profile.target_id = m.user_id
+			AND profile.deleted_at IS NULL
+		LEFT JOIN media background
+			ON background.target_type = 'BACKGROUND'
+			AND background.target_id = m.user_id
+			AND background.deleted_at IS NULL
 		WHERE m.user_id = #{ownerId}
 	</select>
 
@@ -58,9 +67,23 @@
 	<update id="updateSettings">
 		UPDATE minihompy
 		SET access_level = #{accessLevel},
-			introduction = #{introduction},
-			mood = #{mood}
+		introduction = #{introduction},
+		mood = #{mood}
 		WHERE user_id = #{userId}
 	</update>
+
+
+	<!-- 도트 배경 색상 갱신 (null이면 색상 해제) -->
+	<update id="updateBackgroundColor">
+		UPDATE minihompy
+		SET background_color = #{backgroundColor}
+		WHERE user_id = #{userId}
+	</update>
+
+
+	<!-- 미니홈피 존재 확인 + 행 잠금 (동시 배경 전환 요청이 서로 겹치지 않도록 직렬화) -->
+	<select id="lockMinihompyByUserId" resultType="Long">
+		SELECT minihompy_id FROM minihompy WHERE user_id = #{userId} FOR UPDATE
+	</select>
 
 </mapper>

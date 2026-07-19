@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
 
 @Getter
 @Builder
@@ -18,14 +20,12 @@ public class ChatMessageResponse {
     private MessageType messageType;
     private LocalDateTime createdAt;
     private Integer unreadMemberCount;
-
-    public static ChatMessageResponse from(ChatMessage chatMessage, Integer unreadMemberCount) {
-        return from(chatMessage, unreadMemberCount, "MESSAGE");
-    }
+    private List<String> mediaUrls;
 
     public static ChatMessageResponse from(ChatMessage chatMessage,
                                            Integer unreadMemberCount,
-                                           String eventType) {
+                                           String eventType,
+                                           List<String> mediaUrls) {
         return ChatMessageResponse.builder()
                 .eventType(eventType)
                 .messageId(chatMessage.getMessageId())
@@ -35,6 +35,7 @@ public class ChatMessageResponse {
                 .messageType(chatMessage.getMessageType())
                 .createdAt(chatMessage.getCreatedAt())
                 .unreadMemberCount(unreadMemberCount)
+                .mediaUrls(mediaUrls == null ? Collections.emptyList() : mediaUrls)
                 .build();
     }
 }

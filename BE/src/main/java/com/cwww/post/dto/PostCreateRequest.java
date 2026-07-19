@@ -2,6 +2,7 @@ package com.cwww.post.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -12,7 +13,6 @@ import java.util.List;
 @NoArgsConstructor
 public class PostCreateRequest {
 
-    @NotBlank
     private String title;
 
     @NotBlank
@@ -23,7 +23,8 @@ public class PostCreateRequest {
 
     private Long minihompyId;
 
-    private List<String> hashtags = new ArrayList<>();
+    @Size(max = 30, message = "해시태그는 최대 30개까지 입력 가능합니다.")
+    private List<@Size(max = 50, message = "해시태그는 최대 50자까지 입력 가능합니다.") String> hashtags = new ArrayList<>();
     private List<String> mediaUrls = new ArrayList<>();
 
     public void setTitle(String title) { this.title = title; }

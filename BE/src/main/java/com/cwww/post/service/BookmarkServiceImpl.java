@@ -10,6 +10,7 @@ import com.cwww.post.dto.PostResponse;
 import com.cwww.post.mapper.BookmarkMapper;
 import com.cwww.post.mapper.HashtagMapper;
 import com.cwww.post.mapper.MediaMapper;
+import com.cwww.post.mapper.PostLikeMapper;
 import com.cwww.post.mapper.PostMapper;
 import com.cwww.user.domain.User;
 import com.cwww.user.mapper.UserMapper;
@@ -30,6 +31,7 @@ public class BookmarkServiceImpl implements BookmarkService {
     private final UserMapper userMapper;
     private final HashtagMapper hashtagMapper;
     private final MediaMapper mediaMapper;
+    private final PostLikeMapper postLikeMapper;
 
     @Override
     @Transactional
@@ -64,7 +66,7 @@ public class BookmarkServiceImpl implements BookmarkService {
 
         Long nextCursor = hasNext ? posts.get(posts.size() - 1).getPostId() : null;
 
-        List<PostResponse> responses = toPostResponses(posts);
+        List<PostResponse> responses = toPostResponses(posts, userId);
 
         return FeedResponse.builder()
                 .posts(responses)
@@ -73,7 +75,7 @@ public class BookmarkServiceImpl implements BookmarkService {
                 .build();
     }
 
-    private List<PostResponse> toPostResponses(List<Post> posts) {
+    private List<PostResponse> toPostResponses(List<Post> posts, Long userId) {
         if (posts.isEmpty()) {
             return List.of();
         }
@@ -90,10 +92,12 @@ public class BookmarkServiceImpl implements BookmarkService {
                 .collect(Collectors.groupingBy(Media::getTargetId,
                         Collectors.mapping(Media::getMediaUrl, Collectors.toList())));
 
+        java.util.Set<Long> likedPostIds = postLikeMapper.findLikedPostIds(userId, postIds);
+
         return posts.stream()
                 .map(post -> PostResponse.from(post,
                         nicknameMap.getOrDefault(post.getUserId(), ""),
-                        false,
+                        likedPostIds.contains(post.getPostId()),
                         true,
                         hashtagMap.getOrDefault(post.getPostId(), List.of()),
                         mediaMap.getOrDefault(post.getPostId(), List.of())))

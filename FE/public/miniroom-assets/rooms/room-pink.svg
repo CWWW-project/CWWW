@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="750" height="606" viewBox="0 0 750 606">
+  <rect width="750" height="606" fill="#fff3f8"/>
+  <polygon points="0,0 375,0 375,314 0,444" fill="#ffdceb"/>
+  <polygon points="375,0 750,0 750,444 375,314" fill="#ffc7df"/>
+  <polygon points="0,444 375,314 750,444 375,606" fill="#f6d28a"/>
+  <g stroke="#ebbd77" stroke-width="1" opacity=".55">
+    <path d="M44 429 388 569M112 405 458 548M181 381 527 523M250 357 596 499M319 333 665 474"/>
+    <path d="M706 429 362 569M638 405 292 548M569 381 223 523M500 357 154 499M431 333 85 474"/>
+  </g>
+  <g opacity=".18" fill="#c24d78">
+    <circle cx="86" cy="78" r="9"/><circle cx="120" cy="124" r="6"/><circle cx="260" cy="58" r="7"/>
+    <circle cx="590" cy="90" r="8"/><circle cx="675" cy="148" r="7"/>
+  </g>
+  <rect x="56" y="112" width="116" height="150" rx="8" fill="#fff" stroke="#e99bbd" stroke-width="8"/>
+  <rect x="76" y="132" width="76" height="110" fill="#c9f4ff"/>
+</svg>

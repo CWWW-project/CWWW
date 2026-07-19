@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 
+import { GlobalNotificationLayer } from './app/GlobalNotificationLayer'
 import LoginPage from './pages/auth/LoginPage'
 import SignupPage from './pages/auth/SignupPage'
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage'
@@ -12,6 +13,10 @@ import MinihompyPage from './pages/home/MinihompyPage'
 import FriendsPage from './pages/friend/FriendsPage'
 import { useAuthStore } from './store/authStore'
 import OAuthCallbackPage from './pages/auth/OAuthCallbackPage'
+import GuestbookPage from './pages/guestbook/GuestbookPage'
+import { getAudioElement } from './store/audioPlayer'
+import { useMinihompyStore } from './store/minihompyStore'
+import { useEffect } from 'react'
 
 const MOBILE_TABS = [
   { icon: 'home', label: '홈', path: '/' },
@@ -30,7 +35,7 @@ function GlobalMobileNav() {
 
   const tabs = MOBILE_TABS.map(tab => ({
     ...tab,
-    path: 'pathFn' in tab ? tab.pathFn(user?.id) : (tab as { path: string }).path,
+    path: typeof tab.pathFn === 'function' ? tab.pathFn(user?.id) : tab.path,
   }))
 
   // 오른쪽에서 탐색해 마지막 매칭 탭 우선 (내 홈피 > 다이어리)
@@ -79,9 +84,29 @@ function TopRightSettingsButton() {
   )
 }
 
+function useGlobalBgm() {
+  const main = useMinihompyStore(state => state.main)
+
+  useEffect(() => {
+    const audio = getAudioElement()
+
+    if (!main?.bgmUrl) {
+      audio.pause()
+      audio.src = ''
+      return
+    }
+
+    if (audio.src === main.bgmUrl) return   // 이미 같은 곡이면 아무것도 안 함
+    audio.src = main.bgmUrl
+    audio.play().catch(() => {})
+  }, [main?.bgmUrl])
+}
+
 function App() {
+  useGlobalBgm()
   return (
     <BrowserRouter>
+      <GlobalNotificationLayer />
       <GlobalMobileNav />
       <TopRightSettingsButton />
       <Routes>
@@ -96,8 +121,10 @@ function App() {
         <Route path="/" element={<FeedPage />} />
         <Route path="/friends" element={<FriendsPage />} />
 
-        {/* HOME - 김채린 */}
+        {/* HOME - 김채린, 특정 유저(다른 사람) 미니홈피 가기 */}
         <Route path="/home/:userId" element={<MinihompyPage />} />
+        {/* GUESTBOOk - 김채린 */}
+        <Route path="/guestbook/:userId" element={<GuestbookPage />} />
 
         {/* CHAT - 김찬호 */}
         <Route path="/chat" element={<ChatPage />} />
