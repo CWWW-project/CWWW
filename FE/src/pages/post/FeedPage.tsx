@@ -563,13 +563,17 @@ const profileInputRef = useRef<HTMLInputElement>(null)
   }    
 
   const handleDeleteProfile = async () => {
-    await minihompyApi.deleteProfileImage()
-
-    const res = await minihompyApi.getMyMinihompy()
-
-    setMain(res.data.data)
-    setShowProfileMenu(false)
-  } 
+    try {
+      await minihompyApi.deleteProfileImage()
+      const res = await minihompyApi.getMyMinihompy()
+      setMain(res.data.data)
+    } catch (e) {
+      console.error('프로필 사진 삭제 실패', e)
+      alert('프로필 사진 삭제에 실패했습니다. 다시 시도해주세요.')
+    } finally {
+      setShowProfileMenu(false)
+    }
+  }
 
 
 
@@ -791,12 +795,16 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                       const file = e.target.files?.[0]
                       if (!file) return
 
-                      await minihompyApi.uploadProfileImage(file)
-
-                      const res = await minihompyApi.getMyMinihompy()
-                      setMain(res.data.data)
-
-                      e.target.value = ''
+                      try {
+                        await minihompyApi.uploadProfileImage(file)
+                        const res = await minihompyApi.getMyMinihompy()
+                        setMain(res.data.data)
+                      } catch (err) {
+                        console.error('프로필 사진 업로드 실패', err)
+                        alert('프로필 사진 업로드에 실패했습니다. 다시 시도해주세요.')
+                      } finally {
+                        e.target.value = ''
+                      }
                     }}
                   />
                 </div>
@@ -1142,7 +1150,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
               { icon: 'home', label: '홈', path: '/' },
               { icon: 'edit_note', label: '다이어리', path: `/home/${user?.id ?? 'me'}` },
               { icon: 'photo_library', label: '사진첩', path: `/home/${user?.id ?? 'me'}` },
-              { icon: 'forum', label: '방명록', path: `/guestbook/${user?.id}` },
+              { icon: 'forum', label: '방명록', path: `/guestbook/${user?.id ?? 'me'}` },
               { icon: 'storefront', label: '상점', path: '/shop' },
             ]
             // 첫 번째 매칭 탭만 active → 동일 경로 탭 중복 active 방지

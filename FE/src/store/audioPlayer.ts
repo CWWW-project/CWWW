@@ -8,3 +8,11 @@ export function getAudioElement(): HTMLAudioElement {
   }
   return audioEl
 }
+
+// 추가: 오디오 정지 + 소스 초기화
+export function stopAudio() {
+  if (audioEl) {
+    audioEl.pause()
+    audioEl.src = ''
+  }
+}

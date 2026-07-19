@@ -146,7 +146,9 @@ export default function MinihompyPage() {
         setCursor(nextCursor ?? undefined)
         setHasNext(more)
       })
-      .catch(() => setEntries([]))
+      .catch(() => {
+        if (cursorParam === undefined) setEntries([])   // 초기 로드 실패일 때만 목록 비움
+      })
       .finally(() => setLoading(false))
   }
 
@@ -165,6 +167,7 @@ export default function MinihompyPage() {
       loadGuestbooks(main.ownerId)
     } catch (e) {
       console.error('방명록 작성 실패', e)
+      alert('방명록 작성에 실패했습니다. 다시 시도해주세요.')
     } finally {
       setSubmitting(false)
     }
@@ -189,6 +192,7 @@ export default function MinihompyPage() {
       loadGuestbooks(main.ownerId)
     } catch (e) {
       console.error('방명록 수정 실패', e)
+      alert('방명록 수정에 실패했습니다. 다시 시도해주세요.')
     }
   }
 
@@ -199,6 +203,7 @@ export default function MinihompyPage() {
       setEntries(prev => prev.filter(e => e.guestbookId !== guestbookId))
     } catch (e) {
       console.error('방명록 삭제 실패', e)
+      alert('방명록 삭제에 실패했습니다. 다시 시도해주세요.')
     }
   }
 

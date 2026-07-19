@@ -67,8 +67,14 @@ function useGlobalBgm() {
   const main = useMinihompyStore(state => state.main)
 
   useEffect(() => {
-    if (!main?.bgmUrl) return
     const audio = getAudioElement()
+
+    if (!main?.bgmUrl) {
+      audio.pause()
+      audio.src = ''
+      return
+    }
+
     if (audio.src === main.bgmUrl) return   // 이미 같은 곡이면 아무것도 안 함
     audio.src = main.bgmUrl
     audio.play().catch(() => {})

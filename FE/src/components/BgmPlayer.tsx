@@ -117,7 +117,7 @@ export default function BgmPlayer({ main, onBgmChanged, onTrackNameChange }: Pro
         <MarqueeText text={main?.bgmUrl ? (currentTrackName ?? 'BGM 재생 중') : 'BGM이 설정되지 않았습니다'} />
       </div>
       <div className="flex gap-1">
-        <button className="retro-btn p-1" onClick={togglePlay} disabled={!audio.src}>
+        <button className="retro-btn p-1" onClick={togglePlay} disabled={!main?.bgmUrl || !audio.src}>
           <span className="material-symbols-outlined text-[12px]">{isPlaying ? 'pause' : 'play_arrow'}</span>
         </button>
         <button className="retro-btn p-1" onClick={openBgmList}>

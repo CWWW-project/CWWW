@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { minihompyApi } from '../../api/minihompy'
 import { guestbookApi } from '../../api/guestbook'
@@ -6,6 +6,8 @@ import type { MinihompyMainResponse, GuestbookResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
 import { parseMood } from '../../utils/mood'
 import { useMinihompyStore } from '../../store/minihompyStore'
+import ProfileImageMenuModal from '../../components/ProfileImageMenuModal'
+
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -40,6 +42,9 @@ export default function GuestbookPage() {
   const [editContent, setEditContent] = useState('')
   const [editSecret, setEditSecret] = useState(false)
 
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const profileInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     setPageLoading(true)
     setPageError('')
@@ -57,6 +62,24 @@ export default function GuestbookPage() {
     return () => { ignore = true }
   }, [userId, isMe])
 
+  const handleChangeProfile = () => {
+    setShowProfileMenu(false)
+    profileInputRef.current?.click()
+  }
+
+  const handleDeleteProfile = async () => {
+    try {
+      await minihompyApi.deleteProfileImage()
+      const res = await minihompyApi.getMyMinihompy()
+      setMain(res.data.data)
+    } catch (e) {
+      console.error('프로필 사진 삭제 실패', e)
+      alert('프로필 사진 삭제에 실패했습니다. 다시 시도해주세요.')
+    } finally {
+      setShowProfileMenu(false)
+    }
+  }
+
   const loadGuestbooks = (ownerId: number, cursorParam?: number) => {
     setLoading(true)
     guestbookApi.getList(ownerId, cursorParam)
@@ -66,7 +89,9 @@ export default function GuestbookPage() {
         setCursor(nextCursor ?? undefined)
         setHasNext(more)
       })
-      .catch(() => setEntries([]))
+      .catch(() => {
+        if (cursorParam === undefined) setEntries([])
+      })
       .finally(() => setLoading(false))
   }
 
@@ -85,6 +110,7 @@ export default function GuestbookPage() {
       loadGuestbooks(main.ownerId)
     } catch (e) {
       console.error('방명록 작성 실패', e)
+      alert('방명록 작성에 실패했습니다. 다시 시도해주세요.')
     } finally {
       setSubmitting(false)
     }
@@ -109,6 +135,7 @@ export default function GuestbookPage() {
       loadGuestbooks(main.ownerId)
     } catch (e) {
       console.error('방명록 수정 실패', e)
+      alert('방명록 수정에 실패했습니다. 다시 시도해주세요.')
     }
   }
 
@@ -119,6 +146,7 @@ export default function GuestbookPage() {
       setEntries(prev => prev.filter(e => e.guestbookId !== guestbookId))
     } catch (e) {
       console.error('방명록 삭제 실패', e)
+      alert('방명록 삭제에 실패했습니다. 다시 시도해주세요.')
     }
   }
 
@@ -139,6 +167,13 @@ export default function GuestbookPage() {
 
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
+        {showProfileMenu && main.owner && (
+          <ProfileImageMenuModal
+            onClose={() => setShowProfileMenu(false)}
+            onChange={handleChangeProfile}
+            onDelete={handleDeleteProfile}
+          />
+        )}
       <div className="max-w-[1024px] w-full mx-auto flex gap-0 relative z-10 px-2 md:px-0">
         <div className="window-frame p-4 w-full flex flex-col md:flex-row gap-4 border border-[#8e7164] relative">
 
@@ -149,13 +184,40 @@ export default function GuestbookPage() {
             </div>
 
             <div className="window-inset p-2 flex flex-col items-center gap-2">
-              <div className="w-full aspect-square border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                {main.profileImageUrl ? (
-                  <img src={main.profileImageUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="material-symbols-outlined text-[80px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
-                )}
-              </div>
+            <div
+              className="w-full aspect-square border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center"
+              style={main.owner ? { cursor: 'pointer' } : {}}
+              onClick={() => { if (main.owner) setShowProfileMenu(true) }}
+            >
+              {main.profileImageUrl ? (
+                <img src={main.profileImageUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span className="material-symbols-outlined text-[80px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+              )}
+              {main.owner && (
+                <input
+                  ref={profileInputRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+
+                    try {
+                      await minihompyApi.uploadProfileImage(file)
+                      const res = await minihompyApi.getMyMinihompy()
+                      setMain(res.data.data)
+                    } catch (err) {
+                      console.error('프로필 사진 업로드 실패', err)
+                      alert('프로필 사진 업로드에 실패했습니다. 다시 시도해주세요.')
+                    } finally {
+                      e.target.value = ''
+                    }
+                  }}
+                />
+              )}
+            </div>
               <div className="w-full text-center">
                 <h2 className="font-['Bricolage_Grotesque',sans-serif] text-[20px] font-bold text-[#a33e00] mb-1">{main.title}</h2>
                 <p className="text-[13px] font-semibold text-[#5a4136] bg-[#eeeeee] border-2 border-[#c9c9c9] rounded-lg p-3 min-h-[40px] flex items-center justify-center text-center">
@@ -169,7 +231,7 @@ export default function GuestbookPage() {
 
               <div className="flex flex-col gap-1 w-full mt-auto">
                 <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                  onClick={() => navigate('/home/me')}>
+                  onClick={() => navigate('/')}>
                   <span className="material-symbols-outlined text-base">home</span> 내 홈피 가기
                 </button>
                 <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ba1a1a]"
@@ -300,7 +362,7 @@ export default function GuestbookPage() {
           {[
             { icon: 'home', label: '홈', path: '/' },
             { icon: 'edit_note', label: '다이어리', path: `/diary/${userId}` },
-            { icon: 'photo_library', label: '사진첩', path: `/home/${userId}` },
+            { icon: 'photo_library', label: '사진첩', path: `/photo/${userId}` },
             { icon: 'forum', label: '방명록', path: `/guestbook/${userId}` },
             { icon: 'storefront', label: '상점', path: '/shop' },
           ].map(tab => {

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { MinihompyMainResponse } from '../types'
+import { stopAudio } from './audioPlayer'
 
 interface MinihompyState {
   main: MinihompyMainResponse | null
@@ -36,6 +37,7 @@ export const useMinihompyStore = create<MinihompyState>((set) => ({
   },
   clearMain: () => {
     applyBackground(null)
+    stopAudio()   // 추가: 배경 초기화와 함께 오디오도 정지
     set({ main: null })
   },
 }))
