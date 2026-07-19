@@ -14,6 +14,7 @@ import com.cwww.global.exception.ErrorCode;
 import com.cwww.post.domain.Media;
 import com.cwww.post.mapper.MediaMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,9 @@ import java.util.List;
 public class ChatMessageService {
     private static final String CHAT_MESSAGE_TARGET_TYPE = "CHAT_MESSAGE";
 
+    @Value("${storage.local.base-url:http://localhost:8080/uploads}")
+    private String storageBaseUrl;
+
     private final ChatRoomMapper chatRoomMapper;
     private final ChatParticipantMapper chatParticipantMapper;
     private final ChatMessageMapper chatMessageMapper;
@@ -37,7 +41,8 @@ public class ChatMessageService {
     public ChatMessageResponse sendMessage(Long senderId, ChatMessageRequest request) {
         ChatRoom chatRoom = validateChatRoom(request.getChatId());
         validateSender(chatRoom.getChatId(), senderId);
-        validateMessageContent(request);
+        List<String> mediaUrls = normalizeMediaUrls(request);
+        validateMessageContent(request, mediaUrls);
 
         ChatMessage chatMessage = ChatMessage.builder()
                 .chatId(chatRoom.getChatId())
@@ -50,10 +55,10 @@ public class ChatMessageService {
 
         chatMessageMapper.insert(chatMessage);
         chatRoomMapper.updateLastMessage(chatRoom.getChatId(), chatMessage.getMessageId());
-        saveMediaUrls(chatMessage.getMessageId(), request.getMediaUrls());
+        saveMediaUrls(chatMessage.getMessageId(), mediaUrls);
 
         int unreadMemberCount = countUnreadParticipants(chatMessage);
-        return ChatMessageResponse.from(chatMessage, unreadMemberCount, "MESSAGE", normalizeMediaUrls(request));
+        return ChatMessageResponse.from(chatMessage, unreadMemberCount, "MESSAGE", mediaUrls);
     }
 
     // 본인이 보낸 메시지를 소프트 삭제하고 채팅방의 마지막 메시지 포인터를 다시 맞춘다.
@@ -151,7 +156,7 @@ public class ChatMessageService {
     }
 
     // 메시지 타입별로 본문이 충족해야 하는 최소 조건을 검증한다.
-    private void validateMessageContent(ChatMessageRequest request) {
+    private void validateMessageContent(ChatMessageRequest request, List<String> mediaUrls) {
         if (request.getMessageType() == null) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
@@ -161,6 +166,12 @@ public class ChatMessageService {
             if (content == null || content.isBlank()) {
                 throw new BusinessException(ErrorCode.INVALID_INPUT);
             }
+            return;
+        }
+
+        if ((request.getMessageType() == MessageType.IMAGE || request.getMessageType() == MessageType.FILE)
+                && mediaUrls.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
     }
 
@@ -177,7 +188,31 @@ public class ChatMessageService {
         if (request.getMediaUrls() == null) {
             return Collections.emptyList();
         }
-        return request.getMediaUrls();
+
+        List<String> normalizedMediaUrls = new ArrayList<>();
+        for (String mediaUrl : request.getMediaUrls()) {
+            if (mediaUrl == null || mediaUrl.isBlank()) {
+                continue;
+            }
+
+            String normalizedMediaUrl = mediaUrl.trim();
+            if (!isAllowedStorageUrl(normalizedMediaUrl)) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT);
+            }
+
+            normalizedMediaUrls.add(normalizedMediaUrl);
+        }
+
+        return normalizedMediaUrls;
+    }
+
+    private boolean isAllowedStorageUrl(String mediaUrl) {
+        String allowedBaseUrl = storageBaseUrl;
+        while (allowedBaseUrl.endsWith("/")) {
+            allowedBaseUrl = allowedBaseUrl.substring(0, allowedBaseUrl.length() - 1);
+        }
+
+        return mediaUrl.startsWith(allowedBaseUrl + "/");
     }
 
     // 첨부 URL들을 CHAT_MESSAGE 대상으로 media 테이블에 저장한다.
