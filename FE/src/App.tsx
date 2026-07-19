@@ -11,6 +11,10 @@ import MinihompyPage from './pages/home/MinihompyPage'
 import FriendsPage from './pages/friend/FriendsPage'
 import { useAuthStore } from './store/authStore'
 import OAuthCallbackPage from './pages/auth/OAuthCallbackPage'
+import GuestbookPage from './pages/guestbook/GuestbookPage'
+import { getAudioElement } from './store/audioPlayer'
+import { useMinihompyStore } from './store/minihompyStore'
+import { useEffect } from 'react'
 
 const MOBILE_TABS = [
   { icon: 'home', label: '홈', path: '/' },
@@ -59,7 +63,26 @@ function GlobalMobileNav() {
   )
 }
 
+function useGlobalBgm() {
+  const main = useMinihompyStore(state => state.main)
+
+  useEffect(() => {
+    const audio = getAudioElement()
+
+    if (!main?.bgmUrl) {
+      audio.pause()
+      audio.src = ''
+      return
+    }
+
+    if (audio.src === main.bgmUrl) return   // 이미 같은 곡이면 아무것도 안 함
+    audio.src = main.bgmUrl
+    audio.play().catch(() => {})
+  }, [main?.bgmUrl])
+}
+
 function App() {
+  useGlobalBgm()
   return (
     <BrowserRouter>
       <GlobalNotificationLayer />
@@ -74,8 +97,10 @@ function App() {
         <Route path="/" element={<FeedPage />} />
         <Route path="/friends" element={<FriendsPage />} />
 
-        {/* HOME - 김채린 */}
+        {/* HOME - 김채린, 특정 유저(다른 사람) 미니홈피 가기 */}
         <Route path="/home/:userId" element={<MinihompyPage />} />
+        {/* GUESTBOOk - 김채린 */}
+        <Route path="/guestbook/:userId" element={<GuestbookPage />} />
 
         {/* CHAT - 김찬호 */}
         <Route path="/chat" element={<ChatPage />} />

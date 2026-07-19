@@ -180,3 +180,70 @@ export interface SaveRoomRequest {
   } | null
   items: SaveRoomItemRequest[]
 }
+
+export interface VisitorCount {
+  today: number
+  total: number
+}
+
+export type AccessLevel = 'ALL' | 'FRIEND' | 'PRIVATE'
+
+export interface MinihompyMainResponse {
+  ownerId: number
+  nickname: string
+  profileImageUrl: string | null
+  title: string
+  introduction: string
+  mood: string | null
+  accessLevel: AccessLevel
+  createdAt: string
+  bgmUrl: string | null
+  backgroundColor: string | null
+  backgroundImageUrl: string | null
+  owner: boolean
+  visitorCount: VisitorCount
+}
+
+export interface BgmOptionResponse {
+  itemId: number
+  name: string        // "제목 - 아티스트"
+  mediaUrl: string
+  applied: boolean
+}
+
+export interface BgmApplyResponse {
+  itemId: number | null
+  mediaUrl: string | null
+}
+
+export interface ProfileImageResponse {
+  profileImageUrl: string
+}
+
+export interface BackgroundResponse {
+  value: string
+}
+
+export interface BackgroundDotOptionResponse {
+  code: string
+  hex: string
+}
+
+export interface GuestbookResponse {
+  guestbookId: number
+  writerId: number
+  writerNickname: string
+  content: string | null   // 비밀글이고 볼 권한 없으면 null
+  visible: boolean         // 지금 요청자가 content를 볼 수 있는지
+  isSecret: boolean        // @JsonProperty("isSecret") 그대로 매핑
+  canEdit: boolean
+  canDelete: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface GuestbookFeedResponse {
+  guestbooks: GuestbookResponse[]
+  nextCursor: number | null
+  hasNext: boolean
+}
