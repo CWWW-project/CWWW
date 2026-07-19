@@ -27,6 +27,9 @@ public enum ErrorCode {
     INVALID_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "A009", "인증 코드가 유효하지 않습니다."),
     MAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "A010", "이메일 발송에 실패했습니다."),
     OAUTH_CODE_INVALID(HttpStatus.BAD_REQUEST, "A011", "유효하지 않거나 만료된 OAuth 코드입니다."),
+    INVALID_RESET_TOKEN(HttpStatus.BAD_REQUEST, "A012", "유효하지 않은 재설정 토큰입니다."),
+    EXPIRED_RESET_TOKEN(HttpStatus.BAD_REQUEST, "A013", "만료된 재설정 토큰입니다."),
+
 
     // Media
     INVALID_FILE_EXTENSION(HttpStatus.BAD_REQUEST, "M001", "허용되지 않는 파일 확장자입니다."),

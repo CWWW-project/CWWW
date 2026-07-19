@@ -40,4 +40,19 @@ export const authApi = {
 
   exchangeOAuthCode: (code: string) =>
     api.post<ApiResponse<OAuthTokenResult>>('/auth/oauth/token', { code }),
+
+  sendEmailCode: (email: string) =>
+    api.post<ApiResponse<null>>('/auth/email/send', { email }),
+
+  verifyEmailCode: (email: string, code: string) =>
+    api.post<ApiResponse<null>>('/auth/email/verify', { email, code }),
+
+  forgotPassword: (email: string) =>
+    api.post<ApiResponse<null>>('/auth/password/forgot', { email }),
+
+  resetPassword: (resetToken: string, newPassword: string) =>
+    api.post<ApiResponse<null>>('/auth/password/reset', { resetToken, newPassword }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post<ApiResponse<null>>('/auth/password/change', { currentPassword, newPassword }),
 }

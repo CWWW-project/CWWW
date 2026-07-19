@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 
 import LoginPage from './pages/auth/LoginPage'
 import SignupPage from './pages/auth/SignupPage'
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage'
+import AccountSettingsPage from './pages/auth/AccountSettingsPage'
 import FeedPage from './pages/post/FeedPage'
 import ChatPage from './pages/chat/ChatPage'
 import ShopPage from './pages/pay/ShopPage'
@@ -58,14 +60,36 @@ function GlobalMobileNav() {
   )
 }
 
+function TopRightSettingsButton() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { user } = useAuthStore()
+
+  if (!user) return null
+  if (location.pathname.startsWith('/auth/') || location.pathname === '/oauth/callback') return null
+
+  return (
+    <button
+      onClick={() => navigate('/auth/settings')}
+      aria-label="계정 설정"
+      className="fixed top-3 right-3 z-50 flex items-center justify-center w-9 h-9 rounded-full bg-[#e2e2e2] border-2 border-[#e3bfb1] cursor-pointer"
+    >
+      <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#5a4136' }}>settings</span>
+    </button>
+  )
+}
+
 function App() {
   return (
     <BrowserRouter>
       <GlobalMobileNav />
+      <TopRightSettingsButton />
       <Routes>
         {/* AUTH - 윤주원 */}
         <Route path="/auth/login" element={<LoginPage />} />
         <Route path="/auth/signup" element={<SignupPage />} />
+        <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/auth/settings" element={<AccountSettingsPage />} />
         <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
 
         {/* POST - 송경용 */}

@@ -26,4 +26,14 @@ public interface UserMapper {
                           @Param("expiresAt") LocalDateTime expiresAt);
     void deleteRefreshToken(Long userId);
     void updateNickname(@Param("userId") Long userId, @Param("nickname") String nickname);
+
+
+    void updateResetToken(@Param("email") String email, @Param("resetToken") String resetToken, @Param("expiresAt") LocalDateTime expiresAt);
+    User findByResetToken(@Param("resetToken") String resetToken);
+    int resetPassword(@Param("userId") Long userId, @Param("password") String password);
+    int updatePassword(@Param("userId") Long userId, @Param("password") String password);
+
+    //회원탈퇴
+    int withdraw(@Param("userId") Long userId);
+
 }

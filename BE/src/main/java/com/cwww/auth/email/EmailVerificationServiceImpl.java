@@ -5,6 +5,7 @@ import com.cwww.global.exception.ErrorCode;
 import com.cwww.user.domain.User;
 import com.cwww.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
@@ -26,6 +27,9 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
     private final JavaMailSender mailSender;
     private final UserMapper userMapper;
 
+    @Value("${spring.mail.username}")
+    private String mailUsername;
+
     @Override
     public void sendCode(String email) {
         User user = userMapper.findByEmail(email);
@@ -39,6 +43,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(email);
+        message.setFrom(mailUsername);
         message.setSubject("[CWWW] 이메일 인증 코드");
         message.setText("인증 코드:" + code + " (5분 이내에 입력해주세요)");
 

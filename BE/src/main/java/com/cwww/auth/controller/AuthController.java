@@ -1,13 +1,7 @@
 package com.cwww.auth.controller;
 
-
-import com.cwww.auth.dto.LoginRequest;
-import com.cwww.auth.dto.LoginResponse;
-import com.cwww.auth.dto.OAuthCodeRequest;
-import com.cwww.auth.dto.OAuthTokenResponse;
-import com.cwww.auth.dto.RefreshTokenRequest;
-import com.cwww.auth.dto.SignupRequest;
-import com.cwww.auth.dto.SignupResponse;
+import com.cwww.auth.dto.*;
+import com.cwww.auth.email.EmailVerificationService;
 import com.cwww.auth.service.AuthService;
 import com.cwww.global.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final EmailVerificationService emailVerificationService;
 
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<SignupResponse>>
@@ -69,4 +64,44 @@ public class AuthController {
         authService.logout(userId, accessToken);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/email/send")
+    public ResponseEntity<ApiResponse<Void>>
+    sendEmailCode(@Valid @RequestBody EmailSendRequest request) {
+        emailVerificationService.sendCode(request.getEmail());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/email/verify")
+    public ResponseEntity<ApiResponse<Void>>
+    verifyEmailCode(@Valid @RequestBody EmailVerifyRequest request) {
+        emailVerificationService.verifyCode(request.getEmail(), request.getCode());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    // 비밀번호
+    @PostMapping("/password/forgot")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody PasswordForgotRequest request) {
+        authService.forgotPassword(request.getEmail());
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @PostMapping("/password/reset")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody PasswordResetRequest request) {
+        authService.resetPassword(request.getResetToken(), request.getNewPassword());
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @PostMapping("/password/change")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody PasswordChangeRequest request) {
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        authService.changePassword(userId, request.getCurrentPassword(), request.getNewPassword());
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+
 }

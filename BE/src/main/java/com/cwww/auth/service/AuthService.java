@@ -12,4 +12,8 @@ public interface AuthService {
     OAuthTokenResponse exchangeOAuthCode(String code);
     LoginResponse refreshToken(String refreshToken);
     void logout(Long userId, String accessToken);
+
+    void forgotPassword(String email);
+    void resetPassword(String resetToken, String newPassword);
+    void changePassword(Long userId, String currentPassword, String newPassword);
 }
