@@ -12,6 +12,7 @@ import com.cwww.guestbook.dto.response.GuestbookResponse;
 import com.cwww.guestbook.mapper.GuestbookMapper;
 import com.cwww.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -22,6 +23,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GuestbookService {
 
     private final GuestbookMapper guestbookMapper;
@@ -222,17 +224,26 @@ public class GuestbookService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
+        Runnable publish = () -> {
+            try {
+                notificationPublisher.publish(event);
+            } catch (Exception e) {
+                log.warn("방명록 알림 발행 실패: guestbookId={}, ownerId={}, writerId={}",
+                        guestbook.getGuestbookId(), ownerId, guestbook.getWriterId(), e);
+            }
+        };
+
         if(TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    notificationPublisher.publish(event);
+                    publish.run();
                 }
             });
             return;
         }
 
-        notificationPublisher.publish(event);
+        publish.run();
     }
 
 }

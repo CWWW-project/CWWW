@@ -318,16 +318,24 @@ public class PostServiceImpl implements PostService {
                         .build())
                 .toList();
 
+        Runnable publish = () -> {
+            try {
+                events.forEach(notificationPublisher::publish);
+            } catch (Exception e) {
+                log.warn("게시글 작성 알림 발행 실패: postId={}, userId={}", post.getPostId(), post.getUserId(), e);
+            }
+        };
+
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    events.forEach(notificationPublisher::publish);
+                    publish.run();
                 }
             });
             return;
         }
 
-        events.forEach(notificationPublisher::publish);
+        publish.run();
     }
 }
