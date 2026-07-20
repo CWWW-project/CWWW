@@ -5,9 +5,12 @@ import com.cwww.friend.dto.response.FriendResponse;
 import com.cwww.friend.mapper.FriendMapper;
 import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
+import com.cwww.global.notification.dto.NotificationEvent;
+import com.cwww.global.notification.redis.RedisNotificationPublisher;
 import com.cwww.user.domain.User;
 import com.cwww.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,12 +18,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FriendServiceImpl implements FriendService {
 
     private final FriendMapper friendMapper;
     private final UserMapper userMapper;
+    private final RedisNotificationPublisher notificationPublisher;
 
     @Override
     @Transactional
@@ -42,6 +47,22 @@ public class FriendServiceImpl implements FriendService {
         if (inserted == 0) {
             throw new BusinessException(ErrorCode.ALREADY_FRIEND);
         }
+
+        try {
+            String actorName = userMapper.findNicknameById(requesterId);
+            notificationPublisher.publish(NotificationEvent.builder()
+                    .eventType("FRIEND_REQUEST")
+                    .targetUserId(receiverId)
+                    .actorId(requesterId)
+                    .actorName(actorName)
+                    .targetId(friend.getFriendId())
+                    .targetType("FRIEND")
+                    .preview(actorName + "님이 일촌 신청을 보냈습니다.")
+                    .createdAt(java.time.LocalDateTime.now())
+                    .build());
+        } catch (Exception e) {
+            log.warn("일촌 신청 알림 발행 실패: requesterId={}, receiverId={}", requesterId, receiverId, e);
+        }
     }
 
     @Override
@@ -56,6 +77,22 @@ public class FriendServiceImpl implements FriendService {
         int updated = friendMapper.updateStatus(friendId, "ACCEPTED");
         if (updated == 0) {
             throw new BusinessException(ErrorCode.FRIEND_REQUEST_NOT_FOUND);
+        }
+
+        try {
+            String actorName = userMapper.findNicknameById(userId);
+            notificationPublisher.publish(NotificationEvent.builder()
+                    .eventType("FRIEND_ACCEPT")
+                    .targetUserId(friend.getRequesterId())
+                    .actorId(userId)
+                    .actorName(actorName)
+                    .targetId(friendId)
+                    .targetType("FRIEND")
+                    .preview(actorName + "님이 일촌 신청을 수락했습니다.")
+                    .createdAt(java.time.LocalDateTime.now())
+                    .build());
+        } catch (Exception e) {
+            log.warn("일촌 수락 알림 발행 실패: userId={}, requesterId={}", userId, friend.getRequesterId(), e);
         }
     }
 

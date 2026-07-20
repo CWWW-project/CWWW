@@ -3,6 +3,8 @@ package com.cwww.post.service;
 import com.cwww.friend.mapper.FriendMapper;
 import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
+import com.cwww.global.notification.dto.NotificationEvent;
+import com.cwww.global.notification.redis.RedisNotificationPublisher;
 import com.cwww.post.domain.Hashtag;
 import com.cwww.post.domain.Media;
 import com.cwww.post.domain.Post;
@@ -19,6 +21,7 @@ import com.cwww.post.mapper.PostMapper;
 import com.cwww.user.domain.User;
 import com.cwww.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
@@ -37,6 +41,7 @@ public class PostServiceImpl implements PostService {
     private final PostLikeMapper postLikeMapper;
     private final BookmarkMapper bookmarkMapper;
     private final UserMapper userMapper;
+    private final RedisNotificationPublisher notificationPublisher;
 
     @Override
     @Transactional
@@ -137,7 +142,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public void likePost(Long userId, Long postId) {
-        postMapper.findById(postId)
+        Post post = postMapper.findById(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
 
         if (postLikeMapper.exists(postId, userId)) {
@@ -146,6 +151,24 @@ public class PostServiceImpl implements PostService {
 
         postLikeMapper.insert(postId, userId);
         postMapper.incrementLikeCount(postId);
+
+        if (!userId.equals(post.getUserId())) {
+            try {
+                String actorName = userMapper.findNicknameById(userId);
+                notificationPublisher.publish(NotificationEvent.builder()
+                        .eventType("LIKE")
+                        .targetUserId(post.getUserId())
+                        .actorId(userId)
+                        .actorName(actorName)
+                        .targetId(postId)
+                        .targetType("POST")
+                        .preview(actorName + "님이 게시글을 좋아합니다.")
+                        .createdAt(java.time.LocalDateTime.now())
+                        .build());
+            } catch (Exception e) {
+                log.warn("좋아요 알림 발행 실패: postId={}, userId={}", postId, userId, e);
+            }
+        }
     }
 
     @Override
