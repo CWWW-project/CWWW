@@ -1,6 +1,7 @@
 package com.cwww.post.dto;
 
 import com.cwww.post.domain.Post;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -21,7 +22,9 @@ public class PostResponse {
     private int viewCount;
     private int likeCount;
     private int commentCount;
+    @JsonProperty("isLiked")
     private boolean isLiked;
+    @JsonProperty("isBookmarked")
     private boolean isBookmarked;
     private List<String> hashtags;
     private List<String> mediaUrls;

@@ -55,6 +55,7 @@ public enum ErrorCode {
 
     // Friend
     ALREADY_FRIEND(HttpStatus.CONFLICT, "F001", "이미 일촌 관계입니다."),
+    FRIEND_REQUEST_ALREADY_RECEIVED(HttpStatus.CONFLICT, "F005", "상대방이 이미 일촌 신청을 보냈습니다. 일촌 신청 목록에서 수락해주세요."),
     FRIEND_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "F002", "일촌 신청을 찾을 수 없습니다."),
     FRIEND_NOT_FOUND(HttpStatus.NOT_FOUND, "F003", "일촌 관계를 찾을 수 없습니다."),
     FRIEND_FORBIDDEN(HttpStatus.FORBIDDEN, "F004", "일촌 요청에 대한 권한이 없습니다."),
