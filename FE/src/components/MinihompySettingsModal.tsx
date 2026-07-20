@@ -28,11 +28,15 @@ export default function MinihompySettingsModal({ main, onClose, onSaved }: Props
   const [error, setError] = useState('')
 
   useEffect(() => {
-    minihompyApi.getBackgroundDotOptions().then(res => {
-      setDotOptions(res.data.data)
-      const matched = res.data.data.find(opt => opt.hex === main?.backgroundColor)
-      setSelectedDotCode(matched?.code ?? null)
-    })
+    minihompyApi.getBackgroundDotOptions()
+      .then(res => {
+        setDotOptions(res.data.data)
+        const matched = res.data.data.find(opt => opt.hex === main?.backgroundColor)
+        setSelectedDotCode(matched?.code ?? null)
+      })
+      .catch(err => {
+        console.error('배경 색상 옵션 조회 실패', err)
+      })
   }, [main])
 
   const handleBgImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {

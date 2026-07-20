@@ -48,6 +48,7 @@
 			AND background.target_id = m.user_id
 			AND background.deleted_at IS NULL
 		WHERE m.user_id = #{ownerId}
+		AND m.deleted_at IS NULL
 	</select>
 
 
@@ -70,6 +71,7 @@
 		introduction = #{introduction},
 		mood = #{mood}
 		WHERE user_id = #{userId}
+		AND deleted_at IS NULL
 	</update>
 
 
@@ -78,12 +80,22 @@
 		UPDATE minihompy
 		SET background_color = #{backgroundColor}
 		WHERE user_id = #{userId}
+		AND deleted_at IS NULL
 	</update>
 
 
 	<!-- 미니홈피 존재 확인 + 행 잠금 (동시 배경 전환 요청이 서로 겹치지 않도록 직렬화) -->
 	<select id="lockMinihompyByUserId" resultType="Long">
-		SELECT minihompy_id FROM minihompy WHERE user_id = #{userId} FOR UPDATE
+		SELECT minihompy_id FROM minihompy WHERE user_id = #{userId} AND deleted_at IS NULL FOR UPDATE
 	</select>
+
+
+	<!-- 회원 탈퇴 시 미니홈피 소프트 삭제, 대상이 없어도(아직 미니홈피 안 만든 유저) 에러 아님(0건 처리) -->
+	<update id="softDeleteByUserId">
+		UPDATE minihompy
+		SET deleted_at = CURRENT_TIMESTAMP
+		WHERE user_id = #{userId}
+		AND deleted_at IS NULL
+	</update>
 
 </mapper>
