@@ -192,9 +192,9 @@ export function ChatPageView({
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div style={{ width: '100%', maxWidth: 1000, height: 820, display: 'flex', gap: 16 }}>
-        <aside className="retro-window" style={{ width: 288, height: '100%', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+    <div className="min-h-screen flex items-center justify-center p-2 md:p-4">
+      <div className="chat-page-shell">
+        <aside className="retro-window chat-room-list">
           <div className="retro-title-bar" style={{ justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>forum</span>
@@ -584,8 +584,8 @@ export function ChatPageView({
           </div>
         ) : null}
 
-        <section className="retro-window" style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-          <div className="retro-title-bar" style={{ justifyContent: 'space-between' }}>
+        <section className="retro-window chat-room-panel">
+          <div className="retro-title-bar chat-room-title-bar" style={{ justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ position: 'relative' }}>
                 <div className="retro-inner-box" style={{ width: 36, height: 36, background: '#eeeeee', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -624,7 +624,7 @@ export function ChatPageView({
                 ) : null}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <div className="chat-room-actions" style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
               {activeRoom?.type === 'GROUP' ? (
                 <button
                   className="retro-btn-gray"
@@ -671,7 +671,7 @@ export function ChatPageView({
 
           <div
             ref={messageContainerRef}
-            className="retro-inner-box retro-scrollbar"
+            className="retro-inner-box retro-scrollbar chat-message-list"
             style={{ flex: 1, padding: 16, margin: 8, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, background: '#fff', visibility: isRoomViewportSettling ? 'hidden' : 'visible' }}
           >
             {isRoomViewportSettling ? (
@@ -714,7 +714,7 @@ export function ChatPageView({
                   </span>
                 </div>
               ) : (
-                <div key={message.id} style={{ display: 'flex', flexDirection: 'column', alignItems: message.senderId === currentUserId ? 'flex-end' : 'flex-start', maxWidth: '78%', alignSelf: message.senderId === currentUserId ? 'flex-end' : 'flex-start' }}>
+                <div key={message.id} className="chat-message-item" style={{ display: 'flex', flexDirection: 'column', alignItems: message.senderId === currentUserId ? 'flex-end' : 'flex-start', maxWidth: '78%', alignSelf: message.senderId === currentUserId ? 'flex-end' : 'flex-start' }}>
                   {message.senderId !== currentUserId ? (
                     <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
                       {activeRoom?.type === 'GROUP' ? getUserNickname(message.senderId, activeParticipants) : activeRoom?.name ?? '채팅방'}
@@ -763,6 +763,7 @@ export function ChatPageView({
                                 key={mediaUrl}
                                 src={mediaUrl}
                                 alt="첨부 이미지"
+                                className="chat-message-media"
                                 style={{ maxWidth: 240, maxHeight: 240, objectFit: 'cover', border: '1px solid rgba(0,0,0,0.15)' }}
                               />
                             ) : (
@@ -847,7 +848,7 @@ export function ChatPageView({
                 ))}
               </div>
             ) : null}
-            <div style={{ display: 'flex', gap: 8, height: 80 }}>
+            <div className="chat-input-row" style={{ display: 'flex', gap: 8, height: 80 }}>
               <textarea
                 ref={textareaRef}
                 className="retro-inner-box"
@@ -859,7 +860,7 @@ export function ChatPageView({
                 disabled={activeId === null || isSending}
               />
               <button
-                className="retro-btn retro-btn-primary"
+                className="retro-btn retro-btn-primary chat-send-button"
                 onClick={sendMessage}
                 disabled={isSending || connectionStatus !== 'connected' || activeId === null || (!input.trim() && pendingAttachments.length === 0)}
                 style={{ height: '100%', padding: '0 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: (!isSending && connectionStatus === 'connected' && activeId !== null && (input.trim() || pendingAttachments.length > 0)) ? 1 : 0.6 }}
