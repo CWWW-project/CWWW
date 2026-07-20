@@ -10,6 +10,8 @@ import java.util.List;
 public interface ChatRoomMapper {
     void insert(ChatRoom chatRoom);
     ChatRoom findById(Long chatId);
+    ChatRoom findActivePrivateRoomByUserIds(@Param("userId1") Long userId1,
+                                            @Param("userId2") Long userId2);
     void updateLastMessage(@Param("chatId") Long chatId,
                            @Param("lastMessageId") Long lastMessageId);
     void updateLastMessageForDelete(@Param("chatId") Long chatId,

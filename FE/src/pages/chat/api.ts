@@ -92,13 +92,17 @@ export async function inviteParticipant(chatId: number, participantUserId: numbe
 }
 
 export async function createChatRoom(type: ChatRoomType, name: string, participantUserIds: number[]): Promise<CreateChatRoomResponse> {
-  const response = await api.post<ApiResponse<CreateChatRoomResponse>>('/chat/rooms', {
-    type,
-    name,
-    participantUserIds,
-  })
-  const payload = response.data
-  return payload.data
+  try {
+    const response = await api.post<ApiResponse<CreateChatRoomResponse>>('/chat/rooms', {
+      type,
+      name,
+      participantUserIds,
+    })
+    const payload = response.data
+    return payload.data
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || '채팅방 생성에 실패했습니다.')
+  }
 }
 
 export async function uploadChatMedia(files: File[]): Promise<string[]> {
