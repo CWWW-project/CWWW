@@ -3,11 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { minihompyApi } from '../../api/minihompy'
 import { guestbookApi } from '../../api/guestbook'
 import type { GuestbookResponse } from '../../types'
-import { useAuthStore } from '../../store/authStore'
 import { parseMoodEmoji } from '../../utils/mood'
 import { useMinihompyStore } from '../../store/minihompyStore'
 import ProfileImageMenuModal from '../../components/ProfileImageMenuModal'
-import MoodIntroQuickEditModal from '../../components/MoodIntroQuickEditModal'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -22,9 +20,8 @@ export default function GuestbookPage() {
   const navigate = useNavigate()
   const { userId } = useParams<{ userId: string }>()
   const isMe = userId === 'me'
-  const { clearAuth } = useAuthStore()
 
-  const { main, setMain, clearMain } = useMinihompyStore()
+  const { main, setMain } = useMinihompyStore()
   const [pageLoading, setPageLoading] = useState(true)
   const [pageError, setPageError] = useState('')
 
@@ -43,7 +40,6 @@ export default function GuestbookPage() {
 
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const profileInputRef = useRef<HTMLInputElement>(null)
-  const [showMoodIntroEdit, setShowMoodIntroEdit] = useState(false)
 
   useEffect(() => {
     setPageLoading(true)
@@ -172,14 +168,6 @@ export default function GuestbookPage() {
           onClose={() => setShowProfileMenu(false)}
           onChange={handleChangeProfile}
           onDelete={handleDeleteProfile}
-        />
-      )}
-
-      {showMoodIntroEdit && main.owner && (
-        <MoodIntroQuickEditModal
-          main={main}
-          onClose={() => setShowMoodIntroEdit(false)}
-          onSaved={(updated) => { setMain(updated); setShowMoodIntroEdit(false) }}
         />
       )}
 

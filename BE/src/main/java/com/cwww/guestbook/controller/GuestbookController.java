@@ -40,7 +40,7 @@ public class GuestbookController {
             @PathVariable Long ownerId,
             @AuthenticationPrincipal Long viewerId,
             @RequestParam(required = false) Long cursor,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size
+            @RequestParam(defaultValue = "5") @Min(1) @Max(50) int size
     ) {
 
         GuestbookFeedResponse response = guestbookService.getGuestbooks(ownerId, viewerId, cursor, size);

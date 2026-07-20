@@ -17,6 +17,7 @@ public class GuestbookResponse {
     private Long guestbookId;
     private Long writerId;
     private String writerNickname;
+    private String writerProfileImageUrl;   // 작성자 프로필 사진 URL (없으면 null)
     private String content;      // 비밀글이고 볼 권한 없으면 null
     private boolean visible;      // 지금 요청자가 이 content를 볼 수 있는지 (프론트 표시용)
 
