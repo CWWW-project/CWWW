@@ -22,6 +22,8 @@ public interface FriendMapper {
 
     List<Friend> findAcceptedByUserId(Long userId);
 
+    List<Long> findAcceptedFriendUserIds(Long userId);
+
     int terminate(Long friendId);
 
     List<Friend> findPendingByReceiverId(Long receiverId);
