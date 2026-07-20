@@ -111,18 +111,22 @@ export default function DiaryPage() {
   // TODO: 백엔드에 GET /api/posts/user/{userId} 추가되면 postApi.getUserPosts로 교체
   // 스펙 제안: 뷰어가 글쓴이 본인 → 전체, 일촌 → ALL+FRIEND, 그 외 → ALL만
   // ---------------------------------------------------------------------
-  const loadUserPosts = useCallback(async (_cursorParam?: number) => {
+  const loadUserPosts = useCallback(async (cursorParam?: number) => {
     setLoading(true)
     try {
-      // const res = await postApi.getUserPosts(targetUserId, _cursorParam)
-      // const { posts: newPosts, nextCursor, hasNext: more } = res.data.data
-      // setPosts(prev => _cursorParam !== undefined ? [...prev, ...newPosts] : newPosts)
-      // setCursor(nextCursor ?? undefined)
-      // setHasNext(more)
-      setPosts([])
-      setHasNext(false)
+      const res = await postApi.getUserPosts(targetUserId, cursorParam)
+      const { posts: newPosts, nextCursor, hasNext: more } = res.data.data
+      setPosts(prev => cursorParam !== undefined ? [...prev, ...newPosts] : newPosts)
+      setCursor(nextCursor ?? undefined)
+      setHasNext(more)
+      const liked = new Set(newPosts.filter(p => p.isLiked).map(p => p.postId))
+      setLikedPostIds(prev => cursorParam !== undefined ? new Set([...prev, ...liked]) : liked)
+      const bookmarked = new Set(newPosts.filter(p => p.isBookmarked).map(p => p.postId))
+      setBookmarkedPostIds(prev => cursorParam !== undefined ? new Set([...prev, ...bookmarked]) : bookmarked)
     } catch (e) {
       console.error('다이어리 로드 실패', e)
+      setPosts([])
+      setHasNext(false)
     } finally {
       setLoading(false)
       setInitialLoaded(true)
@@ -552,7 +556,7 @@ export default function DiaryPage() {
             <div className="flex flex-col overflow-y-auto" style={{ maxHeight: 640 }}>
               {posts.length === 0 && !loading && initialLoaded && (
                 <div className="p-8 text-center font-[Geist,monospace] text-[12px] text-[#5a4136]">
-                  {isOwner ? '아직 작성한 다이어리가 없어요. 첫 글을 남겨보세요!' : '다른 유저의 다이어리 조회 기능은 준비 중이에요.'}
+                  {isOwner ? '아직 작성한 다이어리가 없어요. 첫 글을 남겨보세요!' : '아직 작성한 다이어리가 없어요.'}
                 </div>
               )}
 
@@ -563,7 +567,11 @@ export default function DiaryPage() {
                   <div key={post.postId} className={`p-2 flex flex-col gap-2${idx < posts.length - 1 ? ' border-b border-[#e3bfb1]' : ''}`}>
                     <div className="flex gap-2 items-start">
                       <div className="w-10 h-10 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                        <span className="material-symbols-outlined text-[28px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                        {post.profileImageUrl ? (
+                          <img src={post.profileImageUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="material-symbols-outlined text-[28px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline gap-1 mb-1">
@@ -687,22 +695,20 @@ export default function DiaryPage() {
                 )
               })}
 
-              {isOwner && (
-                <div className="p-2 flex justify-center border-t border-[#e3bfb1]">
-                  {hasNext ? (
-                    <button
-                      className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-12 py-2 flex items-center gap-1"
-                      onClick={loadMore}
-                      disabled={loading}
-                    >
-                      <span className="material-symbols-outlined text-base">{loading ? 'hourglass_empty' : 'expand_more'}</span>
-                      {loading ? '로딩 중...' : '더 보기'}
-                    </button>
-                  ) : (
-                    loading && <span className="font-[Geist,monospace] text-[12px] text-[#5a4136]">로딩 중...</span>
-                  )}
-                </div>
-              )}
+              <div className="p-2 flex justify-center border-t border-[#e3bfb1]">
+                {hasNext ? (
+                  <button
+                    className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-12 py-2 flex items-center gap-1"
+                    onClick={loadMore}
+                    disabled={loading}
+                  >
+                    <span className="material-symbols-outlined text-base">{loading ? 'hourglass_empty' : 'expand_more'}</span>
+                    {loading ? '로딩 중...' : '더 보기'}
+                  </button>
+                ) : (
+                  loading && <span className="font-[Geist,monospace] text-[12px] text-[#5a4136]">로딩 중...</span>
+                )}
+              </div>
             </div>
           </div>
 

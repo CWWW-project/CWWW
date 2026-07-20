@@ -98,4 +98,38 @@
         LIMIT #{size}
     </select>
 
+    <select id="findByUserId" resultType="com.cwww.post.domain.Post">
+        SELECT p.post_id, p.user_id, p.minihompy_id, p.title, p.content, p.visibility,
+        p.view_count, p.like_count, p.comment_count, p.created_at, p.updated_at
+        FROM post p
+        WHERE p.deleted_at IS NULL
+        AND p.user_id = #{targetUserId}
+        AND (
+        <choose>
+            <when test="viewerId != null">
+                #{viewerId} = #{targetUserId}
+                OR (
+                    (p.visibility = 'ALL' OR p.visibility = 'FRIEND')
+                    AND EXISTS (
+                        SELECT 1 FROM friend f
+                        WHERE f.status = 'ACCEPTED'
+                        AND (
+                            (f.requester_id = p.user_id AND f.receiver_id = #{viewerId})
+                            OR (f.requester_id = #{viewerId} AND f.receiver_id = p.user_id)
+                        )
+                    )
+                )
+            </when>
+            <otherwise>
+                p.visibility = 'ALL'
+            </otherwise>
+        </choose>
+        )
+        <if test="cursor != null">
+            <![CDATA[AND p.post_id < #{cursor}]]>
+        </if>
+        ORDER BY p.post_id DESC
+        LIMIT #{size}
+    </select>
+
 </mapper>

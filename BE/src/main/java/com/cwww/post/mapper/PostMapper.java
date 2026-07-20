@@ -33,4 +33,9 @@ public interface PostMapper {
     List<Post> findByHashtag(@Param("tag") String tag,
                              @Param("cursor") Long cursor,
                              @Param("size") int size);
+
+    List<Post> findByUserId(@Param("targetUserId") Long targetUserId,
+                            @Param("viewerId") Long viewerId,
+                            @Param("cursor") Long cursor,
+                            @Param("size") int size);
 }
