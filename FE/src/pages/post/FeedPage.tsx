@@ -1238,22 +1238,8 @@ const profileInputRef = useRef<HTMLInputElement>(null)
               />
             </div>
 
-            {/* 글쓰기 트리거 */}
-            <div
-              className="window-inset border border-[#8e7164] bg-white p-2 flex gap-2 items-center cursor-pointer hover:bg-[#f3f3f3]"
-              onClick={openModal}
-            >
-              <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                <span className="material-symbols-outlined text-xl text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
-              </div>
-              <span className="window-inset flex-1 text-[14px] p-1 text-[#8e7164] font-[Geist,monospace]">
-                오늘 어떤 하루였나요? 다이어리 써보세요...
-              </span>
-              <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold px-2 py-1">작성</button>
-            </div>
-
             {/* 피드 필터 */}
-            <div className="flex gap-1">
+            <div className="flex gap-1 items-center">
               {(['전체 피드', '일촌만', '사진만', '북마크'] as const).map((label, i) => {
                 const val = (['전체', '일촌만', '사진만', '북마크'] as const)[i]
                 return (
@@ -1264,6 +1250,13 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                   >{label}</button>
                 )
               })}
+              <button
+                className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 ml-auto flex items-center gap-1"
+                onClick={() => setShowSearchModal(true)}
+              >
+                <span className="material-symbols-outlined text-sm leading-none">search</span>
+                검색
+              </button>
             </div>
 
             {/* 피드 포스트 */}

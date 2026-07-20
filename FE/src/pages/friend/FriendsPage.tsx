@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { friendApi } from '../../api/friend'
 import { useAuthStore } from '../../store/authStore'
-import type { FriendResponse, UserSearchResponse } from '../../types'
+import type { FriendResponse } from '../../types'
 
 type Tab = '일촌 목록' | '받은 신청'
 
@@ -14,12 +14,6 @@ export default function FriendsPage() {
   const [friends, setFriends] = useState<FriendResponse[]>([])
   const [pending, setPending] = useState<FriendResponse[]>([])
   const [loading, setLoading] = useState(false)
-
-  // 유저 검색
-  const [searchInput, setSearchInput] = useState('')
-  const [searchResults, setSearchResults] = useState<UserSearchResponse[]>([])
-  const [searching, setSearching] = useState(false)
-  const [sentIds, setSentIds] = useState<Set<number>>(new Set())
 
   // 일촌 닉네임 편집
   const [editingFriendId, setEditingFriendId] = useState<number | null>(null)
@@ -53,29 +47,6 @@ export default function FriendsPage() {
     if (tab === '일촌 목록') loadFriends()
     else loadPending()
   }, [tab, loadFriends, loadPending])
-
-  const searchUsers = async () => {
-    const keyword = searchInput.trim()
-    if (!keyword) return
-    setSearching(true)
-    try {
-      const res = await friendApi.searchUsers(keyword)
-      setSearchResults(res.data.data.filter(u => u.userId !== user?.id))
-    } catch (e) {
-      console.error('유저 검색 실패', e)
-    } finally {
-      setSearching(false)
-    }
-  }
-
-  const sendRequest = async (receiverId: number) => {
-    try {
-      await friendApi.sendRequest(receiverId)
-      setSentIds(prev => new Set(prev).add(receiverId))
-    } catch {
-      // 이미 신청했거나 이미 일촌인 경우 조용히 처리
-    }
-  }
 
   const acceptRequest = async (friendId: number) => {
     try {
@@ -140,49 +111,6 @@ export default function FriendsPage() {
           </button>
           <span className="material-symbols-outlined text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>group</span>
           <h1 className="font-['Bricolage_Grotesque',sans-serif] text-[20px] font-bold text-[#a33e00]">일촌 관리</h1>
-        </div>
-
-        {/* 유저 검색 */}
-        <div className="window-inset border border-[#8e7164] bg-white flex flex-col">
-          <div className="bg-[#e2e2e2] px-2 py-1 border-b border-[#8e7164] font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c] flex items-center gap-1">
-            <span className="material-symbols-outlined text-sm">person_search</span> 일촌 신청
-          </div>
-          <div className="p-2 flex flex-col gap-2">
-            <div className="flex gap-1">
-              <input
-                className="window-inset flex-1 text-[13px] p-1.5 focus:outline-none"
-                type="text"
-                placeholder="닉네임으로 검색..."
-                value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') searchUsers() }}
-              />
-              <button
-                className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-3 py-1"
-                onClick={searchUsers}
-                disabled={searching}
-              >
-                {searching ? '검색 중...' : '검색'}
-              </button>
-            </div>
-            {searchResults.length > 0 && (
-              <div className="flex flex-col gap-1">
-                {searchResults.map(u => (
-                  <div key={u.userId} className="flex items-center gap-2 p-1.5 border border-[#e3bfb1] bg-[#fafafa]">
-                    <span className="material-symbols-outlined text-[#a33e00] text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
-                    <span className="font-[Geist,monospace] text-[13px] font-semibold flex-1">{u.nickname}</span>
-                    <button
-                      className={`retro-btn font-[Geist,monospace] text-[12px] font-semibold px-3 py-1${sentIds.has(u.userId) ? ' opacity-50' : ''}`}
-                      onClick={() => sendRequest(u.userId)}
-                      disabled={sentIds.has(u.userId)}
-                    >
-                      {sentIds.has(u.userId) ? '신청 완료' : '일촌 신청'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* 탭 */}
