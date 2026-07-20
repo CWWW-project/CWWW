@@ -1,4 +1,5 @@
 import { useState, type KeyboardEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import type { useChatPage } from './useChatPage'
 
@@ -47,7 +48,6 @@ export function ChatPageView({
   pendingAttachments,
   removePendingAttachment,
   selectedParticipantIds,
-  currentUser,
   currentUserId,
   friendCandidates,
   sendMessage,
@@ -60,8 +60,10 @@ export function ChatPageView({
   setSelectedParticipantIds,
   textareaRef,
 }: ChatPageViewProps) {
+  const navigate = useNavigate()
   const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false)
   const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false)
+  const [isHomePanelOpen, setIsHomePanelOpen] = useState(false)
 
   const handleTextareaKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.nativeEvent.isComposing) {
@@ -138,6 +140,31 @@ export function ChatPageView({
     }
   }
 
+  const privateRoomOpponentId = activeRoom?.type === 'PRIVATE'
+    ? activeParticipants.find((participant) => participant.userId !== currentUserId)?.userId
+    : null
+  const homeCandidates = activeParticipants.filter((participant) => participant.userId !== currentUserId)
+
+  const handleGoToOpponentHome = () => {
+    if (activeRoom?.type === 'GROUP') {
+      setIsHomePanelOpen(true)
+      return
+    }
+
+    if (privateRoomOpponentId !== null && privateRoomOpponentId !== undefined) {
+      navigate(`/home/${privateRoomOpponentId}`)
+    }
+  }
+
+  const handleCloseHomePanel = () => {
+    setIsHomePanelOpen(false)
+  }
+
+  const handleGoToParticipantHome = (userId: number) => {
+    setIsHomePanelOpen(false)
+    navigate(`/home/${userId}`)
+  }
+
   if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -148,9 +175,6 @@ export function ChatPageView({
           <div className="retro-inner-box" style={{ width: '100%', padding: 20, textAlign: 'center' }}>
             <div style={{ fontFamily: 'Be Vietnam Pro', fontSize: 14, color: '#5a4136', marginBottom: 6 }}>
               채팅방 목록과 소켓 연결을 불러오는 중입니다.
-            </div>
-            <div style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#7a5c50' }}>
-              현재 사용자: {currentUser?.nickname ?? '알 수 없음'}
             </div>
           </div>
         </div>
@@ -482,6 +506,76 @@ export function ChatPageView({
           </div>
         ) : null}
 
+        {isHomePanelOpen ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1100,
+              background: 'rgba(45, 31, 25, 0.28)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16,
+            }}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                handleCloseHomePanel()
+              }
+            }}
+          >
+            <div className="retro-window" style={{ width: '100%', maxWidth: 380, background: '#fff7f4' }}>
+              <div className="retro-title-bar" style={{ justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>home</span>
+                  <span style={{ fontWeight: 700 }}>홈피로 이동</span>
+                </div>
+                <button
+                  type="button"
+                  className="retro-btn-gray"
+                  onClick={handleCloseHomePanel}
+                  style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  title="닫기"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+                </button>
+              </div>
+
+              <div style={{ padding: 12 }}>
+                <div className="retro-inner-box" style={{ background: '#fff', padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {homeCandidates.length === 0 ? (
+                    <div style={{ padding: 16, textAlign: 'center', fontFamily: 'Be Vietnam Pro', fontSize: 12, color: '#5a4136' }}>
+                      이동할 수 있는 참여자가 없습니다.
+                    </div>
+                  ) : homeCandidates.map((participant) => (
+                    <button
+                      key={participant.userId}
+                      type="button"
+                      className="retro-inner-box"
+                      onClick={() => handleGoToParticipantHome(participant.userId)}
+                      style={{
+                        minHeight: 42,
+                        padding: '8px 10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        background: '#fafafa',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#5a4136', fontVariationSettings: "'FILL' 1" }}>person</span>
+                      <span style={{ fontFamily: 'Be Vietnam Pro', fontSize: 13, color: '#2f211c', fontWeight: 600 }}>
+                        {participant.nickname}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <section className="retro-window" style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
           <div className="retro-title-bar" style={{ justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -533,7 +627,18 @@ export function ChatPageView({
                   초대
                 </button>
               ) : null}
-              <button className="retro-btn-gray" style={{ padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <button
+                className="retro-btn-gray"
+                onClick={handleGoToOpponentHome}
+                disabled={activeRoom === null || (activeRoom.type === 'PRIVATE' && (privateRoomOpponentId === null || privateRoomOpponentId === undefined)) || (activeRoom.type === 'GROUP' && homeCandidates.length === 0)}
+                style={{
+                  padding: '3px 8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  opacity: activeRoom === null || (activeRoom.type === 'PRIVATE' && (privateRoomOpponentId === null || privateRoomOpponentId === undefined)) || (activeRoom.type === 'GROUP' && homeCandidates.length === 0) ? 0.6 : 1,
+                }}
+              >
                 <span className="material-symbols-outlined" style={{ fontSize: 13 }}>person</span> 홈피
               </button>
               <button
@@ -561,14 +666,6 @@ export function ChatPageView({
             className="retro-inner-box retro-scrollbar"
             style={{ flex: 1, padding: 16, margin: 8, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, background: '#fff', visibility: isRoomViewportSettling ? 'hidden' : 'visible' }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ flex: 1, borderTop: '1px solid #e3bfb1' }} />
-              <span style={{ background: '#e2e2e2', color: '#5a4136', fontFamily: 'Geist, monospace', fontSize: 12, padding: '2px 8px', border: '1px solid #e3bfb1' }}>
-                실시간 채팅 테스트
-              </span>
-              <div style={{ flex: 1, borderTop: '1px solid #e3bfb1' }} />
-            </div>
-
             {isRoomViewportSettling ? (
               <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: 'Be Vietnam Pro', fontSize: 13, color: '#5a4136' }}>
                 메시지를 불러오는 중입니다.
@@ -702,9 +799,6 @@ export function ChatPageView({
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span>
               </button>
-              <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136', marginLeft: 'auto', alignSelf: 'center' }}>
-                현재 사용자: {currentUser?.nickname ?? '알 수 없음'}
-              </span>
             </div>
             <input
               ref={fileInputRef}

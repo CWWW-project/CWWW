@@ -79,6 +79,7 @@ export function useChatPage() {
   const [inviteUserId, setInviteUserId] = useState<number | null>(null)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
   const [isSending, setIsSending] = useState(false)
+  const [reconnectKey, setReconnectKey] = useState(0)
   const messageContainerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const socketRef = useRef<WebSocket | null>(null)
@@ -206,6 +207,34 @@ export function useChatPage() {
   }, [])
 
   useEffect(() => {
+    const closeSocketForPageCache = () => {
+      socketRef.current?.close()
+      socketRef.current = null
+      setConnectionStatus('disconnected')
+      setIsSocketReady(false)
+      setIsSocketAttemptFinished(true)
+      subscriptionIdRef.current = null
+    }
+
+    const reconnectAfterPageRestore = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        setActiveId(null)
+        activeIdRef.current = null
+        previousActiveIdRef.current = null
+        setReconnectKey((prev) => prev + 1)
+      }
+    }
+
+    window.addEventListener('pagehide', closeSocketForPageCache)
+    window.addEventListener('pageshow', reconnectAfterPageRestore)
+
+    return () => {
+      window.removeEventListener('pagehide', closeSocketForPageCache)
+      window.removeEventListener('pageshow', reconnectAfterPageRestore)
+    }
+  }, [])
+
+  useEffect(() => {
     if (!accessToken || !currentUserId) {
       setIsInitialRoomsLoaded(true)
       return
@@ -218,7 +247,7 @@ export function useChatPage() {
       .finally(() => {
         setIsInitialRoomsLoaded(true)
       })
-  }, [accessToken, currentUserId])
+  }, [accessToken, currentUserId, reconnectKey])
 
   useEffect(() => {
     if (!accessToken || !currentUserId) {
@@ -240,7 +269,7 @@ export function useChatPage() {
         setFriendCandidates([])
         setInviteUserId(null)
       })
-  }, [accessToken, currentUserId])
+  }, [accessToken, currentUserId, reconnectKey])
 
   useEffect(() => {
     setActiveId((prev) => {
@@ -293,11 +322,14 @@ export function useChatPage() {
       return
     }
 
+    setConnectionStatus('connecting')
+    setIsSocketReady(false)
+    setIsSocketAttemptFinished(false)
+
     const socket = new WebSocket(getWebSocketUrl())
     socketRef.current = socket
 
     socket.onopen = () => {
-      setConnectionStatus('connecting')
       socket.send(buildFrame('CONNECT', {
         'accept-version': '1.2',
         host: 'localhost',
@@ -389,12 +421,14 @@ export function useChatPage() {
     }
 
     socket.onerror = () => {
+      if (socketRef.current !== socket) return
       setConnectionStatus('disconnected')
       setIsSocketReady(false)
       setIsSocketAttemptFinished(true)
     }
 
     socket.onclose = () => {
+      if (socketRef.current !== socket) return
       setConnectionStatus('disconnected')
       setIsSocketReady(false)
       setIsSocketAttemptFinished(true)
@@ -403,7 +437,7 @@ export function useChatPage() {
     return () => {
       socket.close()
     }
-  }, [accessToken, currentUserId])
+  }, [accessToken, currentUserId, reconnectKey])
 
   useEffect(() => {
     const socket = socketRef.current

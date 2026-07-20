@@ -14,6 +14,7 @@ export function GlobalNotificationLayer() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false)
+  const [reconnectKey, setReconnectKey] = useState(0)
   const socketRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
@@ -22,6 +23,27 @@ export function GlobalNotificationLayer() {
     setUnreadNotificationCount(0)
     setIsNotificationPanelOpen(false)
   }, [userId])
+
+  useEffect(() => {
+    const closeSocketForPageCache = () => {
+      socketRef.current?.close()
+      socketRef.current = null
+    }
+
+    const reconnectAfterPageRestore = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        setReconnectKey((prev) => prev + 1)
+      }
+    }
+
+    window.addEventListener('pagehide', closeSocketForPageCache)
+    window.addEventListener('pageshow', reconnectAfterPageRestore)
+
+    return () => {
+      window.removeEventListener('pagehide', closeSocketForPageCache)
+      window.removeEventListener('pageshow', reconnectAfterPageRestore)
+    }
+  }, [])
 
   useEffect(() => {
     if (!accessToken || !userId) {
@@ -102,7 +124,7 @@ export function GlobalNotificationLayer() {
         socketRef.current = null
       }
     }
-  }, [accessToken, userId, location.pathname])
+  }, [accessToken, userId, location.pathname, reconnectKey])
 
   const dismissToastNotification = (notificationId: string) => {
     setToastNotifications((prev) => prev.filter((notification) => notification.id !== notificationId))
