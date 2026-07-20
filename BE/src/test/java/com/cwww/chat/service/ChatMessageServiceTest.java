@@ -11,6 +11,7 @@ import com.cwww.chat.mapper.ChatMessageMapper;
 import com.cwww.chat.mapper.ChatParticipantMapper;
 import com.cwww.chat.mapper.ChatRoomMapper;
 import com.cwww.global.exception.BusinessException;
+import com.cwww.post.mapper.MediaMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +37,7 @@ class ChatMessageServiceTest {
     @Mock private ChatRoomMapper chatRoomMapper;
     @Mock private ChatParticipantMapper chatParticipantMapper;
     @Mock private ChatMessageMapper chatMessageMapper;
+    @Mock private MediaMapper mediaMapper;
 
     @InjectMocks
     private ChatMessageService chatMessageService;
@@ -173,6 +175,8 @@ class ChatMessageServiceTest {
                 ));
         given(chatMessageMapper.countUnreadParticipants(chatId, 1L, 1L)).willReturn(1);
         given(chatMessageMapper.countUnreadParticipants(chatId, 2L, 2L)).willReturn(0);
+        given(mediaMapper.findUrlsByTarget(any(), eq(1L))).willReturn(List.of());
+        given(mediaMapper.findUrlsByTarget(any(), eq(2L))).willReturn(List.of());
 
         // Act
         List<ChatMessageResponse> response = chatMessageService.getMessages(userId, chatId);

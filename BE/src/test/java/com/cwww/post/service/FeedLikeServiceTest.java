@@ -2,6 +2,8 @@ package com.cwww.post.service;
 
 import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
+import com.cwww.global.notification.dto.NotificationEvent;
+import com.cwww.global.notification.redis.RedisNotificationPublisher;
 import com.cwww.post.domain.Post;
 import com.cwww.post.dto.FeedResponse;
 import com.cwww.friend.mapper.FriendMapper;
@@ -15,6 +17,7 @@ import com.cwww.user.mapper.UserMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -24,6 +27,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -40,6 +44,7 @@ class FeedLikeServiceTest {
     @Mock private HashtagMapper hashtagMapper;
     @Mock private MediaMapper mediaMapper;
     @Mock private FriendMapper friendMapper;
+    @Mock private RedisNotificationPublisher notificationPublisher;
 
     @InjectMocks
     private PostServiceImpl postService;
@@ -94,6 +99,7 @@ class FeedLikeServiceTest {
         Post post = Post.builder().postId(1L).userId(2L).build();
         given(postMapper.findById(1L)).willReturn(Optional.of(post));
         given(postLikeMapper.exists(1L, userId)).willReturn(false);
+        given(userMapper.findNicknameById(anyLong())).willReturn("테스터");
 
         // Act
         postService.likePost(userId, 1L);
@@ -101,6 +107,7 @@ class FeedLikeServiceTest {
         // Assert
         verify(postLikeMapper).insert(1L, userId);
         verify(postMapper).incrementLikeCount(1L);
+        verify(notificationPublisher).publish(any(NotificationEvent.class));
     }
 
     @Test
