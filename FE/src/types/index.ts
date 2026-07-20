@@ -39,6 +39,10 @@ export interface CommentResponse {
   createdAt: string
 }
 
+export interface FriendSendResponse {
+  friendId: number
+}
+
 export interface FriendResponse {
   friendId: number
   requesterId: number

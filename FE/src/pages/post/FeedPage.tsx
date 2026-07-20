@@ -4,7 +4,7 @@ import { postApi } from '../../api/post'
 import { commentApi } from '../../api/comment'
 import { roomApi } from '../../api/room'
 import { friendApi } from '../../api/friend'
-import type { PostResponse, CommentResponse, RoomResponse, MinihompyMainResponse, BgmOptionResponse, FriendResponse } from '../../types'
+import type { PostResponse, CommentResponse, RoomResponse, MinihompyMainResponse, BgmOptionResponse, FriendResponse, UserSearchResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
 import { minihompyApi } from '../../api/minihompy'
 import MinihompySettingsModal from '../../components/MinihompySettingsModal'
@@ -193,6 +193,24 @@ const profileInputRef = useRef<HTMLInputElement>(null)
 
   // BGM
   const [currentTrackName, setCurrentTrackName] = useState<string | null>(null)
+
+  // 검색 모달
+  const [showSearchModal, setShowSearchModal] = useState(false)
+  const [searchModalTab, setSearchModalTab] = useState<'friend' | 'hashtag'>('friend')
+  const [friendSearchInput, setFriendSearchInput] = useState('')
+  const [friendSearchResults, setFriendSearchResults] = useState<UserSearchResponse[]>([])
+  const [friendSearching, setFriendSearching] = useState(false)
+  const [sentFriendRequestIds, setSentFriendRequestIds] = useState<Set<number>>(new Set())
+  const [hashtagSearchInput, setHashtagSearchInput] = useState('')
+  const [friendRequestTarget, setFriendRequestTarget] = useState<UserSearchResponse | null>(null)
+  const [friendRequestAlias, setFriendRequestAlias] = useState('')
+  const [isSendingRequest, setIsSendingRequest] = useState(false)
+
+  // 게시글 수정 모달
+  const [editingPost, setEditingPost] = useState<PostResponse | null>(null)
+  const [editForm, setEditForm] = useState<WriteForm>(EMPTY_FORM)
+  const [editTagInput, setEditTagInput] = useState('')
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false)
 
   // 다이어리 작성 모달
   const [showModal, setShowModal] = useState(false)
@@ -586,6 +604,86 @@ const profileInputRef = useRef<HTMLInputElement>(null)
 
 
 
+  const searchFriendUsers = async () => {
+    const keyword = friendSearchInput.trim()
+    if (!keyword) return
+    setFriendSearching(true)
+    try {
+      const res = await friendApi.searchUsers(keyword)
+      setFriendSearchResults(res.data.data.filter(u => u.userId !== user?.id))
+    } catch (e) {
+      console.error('유저 검색 실패', e)
+    } finally {
+      setFriendSearching(false)
+    }
+  }
+
+  const openFriendRequestModal = (target: UserSearchResponse) => {
+    setFriendRequestTarget(target)
+    setFriendRequestAlias('')
+  }
+
+  const confirmSendFriendRequest = async () => {
+    if (!friendRequestTarget) return
+    setIsSendingRequest(true)
+    try {
+      const res = await friendApi.sendRequest(friendRequestTarget.userId)
+      const { friendId } = res.data.data
+      if (friendRequestAlias.trim()) {
+        await friendApi.setAlias(friendId, friendRequestAlias.trim())
+      }
+      setSentFriendRequestIds(prev => new Set(prev).add(friendRequestTarget.userId))
+      setFriendRequestTarget(null)
+    } catch {
+      // 이미 신청했거나 이미 일촌인 경우 조용히 처리
+      setFriendRequestTarget(null)
+    } finally {
+      setIsSendingRequest(false)
+    }
+  }
+
+  const deletePost = async (postId: number) => {
+    if (!window.confirm('게시글을 삭제하시겠어요?')) return
+    try {
+      await postApi.deletePost(postId)
+      setPosts(prev => prev.filter(p => p.postId !== postId))
+      setSearchPosts(prev => prev.filter(p => p.postId !== postId))
+      setBookmarkPosts(prev => prev.filter(p => p.postId !== postId))
+    } catch (e) {
+      console.error('게시글 삭제 실패', e)
+    }
+  }
+
+  const openEditPost = (post: PostResponse) => {
+    setEditingPost(post)
+    setEditForm({ title: post.title ?? '', content: post.content ?? '', visibility: (post.visibility as Visibility) ?? 'ALL', hashtags: post.hashtags ?? [] })
+    setEditTagInput('')
+  }
+
+  const submitEditPost = async () => {
+    if (!editingPost) return
+    setIsEditSubmitting(true)
+    try {
+      await postApi.updatePost(editingPost.postId, {
+        title: editForm.title,
+        content: editForm.content,
+        visibility: editForm.visibility,
+        hashtags: editForm.hashtags,
+      })
+      const updater = (p: PostResponse) => p.postId === editingPost.postId
+        ? { ...p, title: editForm.title, content: editForm.content, visibility: editForm.visibility, hashtags: editForm.hashtags }
+        : p
+      setPosts(prev => prev.map(updater))
+      setSearchPosts(prev => prev.map(updater))
+      setBookmarkPosts(prev => prev.map(updater))
+      setEditingPost(null)
+    } catch (e) {
+      console.error('게시글 수정 실패', e)
+    } finally {
+      setIsEditSubmitting(false)
+    }
+  }
+
   const friendUserIds = new Set(friends.map(f => f.requesterId === user?.id ? f.receiverId : f.requesterId))
 
   return (
@@ -737,6 +835,202 @@ const profileInputRef = useRef<HTMLInputElement>(null)
         </div>
       )}
 
+      {/* 일촌 신청 모달 */}
+      {friendRequestTarget && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 px-2">
+          <div className="window-frame bg-[#fff7f4] w-full max-w-sm flex flex-col">
+            <div className="bg-[#e2e2e2] px-3 py-2 border-b-2 border-[#8e7164] flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm text-[#a33e00]">group_add</span>
+              <span className="font-[Geist,monospace] text-[13px] font-bold text-[#1a1c1c]">일촌 신청</span>
+              <button className="ml-auto retro-btn p-1" onClick={() => setFriendRequestTarget(null)} disabled={isSendingRequest}>✕</button>
+            </div>
+            <div className="p-4 flex flex-col gap-3">
+              <p className="font-[Geist,monospace] text-[13px] text-[#1a1c1c] text-center">
+                <span className="font-bold text-[#a33e00]">{friendRequestTarget.nickname}</span>님께 일촌을 신청합니다.
+              </p>
+              <div className="window-inset p-3 flex flex-col gap-2 bg-white">
+                <label className="font-[Geist,monospace] text-[12px] text-[#5a4136]">
+                  {friendRequestTarget.nickname}님을 나의 일촌으로 부를 이름
+                </label>
+                <input
+                  className="window-inset p-2 font-[Geist,monospace] text-[13px] w-full"
+                  placeholder="일촌명 (선택)"
+                  value={friendRequestAlias}
+                  onChange={e => setFriendRequestAlias(e.target.value)}
+                  maxLength={20}
+                />
+                <p className="font-[Geist,monospace] text-[10px] text-[#8e7164]">비워두면 닉네임으로 표시됩니다.</p>
+              </div>
+              <p className="font-[Geist,monospace] text-[11px] text-[#5a4136] text-center">상대방이 수락하면 일촌이 맺어집니다.</p>
+              <div className="flex gap-2 mt-1">
+                <button
+                  className="retro-btn flex-1 font-[Geist,monospace] text-[13px] font-semibold py-2"
+                  onClick={() => setFriendRequestTarget(null)}
+                  disabled={isSendingRequest}
+                >취소</button>
+                <button
+                  className="retro-btn retro-btn-primary flex-1 font-[Geist,monospace] text-[13px] font-semibold py-2"
+                  onClick={confirmSendFriendRequest}
+                  disabled={isSendingRequest}
+                >{isSendingRequest ? '신청 중...' : '보내기'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 검색 모달 */}
+      {showSearchModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-2">
+          <div className="window-frame bg-[#f9f9f9] w-full max-w-md flex flex-col" style={{ maxHeight: '80vh' }}>
+            <div className="bg-[#e2e2e2] px-3 py-2 border-b-2 border-[#8e7164] flex items-center gap-2 flex-shrink-0">
+              <span className="material-symbols-outlined text-sm text-[#a33e00]">search</span>
+              <span className="font-[Geist,monospace] text-[13px] font-bold text-[#1a1c1c]">검색</span>
+              <button className="ml-auto retro-btn p-1" onClick={() => { setShowSearchModal(false); setFriendSearchInput(''); setFriendSearchResults([]) }}>✕</button>
+            </div>
+            <div className="flex border-b border-[#8e7164] flex-shrink-0">
+              {(['friend', 'hashtag'] as const).map(tab => (
+                <button
+                  key={tab}
+                  className={`flex-1 font-[Geist,monospace] text-[12px] font-semibold py-2 ${searchModalTab === tab ? 'bg-[#fff7f4] border-b-2 border-[#a33e00] text-[#a33e00]' : 'text-[#5a4136]'}`}
+                  onClick={() => setSearchModalTab(tab)}
+                >
+                  {tab === 'friend' ? '일촌 검색' : '해시태그 검색'}
+                </button>
+              ))}
+            </div>
+            <div className="p-3 flex flex-col gap-3 overflow-y-auto">
+              {searchModalTab === 'friend' ? (
+                <>
+                  <div className="flex gap-2">
+                    <input
+                      className="window-inset flex-1 text-[13px] p-2 font-[Geist,monospace]"
+                      placeholder="닉네임으로 검색..."
+                      value={friendSearchInput}
+                      onChange={e => setFriendSearchInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') searchFriendUsers() }}
+                    />
+                    <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold px-3" onClick={searchFriendUsers} disabled={friendSearching}>
+                      {friendSearching ? '검색 중' : '검색'}
+                    </button>
+                  </div>
+                  {friendSearchResults.map(u => (
+                    <div key={u.userId} className="flex items-center gap-2 p-2 window-inset">
+                      <span className="material-symbols-outlined text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                      <span className="font-[Geist,monospace] text-[13px] font-semibold flex-1">{u.nickname}</span>
+                      {friendUserIds.has(u.userId) ? (
+                        <span className="font-[Geist,monospace] text-[11px] text-[#0c6780]">이미 일촌</span>
+                      ) : sentFriendRequestIds.has(u.userId) ? (
+                        <span className="font-[Geist,monospace] text-[11px] text-[#5a4136]">신청 완료</span>
+                      ) : (
+                        <button className="retro-btn font-[Geist,monospace] text-[11px] px-2 py-1" onClick={() => openFriendRequestModal(u)}>일촌 신청</button>
+                      )}
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <div className="flex gap-2">
+                    <input
+                      className="window-inset flex-1 text-[13px] p-2 font-[Geist,monospace]"
+                      placeholder="해시태그 입력... (# 없이)"
+                      value={hashtagSearchInput}
+                      onChange={e => setHashtagSearchInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && hashtagSearchInput.trim()) {
+                          selectTag(hashtagSearchInput.trim())
+                          setShowSearchModal(false)
+                          setHashtagSearchInput('')
+                        }
+                      }}
+                    />
+                    <button
+                      className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold px-3"
+                      onClick={() => {
+                        if (hashtagSearchInput.trim()) {
+                          selectTag(hashtagSearchInput.trim())
+                          setShowSearchModal(false)
+                          setHashtagSearchInput('')
+                        }
+                      }}
+                    >검색</button>
+                  </div>
+                  <p className="font-[Geist,monospace] text-[11px] text-[#8e7164]"># 없이 태그명만 입력하세요. (예: 일상, 맛집)</p>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 게시글 수정 모달 */}
+      {editingPost && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-2">
+          <div className="window-frame bg-[#f9f9f9] w-full max-w-lg flex flex-col" style={{ maxHeight: '90vh' }}>
+            <div className="bg-[#e2e2e2] px-3 py-2 border-b-2 border-[#8e7164] flex items-center gap-2 flex-shrink-0">
+              <span className="material-symbols-outlined text-sm text-[#a33e00]">edit</span>
+              <span className="font-[Geist,monospace] text-[13px] font-bold text-[#1a1c1c]">게시글 수정</span>
+              <button className="ml-auto retro-btn p-1" onClick={() => setEditingPost(null)} disabled={isEditSubmitting}>✕</button>
+            </div>
+            <div className="flex flex-col gap-3 p-3 overflow-y-auto">
+              <input
+                className="window-inset text-[14px] p-2 font-[Geist,monospace]"
+                placeholder="제목 (선택)"
+                value={editForm.title}
+                onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
+              />
+              <textarea
+                className="window-inset text-[14px] p-2 font-[Geist,monospace] resize-none"
+                rows={6}
+                placeholder="내용을 입력하세요..."
+                value={editForm.content}
+                onChange={e => setEditForm(f => ({ ...f, content: e.target.value }))}
+              />
+              <div className="flex gap-2">
+                {(['ALL', 'FRIEND', 'PRIVATE'] as Visibility[]).map(v => (
+                  <button
+                    key={v}
+                    className={`retro-btn font-[Geist,monospace] text-[12px] px-2 py-1 ${editForm.visibility === v ? 'retro-btn-primary' : ''}`}
+                    onClick={() => setEditForm(f => ({ ...f, visibility: v }))}
+                  >{VISIBILITY_LABELS[v]}</button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  className="window-inset flex-1 text-[13px] p-1 font-[Geist,monospace]"
+                  placeholder="태그 추가..."
+                  value={editTagInput}
+                  onChange={e => setEditTagInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && editTagInput.trim()) {
+                      const tag = editTagInput.trim().replace(/^#/, '')
+                      if (!editForm.hashtags.includes(tag)) setEditForm(f => ({ ...f, hashtags: [...f.hashtags, tag] }))
+                      setEditTagInput('')
+                    }
+                  }}
+                />
+              </div>
+              {editForm.hashtags.length > 0 && (
+                <div className="flex gap-1 flex-wrap">
+                  {editForm.hashtags.map(tag => (
+                    <span key={tag} className="bg-[#e8f4ff] text-[#0c6780] font-[Geist,monospace] text-[11px] px-2 py-0.5 rounded flex items-center gap-1">
+                      #{tag}
+                      <button onClick={() => setEditForm(f => ({ ...f, hashtags: f.hashtags.filter(t => t !== tag) }))}>✕</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 px-3 pb-3 flex-shrink-0">
+              <button className="retro-btn flex-1 font-[Geist,monospace] text-[13px] font-semibold py-2" onClick={() => setEditingPost(null)} disabled={isEditSubmitting}>취소</button>
+              <button className="retro-btn retro-btn-primary flex-1 font-[Geist,monospace] text-[13px] font-semibold py-2" onClick={submitEditPost} disabled={isEditSubmitting}>
+                {isEditSubmitting ? '저장 중...' : '저장'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 미니홈피 설정 모달 — 별도 컴포넌트 */}
       {showSettings && (
         <MinihompySettingsModal
@@ -759,7 +1053,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
       <header className="md:hidden flex justify-between items-center px-4 h-16 w-full fixed top-0 z-50 bg-[#f9f9f9] border-b-2 border-[#e3bfb1]" style={{ boxShadow: '2px 2px 0px rgba(0,0,0,0.1)' }}>
         <div className="font-['Bricolage_Grotesque',sans-serif] text-[28px] font-bold text-[#a33e00]">싸이월드</div>
         <div className="flex gap-2">
-          <span className="material-symbols-outlined text-[#a33e00] cursor-pointer p-2">search</span>
+          <span className="material-symbols-outlined text-[#a33e00] cursor-pointer p-2" onClick={() => setShowSearchModal(true)}>search</span>
           <span className="material-symbols-outlined text-[#a33e00] cursor-pointer p-2">notifications</span>
           <span className="material-symbols-outlined text-[#a33e00] cursor-pointer p-2">person</span>
         </div>
@@ -1064,9 +1358,22 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                         >
                           <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: bookmarked ? "'FILL' 1" : "'FILL' 0", color: bookmarked ? '#a33e00' : undefined }}>bookmark</span>
                         </button>
-                        <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-sm">share</span>
-                        </button>
+                        {post.userId === user?.id && (
+                          <>
+                            <button
+                              className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1"
+                              onClick={() => openEditPost(post)}
+                            >
+                              <span className="material-symbols-outlined text-sm">edit</span>
+                            </button>
+                            <button
+                              className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 flex items-center gap-1"
+                              onClick={() => deletePost(post.postId)}
+                            >
+                              <span className="material-symbols-outlined text-sm text-[#ba1a1a]">delete</span>
+                            </button>
+                          </>
+                        )}
                       </div>
 
                       {openCommentIds.has(post.postId) && (
