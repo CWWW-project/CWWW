@@ -58,5 +58,7 @@ export const postApi = {
   },
 
   getUserPosts: (userId: number, cursor?: number, size = 10) =>
-  api.get<ApiResponse<FeedResponse>>(`/posts/user/${userId}`, { params: { cursor, size } }),
+  api.get<ApiResponse<FeedResponse>>(`/posts/user/${userId}`, {
+    params: { cursor, size },
+  }),
 }

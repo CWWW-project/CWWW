@@ -111,29 +111,47 @@ export default function DiaryPage() {
   // TODO: 백엔드에 GET /api/posts/user/{userId} 추가되면 postApi.getUserPosts로 교체
   // 스펙 제안: 뷰어가 글쓴이 본인 → 전체, 일촌 → ALL+FRIEND, 그 외 → ALL만
   // ---------------------------------------------------------------------
+  const requestIdRef = useRef(0)
+
   const loadUserPosts = useCallback(async (cursorParam?: number) => {
+    const requestId = ++requestIdRef.current
+
     setLoading(true)
+
     try {
       const res = await postApi.getUserPosts(targetUserId, cursorParam)
       const { posts: newPosts, nextCursor, hasNext: more } = res.data.data
-      setPosts(prev => cursorParam !== undefined ? [...prev, ...newPosts] : newPosts)
+      if (requestId !== requestIdRef.current) {
+        return
+      }
+      setPosts(prev =>
+        cursorParam !== undefined ? [...prev, ...newPosts] : newPosts
+      )
       setCursor(nextCursor ?? undefined)
       setHasNext(more)
       const liked = new Set(newPosts.filter(p => p.isLiked).map(p => p.postId))
-      setLikedPostIds(prev => cursorParam !== undefined ? new Set([...prev, ...liked]) : liked)
+      setLikedPostIds(prev =>
+        cursorParam !== undefined ? new Set([...prev, ...liked]) : liked
+      )
       const bookmarked = new Set(newPosts.filter(p => p.isBookmarked).map(p => p.postId))
-      setBookmarkedPostIds(prev => cursorParam !== undefined ? new Set([...prev, ...bookmarked]) : bookmarked)
+      setBookmarkedPostIds(prev =>
+        cursorParam !== undefined ? new Set([...prev, ...bookmarked]) : bookmarked
+      )
     } catch (e) {
+      if (requestId !== requestIdRef.current) return
       console.error('다이어리 로드 실패', e)
       setPosts([])
       setHasNext(false)
     } finally {
-      setLoading(false)
-      setInitialLoaded(true)
+      if (requestId === requestIdRef.current) {
+        setLoading(false)
+        setInitialLoaded(true)
+      }
     }
   }, [targetUserId])
 
   useEffect(() => {
+    requestIdRef.current++
     setPosts([])
     setCursor(undefined)
     setInitialLoaded(false)

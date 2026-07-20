@@ -105,25 +105,26 @@
         WHERE p.deleted_at IS NULL
         AND p.user_id = #{targetUserId}
         AND (
-        <choose>
-            <when test="viewerId != null">
-                #{viewerId} = #{targetUserId}
-                OR (
-                    (p.visibility = 'ALL' OR p.visibility = 'FRIEND')
-                    AND EXISTS (
-                        SELECT 1 FROM friend f
-                        WHERE f.status = 'ACCEPTED'
-                        AND (
-                            (f.requester_id = p.user_id AND f.receiver_id = #{viewerId})
-                            OR (f.requester_id = #{viewerId} AND f.receiver_id = p.user_id)
+            <choose>
+                <when test="viewerId != null">
+                    #{viewerId} = #{targetUserId}
+                    OR p.visibility = 'ALL'
+                    OR (
+                        p.visibility = 'FRIEND'
+                        AND EXISTS (
+                            SELECT 1 FROM friend f
+                            WHERE f.status = 'ACCEPTED'
+                            AND (
+                                (f.requester_id = p.user_id AND f.receiver_id = #{viewerId})
+                                OR (f.requester_id = #{viewerId} AND f.receiver_id = p.user_id)
+                            )
                         )
                     )
-                )
-            </when>
-            <otherwise>
-                p.visibility = 'ALL'
-            </otherwise>
-        </choose>
+                </when>
+                <otherwise>
+                    p.visibility = 'ALL'
+                </otherwise>
+            </choose>
         )
         <if test="cursor != null">
             <![CDATA[AND p.post_id < #{cursor}]]>

@@ -115,15 +115,17 @@ public class MinihompyService {
 	 */
 	public void checkAccessPermission(Long ownerId, Long viewerId) {
 
+		String accessLevelStr = minihompyMapper.selectAccessLevelByOwnerId(ownerId);
+
+		if (accessLevelStr == null) {
+			throw new BusinessException(ErrorCode.MINIHOMPY_NOT_FOUND);
+		}
+
 		// 본인은 항상 통과
 		if (viewerId != null && viewerId.equals(ownerId)) {
 			return;
 		}
 
-		String accessLevelStr = minihompyMapper.selectAccessLevelByOwnerId(ownerId);
-		if (accessLevelStr == null) {
-			throw new BusinessException(ErrorCode.MINIHOMPY_NOT_FOUND);
-		}
 		Minihompy.AccessLevel accessLevel = Minihompy.AccessLevel.valueOf(accessLevelStr);
 
 		switch (accessLevel) {
