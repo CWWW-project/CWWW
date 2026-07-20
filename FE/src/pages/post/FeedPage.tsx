@@ -658,7 +658,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
 
   const openEditPost = (post: PostResponse) => {
     setEditingPost(post)
-    setEditForm({ title: post.title ?? '', content: post.content ?? '', visibility: (post.visibility as Visibility) ?? 'ALL', hashtags: post.hashtags ?? [] })
+    setEditForm({ title: post.title ?? '', content: post.content ?? '', visibility: (post.visibility as Visibility) ?? 'ALL', hashtags: post.hashtags ?? [], mediaUrls: post.mediaUrls ?? [] })
     setEditTagInput('')
   }
 
