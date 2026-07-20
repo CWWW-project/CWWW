@@ -5,10 +5,13 @@ import com.cwww.friend.dto.response.FriendResponse;
 import com.cwww.friend.mapper.FriendMapper;
 import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
+import com.cwww.global.notification.dto.NotificationEvent;
+import com.cwww.global.notification.redis.RedisNotificationPublisher;
 import com.cwww.user.mapper.UserMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -27,6 +30,7 @@ class FriendServiceTest {
 
     @Mock private FriendMapper friendMapper;
     @Mock private UserMapper userMapper;
+    @Mock private RedisNotificationPublisher notificationPublisher;
 
     @InjectMocks
     private FriendServiceImpl friendService;
@@ -41,12 +45,23 @@ class FriendServiceTest {
         Long receiverId = 2L;
         given(friendMapper.findActiveByUsers(requesterId, receiverId)).willReturn(Optional.empty());
         given(friendMapper.insert(any(Friend.class))).willReturn(1);
+        given(userMapper.findNicknameById(requesterId)).willReturn("신청자");
 
         // Act
         friendService.sendRequest(requesterId, receiverId);
 
         // Assert
         verify(friendMapper).insert(any(Friend.class));
+        ArgumentCaptor<NotificationEvent> eventCaptor = ArgumentCaptor.forClass(NotificationEvent.class);
+        verify(notificationPublisher).publish(eventCaptor.capture());
+
+        NotificationEvent event = eventCaptor.getValue();
+        assertThat(event.getEventType()).isEqualTo("FRIEND_REQUEST");
+        assertThat(event.getTargetUserId()).isEqualTo(receiverId);
+        assertThat(event.getActorId()).isEqualTo(requesterId);
+        assertThat(event.getActorName()).isEqualTo("신청자");
+        assertThat(event.getTargetType()).isEqualTo("FRIEND");
+        assertThat(event.getPreview()).isEqualTo("신청자님이 일촌신청을 했습니다.");
     }
 
     @Test

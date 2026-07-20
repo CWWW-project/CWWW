@@ -40,6 +40,7 @@ public class ChatRoomService {
     @Transactional
     public CreateChatRoomResponse createChatRoom(Long userId, CreateChatRoomRequest request) {
         validateParticipants(request);
+        validatePrivateRoomDoesNotExist(request);
         String roomName = normalizeRoomName(request);
 
         ChatRoom chatRoom = ChatRoom.builder()
@@ -59,6 +60,29 @@ public class ChatRoomService {
 
         String displayName = resolveCreateDisplayName(userId, request, chatRoom);
         return CreateChatRoomResponse.from(chatRoom, displayName);
+    }
+
+    private void validatePrivateRoomDoesNotExist(CreateChatRoomRequest request) {
+        if (request.getType() != ChatRoomType.PRIVATE) {
+            return;
+        }
+
+        List<Long> participantUserIds = request.getParticipantUserIds().stream()
+                .distinct()
+                .toList();
+
+        if (participantUserIds.size() != 2) {
+            return;
+        }
+
+        ChatRoom existingRoom = chatRoomMapper.findActivePrivateRoomByUserIds(
+                participantUserIds.get(0),
+                participantUserIds.get(1)
+        );
+
+        if (existingRoom != null) {
+            throw new BusinessException(ErrorCode.PRIVATE_CHAT_ROOM_ALREADY_EXISTS);
+        }
     }
 
     @Transactional(readOnly = true)

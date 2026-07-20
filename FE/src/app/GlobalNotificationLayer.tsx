@@ -14,6 +14,7 @@ export function GlobalNotificationLayer() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false)
+  const [reconnectKey, setReconnectKey] = useState(0)
   const socketRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
@@ -22,6 +23,27 @@ export function GlobalNotificationLayer() {
     setUnreadNotificationCount(0)
     setIsNotificationPanelOpen(false)
   }, [userId])
+
+  useEffect(() => {
+    const closeSocketForPageCache = () => {
+      socketRef.current?.close()
+      socketRef.current = null
+    }
+
+    const reconnectAfterPageRestore = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        setReconnectKey((prev) => prev + 1)
+      }
+    }
+
+    window.addEventListener('pagehide', closeSocketForPageCache)
+    window.addEventListener('pageshow', reconnectAfterPageRestore)
+
+    return () => {
+      window.removeEventListener('pagehide', closeSocketForPageCache)
+      window.removeEventListener('pageshow', reconnectAfterPageRestore)
+    }
+  }, [])
 
   useEffect(() => {
     if (!accessToken || !userId) {
@@ -74,7 +96,7 @@ export function GlobalNotificationLayer() {
 
         setNotifications((prev) => [notification, ...prev.filter((item) => item.id !== notification.id)])
 
-        if (location.pathname === '/chat') {
+        if (location.pathname === '/chat' && payload.eventType === 'CHAT_NOTIFICATION') {
           return
         }
 
@@ -102,7 +124,7 @@ export function GlobalNotificationLayer() {
         socketRef.current = null
       }
     }
-  }, [accessToken, userId, location.pathname])
+  }, [accessToken, userId, location.pathname, reconnectKey])
 
   const dismissToastNotification = (notificationId: string) => {
     setToastNotifications((prev) => prev.filter((notification) => notification.id !== notificationId))
@@ -154,7 +176,7 @@ export function GlobalNotificationLayer() {
                   <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, fontWeight: 700 }}>{formatNotificationActorName(notification.actorName)}</span>
                   <span style={{ fontFamily: 'Geist, monospace', fontSize: 10, color: '#5a4136' }}>{formatNotificationTime(notification.createdAt)}</span>
                 </div>
-                <div style={{ fontFamily: 'Be Vietnam Pro', fontSize: 12, color: '#5a4136', wordBreak: 'break-word' }}>
+                <div style={{ fontFamily: 'Be Vietnam Pro', fontSize: 12, color: '#5a4136', wordBreak: 'break-word', whiteSpace: 'pre-line' }}>
                   {notification.preview}
                 </div>
               </div>
@@ -175,7 +197,7 @@ export function GlobalNotificationLayer() {
                 <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, fontWeight: 700 }}>{formatNotificationActorName(notification.actorName)}</span>
                 <span style={{ fontFamily: 'Geist, monospace', fontSize: 10, color: '#5a4136' }}>{formatNotificationTime(notification.createdAt)}</span>
               </div>
-              <div style={{ fontFamily: 'Be Vietnam Pro', fontSize: 12, color: '#5a4136', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontFamily: 'Be Vietnam Pro', fontSize: 12, color: '#5a4136', whiteSpace: 'pre-line', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                 {notification.preview}
               </div>
             </button>

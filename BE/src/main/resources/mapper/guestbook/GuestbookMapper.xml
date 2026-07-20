@@ -18,7 +18,7 @@
 
 
     <!-- 방명록 작성 -->
-    <insert id="insertGuestbook" parameterType="com.cwww.guestbook.domain.Guestbook">
+    <insert id="insertGuestbook" parameterType="com.cwww.guestbook.domain.Guestbook" useGeneratedKeys="true" keyProperty="guestbookId">
         INSERT INTO guestbook (minihompy_id, writer_id, content, is_secret, created_at, updated_at)
         VALUES (#{minihompyId}, #{writerId}, #{content}, #{secret}, #{createdAt}, #{updatedAt})
     </insert>

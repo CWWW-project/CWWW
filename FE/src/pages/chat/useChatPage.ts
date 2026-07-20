@@ -76,9 +76,10 @@ export function useChatPage() {
   const [loadingMoreRoomId, setLoadingMoreRoomId] = useState<number | null>(null)
   const [isRoomViewportSettling, setIsRoomViewportSettling] = useState(false)
   const [openMessageMenuId, setOpenMessageMenuId] = useState<number | null>(null)
-  const [inviteUserId, setInviteUserId] = useState<number | null>(null)
+  const [inviteUserIds, setInviteUserIds] = useState<number[]>([])
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
   const [isSending, setIsSending] = useState(false)
+  const [reconnectKey, setReconnectKey] = useState(0)
   const messageContainerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const socketRef = useRef<WebSocket | null>(null)
@@ -206,6 +207,34 @@ export function useChatPage() {
   }, [])
 
   useEffect(() => {
+    const closeSocketForPageCache = () => {
+      socketRef.current?.close()
+      socketRef.current = null
+      setConnectionStatus('disconnected')
+      setIsSocketReady(false)
+      setIsSocketAttemptFinished(true)
+      subscriptionIdRef.current = null
+    }
+
+    const reconnectAfterPageRestore = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        setActiveId(null)
+        activeIdRef.current = null
+        previousActiveIdRef.current = null
+        setReconnectKey((prev) => prev + 1)
+      }
+    }
+
+    window.addEventListener('pagehide', closeSocketForPageCache)
+    window.addEventListener('pageshow', reconnectAfterPageRestore)
+
+    return () => {
+      window.removeEventListener('pagehide', closeSocketForPageCache)
+      window.removeEventListener('pageshow', reconnectAfterPageRestore)
+    }
+  }, [])
+
+  useEffect(() => {
     if (!accessToken || !currentUserId) {
       setIsInitialRoomsLoaded(true)
       return
@@ -218,12 +247,12 @@ export function useChatPage() {
       .finally(() => {
         setIsInitialRoomsLoaded(true)
       })
-  }, [accessToken, currentUserId])
+  }, [accessToken, currentUserId, reconnectKey])
 
   useEffect(() => {
     if (!accessToken || !currentUserId) {
       setFriendCandidates([])
-      setInviteUserId(null)
+      setInviteUserIds([])
       return
     }
 
@@ -234,13 +263,13 @@ export function useChatPage() {
           nickname: friend.opponentNickname,
         }))
         setFriendCandidates(candidates)
-        setInviteUserId(candidates[0]?.userId ?? null)
+        setInviteUserIds([])
       })
       .catch(() => {
         setFriendCandidates([])
-        setInviteUserId(null)
+        setInviteUserIds([])
       })
-  }, [accessToken, currentUserId])
+  }, [accessToken, currentUserId, reconnectKey])
 
   useEffect(() => {
     setActiveId((prev) => {
@@ -293,11 +322,14 @@ export function useChatPage() {
       return
     }
 
+    setConnectionStatus('connecting')
+    setIsSocketReady(false)
+    setIsSocketAttemptFinished(false)
+
     const socket = new WebSocket(getWebSocketUrl())
     socketRef.current = socket
 
     socket.onopen = () => {
-      setConnectionStatus('connecting')
       socket.send(buildFrame('CONNECT', {
         'accept-version': '1.2',
         host: 'localhost',
@@ -389,12 +421,14 @@ export function useChatPage() {
     }
 
     socket.onerror = () => {
+      if (socketRef.current !== socket) return
       setConnectionStatus('disconnected')
       setIsSocketReady(false)
       setIsSocketAttemptFinished(true)
     }
 
     socket.onclose = () => {
+      if (socketRef.current !== socket) return
       setConnectionStatus('disconnected')
       setIsSocketReady(false)
       setIsSocketAttemptFinished(true)
@@ -403,7 +437,7 @@ export function useChatPage() {
     return () => {
       socket.close()
     }
-  }, [accessToken, currentUserId])
+  }, [accessToken, currentUserId, reconnectKey])
 
   useEffect(() => {
     const socket = socketRef.current
@@ -442,17 +476,17 @@ export function useChatPage() {
     }
   }, [isInitialRoomsLoaded, isSocketAttemptFinished])
 
-  const handleCreateChatRoom = async () => {
+  const handleCreateChatRoom = async (): Promise<boolean> => {
     if (!currentUserId) {
       setCreateError('로그인 정보가 없습니다.')
-      return
+      return false
     }
 
     const participantUserIds = [...new Set([currentUserId, ...selectedParticipantIds])]
 
     if (participantUserIds.length < 2) {
       setCreateError('참여자를 최소 1명 이상 선택하세요.')
-      return
+      return false
     }
 
     setCreateError('')
@@ -465,8 +499,10 @@ export function useChatPage() {
       await handleSelectRoom(createdRoom.chatId)
       setCreateName('')
       setSelectedParticipantIds([])
+      return true
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : '채팅방 생성에 실패했습니다.')
+      return false
     } finally {
       setCreateLoading(false)
     }
@@ -564,14 +600,17 @@ export function useChatPage() {
     }
   }
 
-  const handleInviteParticipant = async () => {
-    if (activeId === null || inviteUserId === null) return
+  const handleInviteParticipant = async (): Promise<boolean> => {
+    if (activeId === null || inviteUserIds.length === 0) return false
 
     try {
-      await inviteParticipant(activeId, inviteUserId)
+      await inviteParticipant(activeId, inviteUserIds)
       await refreshParticipants(activeId)
+      setInviteUserIds([])
+      return true
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : '참여자 초대에 실패했습니다.')
+      return false
     }
   }
 
@@ -596,7 +635,7 @@ export function useChatPage() {
     handleSelectRoom,
     hasMoreByRoom,
     input,
-    inviteUserId,
+    inviteUserIds,
     isReady,
     isRoomViewportSettling,
     isSending,
@@ -614,9 +653,10 @@ export function useChatPage() {
     friendCandidates,
     sendMessage,
     setCreateName,
+    setCreateError,
     setCreateType,
     setInput,
-    setInviteUserId,
+    setInviteUserIds,
     setOpenMessageMenuId,
     setSelectedParticipantIds,
     textareaRef,
