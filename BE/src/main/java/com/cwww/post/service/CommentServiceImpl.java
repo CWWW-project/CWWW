@@ -67,7 +67,8 @@ public class CommentServiceImpl implements CommentService {
                     .actorName(actorName)
                     .targetId(postId)
                     .targetType("POST")
-                    .preview(actorName + ": " + truncatePreview(request.getContent(), 30))
+                    .preview(actorName + "님이 \"" + post.getTitle() + "\" 게시글에 댓글을 남겼습니다.\n\""
+                            + truncatePreview(request.getContent(), 30) + "\"")
                     .createdAt(java.time.LocalDateTime.now())
                     .build();
             Runnable publish = () -> {

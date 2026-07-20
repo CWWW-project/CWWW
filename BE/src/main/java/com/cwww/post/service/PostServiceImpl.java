@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -61,6 +62,7 @@ public class PostServiceImpl implements PostService {
         saveMediaUrls(post.getPostId(), request.getMediaUrls());
 
         String nickname = userMapper.findNicknameById(userId);
+        publishPostCreatedNotifications(post, nickname);
         return PostResponse.from(post, nickname, false, false, request.getHashtags(), request.getMediaUrls());
     }
 
@@ -291,5 +293,49 @@ public class PostServiceImpl implements PostService {
                     .build();
             mediaMapper.insert(media);
         }
+    }
+
+    private void publishPostCreatedNotifications(Post post, String actorName) {
+        if ("PRIVATE".equals(post.getVisibility())) {
+            return;
+        }
+
+        List<Long> friendUserIds = friendMapper.findAcceptedFriendUserIds(post.getUserId());
+        if (friendUserIds.isEmpty()) {
+            return;
+        }
+
+        List<NotificationEvent> events = friendUserIds.stream()
+                .map(friendUserId -> NotificationEvent.builder()
+                        .eventType("POST_CREATED")
+                        .targetUserId(friendUserId)
+                        .actorId(post.getUserId())
+                        .actorName(actorName)
+                        .targetId(post.getPostId())
+                        .targetType("POST")
+                        .preview(actorName + "님이 다이어리를 작성했습니다.")
+                        .createdAt(LocalDateTime.now())
+                        .build())
+                .toList();
+
+        Runnable publish = () -> {
+            try {
+                events.forEach(notificationPublisher::publish);
+            } catch (Exception e) {
+                log.warn("게시글 작성 알림 발행 실패: postId={}, userId={}", post.getPostId(), post.getUserId(), e);
+            }
+        };
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    publish.run();
+                }
+            });
+            return;
+        }
+
+        publish.run();
     }
 }

@@ -53,6 +53,16 @@
         ORDER BY accepted_at DESC
     </select>
 
+    <select id="findAcceptedFriendUserIds" resultType="long">
+        SELECT CASE
+                   WHEN requester_id = #{userId} THEN receiver_id
+                   ELSE requester_id
+               END
+        FROM friend
+        WHERE status = 'ACCEPTED'
+          AND (requester_id = #{userId} OR receiver_id = #{userId})
+    </select>
+
     <update id="terminate">
         UPDATE friend
         SET status = 'TERMINATED', terminated_at = NOW()
