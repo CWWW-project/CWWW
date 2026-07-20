@@ -1,16 +1,22 @@
 package com.cwww.post.service;
 
+import com.cwww.friend.mapper.FriendMapper;
+import com.cwww.global.notification.dto.NotificationEvent;
+import com.cwww.global.notification.redis.RedisNotificationPublisher;
 import com.cwww.post.domain.Hashtag;
 import com.cwww.post.domain.Post;
 import com.cwww.post.dto.PostCreateRequest;
 import com.cwww.post.dto.PostResponse;
+import com.cwww.post.mapper.BookmarkMapper;
 import com.cwww.post.mapper.HashtagMapper;
 import com.cwww.post.mapper.MediaMapper;
+import com.cwww.post.mapper.PostLikeMapper;
 import com.cwww.post.mapper.PostMapper;
 import com.cwww.user.mapper.UserMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -23,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +39,10 @@ class PostServiceTest {
     @Mock private MediaMapper mediaMapper;
     @Mock private HashtagMapper hashtagMapper;
     @Mock private UserMapper userMapper;
+    @Mock private FriendMapper friendMapper;
+    @Mock private PostLikeMapper postLikeMapper;
+    @Mock private BookmarkMapper bookmarkMapper;
+    @Mock private RedisNotificationPublisher notificationPublisher;
 
     @InjectMocks
     private PostServiceImpl postService;
@@ -53,6 +64,7 @@ class PostServiceTest {
             return null;
         }).when(postMapper).insert(any(Post.class));
         given(userMapper.findNicknameById(anyLong())).willReturn("송경용");
+        given(friendMapper.findAcceptedFriendUserIds(userId)).willReturn(List.of(2L, 3L));
 
         // Act
         PostResponse response = postService.createPost(userId, request);
@@ -63,6 +75,15 @@ class PostServiceTest {
         assertThat(response.getVisibility()).isEqualTo("ALL");
         assertThat(response.getUserId()).isEqualTo(userId);
         verify(postMapper).insert(any(Post.class));
+
+        ArgumentCaptor<NotificationEvent> eventCaptor = ArgumentCaptor.forClass(NotificationEvent.class);
+        verify(notificationPublisher, times(2)).publish(eventCaptor.capture());
+
+        assertThat(eventCaptor.getAllValues())
+                .extracting(NotificationEvent::getTargetUserId)
+                .containsExactly(2L, 3L);
+        assertThat(eventCaptor.getAllValues().getFirst().getEventType()).isEqualTo("POST_CREATED");
+        assertThat(eventCaptor.getAllValues().getFirst().getPreview()).isEqualTo("송경용님이 다이어리를 작성했습니다.");
     }
 
     @Test
@@ -86,6 +107,7 @@ class PostServiceTest {
         given(hashtagMapper.findByName("일상")).willReturn(new Hashtag(1L, "일상"));
         given(hashtagMapper.findByName("맑음")).willReturn(new Hashtag(2L, "맑음"));
         given(userMapper.findNicknameById(anyLong())).willReturn("송경용");
+        given(friendMapper.findAcceptedFriendUserIds(userId)).willReturn(List.of());
 
         // Act
         PostResponse response = postService.createPost(userId, request);

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 위치: 기존 PaymentMapper.xml과 같은 resources 폴더 -->
+<mapper namespace="com.cwww.payment.mapper.AdminPaymentMapper">
+
+    <select id="findOrders" resultType="com.cwww.payment.dto.AdminOrderResponse">
+        SELECT
+        o.order_id     AS orderId,
+        o.order_uid    AS orderUid,
+        o.user_id      AS userId,
+        o.acorn_amount AS acornAmount,
+        o.price        AS price,
+        o.status       AS status,
+        o.created_at   AS createdAt
+        FROM orders o
+        <where>
+            <if test="status != null">
+                o.status = #{status}
+            </if>
+        </where>
+        ORDER BY o.order_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="findOrderDetail" resultType="com.cwww.payment.dto.AdminOrderDetailResponse">
+        SELECT
+            o.order_id     AS orderId,
+            o.order_uid    AS orderUid,
+            o.user_id      AS userId,
+            o.acorn_amount AS acornAmount,
+            o.price        AS price,
+            o.status       AS orderStatus,
+            o.created_at   AS createdAt,
+            p.pg_tx_id     AS pgTxId,
+            p.method       AS method,
+            p.amount       AS paymentAmount,
+            p.status       AS paymentStatus,
+            p.pg_status    AS pgStatus,
+            p.failure_code AS failureCode,
+            p.paid_at      AS paidAt
+        FROM orders o
+                 LEFT JOIN payment p ON p.order_id = o.order_id
+        WHERE o.order_uid = #{orderUid}
+    </select>
+
+    <select id="findStats" resultType="com.cwww.payment.dto.PaymentStatsResponse">
+        SELECT
+            COALESCE((SELECT SUM(amount)  FROM acorn_transaction WHERE reason = 'CHARGE'), 0)  AS totalChargedAcorn,
+            COALESCE((SELECT -SUM(amount) FROM acorn_transaction WHERE reason = 'REFUND'), 0)  AS totalRefundedAcorn,
+            COALESCE((SELECT SUM(price)   FROM orders WHERE status = 'PAID'), 0)               AS totalSalesAmount,
+            (SELECT COUNT(*) FROM orders WHERE status = 'PENDING')   AS pendingCount,
+            (SELECT COUNT(*) FROM orders WHERE status = 'PAID')      AS paidCount,
+            (SELECT COUNT(*) FROM orders WHERE status = 'CANCELING') AS cancelingCount,
+            (SELECT COUNT(*) FROM orders WHERE status = 'CANCELED')  AS canceledCount
+    </select>
+
+</mapper>

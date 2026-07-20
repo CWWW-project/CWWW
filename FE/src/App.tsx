@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
-
 import { GlobalNotificationLayer } from './app/GlobalNotificationLayer'
 import { IdleSessionGuard } from './app/IdleSessionGuard'
 import LoginPage from './pages/auth/LoginPage'
@@ -18,7 +17,8 @@ import GuestbookPage from './pages/guestbook/GuestbookPage'
 import { getAudioElement } from './store/audioPlayer'
 import { useMinihompyStore } from './store/minihompyStore'
 import { useEffect } from 'react'
-
+import PaymentSuccessPage from './pages/pay/PaymentSuccessPage'
+import PaymentFailPage from './pages/pay/PaymentFailPage'
 const MOBILE_TABS = [
   { icon: 'home', label: '홈', path: '/' },
   { icon: 'edit_note', label: '다이어리', pathFn: (userId?: number) => `/home/${userId ?? 'me'}` },
@@ -133,6 +133,8 @@ function App() {
 
         {/* PAY - 장수호 */}
         <Route path="/shop" element={<ShopPage />} />
+        <Route path="/payment/success" element={<PaymentSuccessPage />} />
+        <Route path="/payment/fail" element={<PaymentFailPage />} />
 
         {/* ROOM - 정용혁 */}
         <Route path="/room" element={<MiniroomPage />} />

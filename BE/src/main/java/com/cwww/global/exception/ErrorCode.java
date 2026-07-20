@@ -62,6 +62,9 @@ public enum ErrorCode {
     FRIEND_NOT_FOUND(HttpStatus.NOT_FOUND, "F003", "일촌 관계를 찾을 수 없습니다."),
     FRIEND_FORBIDDEN(HttpStatus.FORBIDDEN, "F004", "일촌 요청에 대한 권한이 없습니다."),
 
+    // Chat
+    PRIVATE_CHAT_ROOM_ALREADY_EXISTS(HttpStatus.CONFLICT, "CH001", "이미 1:1 채팅방이 존재합니다."),
+
     // Minihompy
     MINIHOMPY_NOT_FOUND(HttpStatus.NOT_FOUND, "H001", "미니홈피를 찾을 수 없습니다."),
     MINIHOMPY_FORBIDDEN(HttpStatus.FORBIDDEN, "H002", "미니홈피에 대한 접근 권한이 없습니다."),

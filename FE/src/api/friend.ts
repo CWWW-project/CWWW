@@ -1,9 +1,9 @@
 import api from './axios'
-import type { ApiResponse, FriendResponse, UserSearchResponse } from '../types'
+import type { ApiResponse, FriendResponse, FriendSendResponse, UserSearchResponse } from '../types'
 
 export const friendApi = {
   sendRequest: (receiverId: number) =>
-    api.post<ApiResponse<void>>('/friends', { receiverId }),
+    api.post<ApiResponse<FriendSendResponse>>('/friends', { receiverId }),
 
   acceptRequest: (friendId: number) =>
     api.patch<ApiResponse<void>>(`/friends/${friendId}/accept`),
