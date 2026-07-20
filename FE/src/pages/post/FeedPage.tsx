@@ -1196,7 +1196,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                         <div
                           key={f.friendId}
                           className="flex items-center gap-2 cursor-pointer hover:bg-[#eeeeee] p-1 rounded"
-                          onClick={() => navigate(`/minihompy/${opponentId}`)}
+                          onClick={() => navigate(`/home/${opponentId}`)}
                         >
                           <div className="w-7 h-7 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex-shrink-0 flex items-center justify-center">
                             <span className="material-symbols-outlined text-[20px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>

@@ -587,9 +587,15 @@ export default function DiaryPage() {
                           </div>
                         )}
                         {post.mediaUrls.length > 0 && (
-                          <div className="flex gap-1 mt-1 flex-wrap">
+                          <div className="mt-2 flex flex-col items-start gap-1">
                             {post.mediaUrls.map(url => (
-                              <img key={url} src={url} alt="" className="w-20 h-20 object-cover border border-[#8e7164]" />
+                              <img
+                                key={url}
+                                src={url}
+                                alt=""
+                                className="shadow-sm"
+                                style={{ width: 220, height: 'auto' }}
+                              />
                             ))}
                           </div>
                         )}
