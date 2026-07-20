@@ -5,7 +5,7 @@ import api from './axios'
 import type { ApiResponse } from '../types'
 
 // ⚠️ 마지막 TODO: 토스 "클라이언트 키" (test_ck_ 시작). 시크릿 키(test_sk_) 금지!
-export const TOSS_CLIENT_KEY = 'test_ck_AQ92ymxN34gqwDgpbGkK8ajRKXvd'
+export const TOSS_CLIENT_KEY = import.meta.env.VITE_TOSS_CLIENT_KEY
 
 export interface OrderCreateResponse {
   orderUid: string
