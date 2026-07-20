@@ -442,17 +442,17 @@ export function useChatPage() {
     }
   }, [isInitialRoomsLoaded, isSocketAttemptFinished])
 
-  const handleCreateChatRoom = async () => {
+  const handleCreateChatRoom = async (): Promise<boolean> => {
     if (!currentUserId) {
       setCreateError('로그인 정보가 없습니다.')
-      return
+      return false
     }
 
     const participantUserIds = [...new Set([currentUserId, ...selectedParticipantIds])]
 
     if (participantUserIds.length < 2) {
       setCreateError('참여자를 최소 1명 이상 선택하세요.')
-      return
+      return false
     }
 
     setCreateError('')
@@ -465,8 +465,10 @@ export function useChatPage() {
       await handleSelectRoom(createdRoom.chatId)
       setCreateName('')
       setSelectedParticipantIds([])
+      return true
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : '채팅방 생성에 실패했습니다.')
+      return false
     } finally {
       setCreateLoading(false)
     }
@@ -614,6 +616,7 @@ export function useChatPage() {
     friendCandidates,
     sendMessage,
     setCreateName,
+    setCreateError,
     setCreateType,
     setInput,
     setInviteUserId,

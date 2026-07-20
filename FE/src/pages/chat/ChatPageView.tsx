@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from 'react'
+import { useState, type KeyboardEvent } from 'react'
 
 import type { useChatPage } from './useChatPage'
 
@@ -51,6 +51,7 @@ export function ChatPageView({
   currentUserId,
   friendCandidates,
   sendMessage,
+  setCreateError,
   setCreateName,
   setCreateType,
   setInput,
@@ -59,6 +60,8 @@ export function ChatPageView({
   setSelectedParticipantIds,
   textareaRef,
 }: ChatPageViewProps) {
+  const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false)
+
   const handleTextareaKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.nativeEvent.isComposing) {
       return
@@ -66,6 +69,49 @@ export function ChatPageView({
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
       sendMessage()
+    }
+  }
+
+  const handleOpenCreatePanel = () => {
+    setCreateError('')
+    setCreateType('PRIVATE')
+    setCreateName('')
+    setSelectedParticipantIds([])
+    setIsCreatePanelOpen(true)
+  }
+
+  const handleCloseCreatePanel = () => {
+    if (createLoading) return
+    setCreateError('')
+    setCreateName('')
+    setSelectedParticipantIds([])
+    setIsCreatePanelOpen(false)
+  }
+
+  const handleChangeCreateType = (nextType: 'PRIVATE' | 'GROUP') => {
+    setCreateType(nextType)
+    if (nextType === 'PRIVATE') {
+      setCreateName('')
+    }
+    setSelectedParticipantIds((prev) => nextType === 'PRIVATE' ? prev.slice(0, 1) : prev)
+  }
+
+  const handleToggleCreateParticipant = (userId: number, checked: boolean) => {
+    setSelectedParticipantIds((prev) => {
+      if (!checked) {
+        return prev.filter((id) => id !== userId)
+      }
+      if (createType === 'PRIVATE') {
+        return [userId]
+      }
+      return prev.includes(userId) ? prev : [...prev, userId]
+    })
+  }
+
+  const handleSubmitCreateRoom = async () => {
+    const created = await handleCreateChatRoom()
+    if (created) {
+      setIsCreatePanelOpen(false)
     }
   }
 
@@ -98,73 +144,15 @@ export function ChatPageView({
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>forum</span>
               <span style={{ fontWeight: 700 }}>채팅 목록</span>
             </div>
-          </div>
-
-          <div style={{ padding: '6px 8px', borderBottom: '1px solid #e3bfb1' }}>
-            <div className="retro-inner-box" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8 }}>
-              <div style={{ fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136' }}>
-                현재 사용자: {currentUser?.nickname ?? '알 수 없음'}
-              </div>
-              <select
-                value={createType}
-                onChange={(event) => setCreateType(event.target.value as 'PRIVATE' | 'GROUP')}
-                style={{ border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 12, background: 'transparent' }}
-              >
-                <option value="PRIVATE">개인 채팅</option>
-                <option value="GROUP">그룹 채팅</option>
-              </select>
-              <input
-                value={createName}
-                onChange={(event) => setCreateName(event.target.value)}
-                placeholder={createType === 'GROUP' ? '그룹 이름' : '개인 채팅 이름(선택)'}
-                style={{ background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 12 }}
-              />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#5a4136' }}>
-                  참여자 선택
-                </span>
-                {friendCandidates.length === 0 ? (
-                  <span style={{ fontFamily: 'Be Vietnam Pro', fontSize: 12, color: '#5a4136' }}>
-                    초대할 친구가 없습니다.
-                  </span>
-                ) : friendCandidates.map((candidate) => {
-                  const checked = selectedParticipantIds.includes(candidate.userId)
-                  return (
-                    <label key={candidate.userId} style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'Be Vietnam Pro', fontSize: 12 }}>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(event) => {
-                          setSelectedParticipantIds((prev) => {
-                            if (event.target.checked) {
-                              return [...prev, candidate.userId]
-                            }
-                            return prev.filter((id) => id !== candidate.userId)
-                          })
-                        }}
-                      />
-                      {candidate.nickname}
-                    </label>
-                  )
-                })}
-              </div>
-              <button
-                className="retro-btn retro-btn-primary"
-                onClick={handleCreateChatRoom}
-                disabled={createLoading}
-                style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: createLoading ? 0.6 : 1 }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>add</span>
-                채팅방 생성
-              </button>
-              {createError ? (
-                <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#ba1a1a' }}>{createError}</span>
-              ) : null}
-            </div>
-          </div>
-
-          <div style={{ padding: '6px 8px', borderBottom: '1px solid #e3bfb1', fontFamily: 'Geist, monospace', fontSize: 11, color: '#5a4136' }}>
-            소켓 상태: {connectionStatus === 'connected' ? '연결됨' : connectionStatus === 'connecting' ? '연결 중' : '연결 끊김'}
+            <button
+              type="button"
+              className="retro-btn-gray"
+              onClick={handleOpenCreatePanel}
+              style={{ width: 28, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              title="채팅방 생성"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
+            </button>
           </div>
 
           <div className="retro-scrollbar" style={{ flex: 1, overflowY: 'auto', background: '#f9f9f9' }}>
@@ -213,6 +201,151 @@ export function ChatPageView({
             ))}
           </div>
         </aside>
+
+        {isCreatePanelOpen ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1100,
+              background: 'rgba(45, 31, 25, 0.28)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16,
+            }}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                handleCloseCreatePanel()
+              }
+            }}
+          >
+            <div className="retro-window" style={{ width: '100%', maxWidth: 420, background: '#fff7f4' }}>
+              <div className="retro-title-bar" style={{ justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add_comment</span>
+                  <span style={{ fontWeight: 700 }}>채팅방 생성</span>
+                </div>
+                <button
+                  type="button"
+                  className="retro-btn-gray"
+                  onClick={handleCloseCreatePanel}
+                  disabled={createLoading}
+                  style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: createLoading ? 0.6 : 1 }}
+                  title="닫기"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+                </button>
+              </div>
+
+              <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <button
+                    type="button"
+                    className={createType === 'PRIVATE' ? 'retro-btn retro-btn-primary' : 'retro-btn-gray'}
+                    onClick={() => handleChangeCreateType('PRIVATE')}
+                    style={{ padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>person</span>
+                    1:1
+                  </button>
+                  <button
+                    type="button"
+                    className={createType === 'GROUP' ? 'retro-btn retro-btn-primary' : 'retro-btn-gray'}
+                    onClick={() => handleChangeCreateType('GROUP')}
+                    style={{ padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>groups</span>
+                    단체
+                  </button>
+                </div>
+
+                {createType === 'GROUP' ? (
+                  <input
+                    value={createName}
+                    onChange={(event) => setCreateName(event.target.value)}
+                    placeholder="단체 채팅방 이름"
+                    className="retro-inner-box"
+                    style={{ height: 36, padding: '0 10px', background: '#fff', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 13 }}
+                  />
+                ) : null}
+
+                <div className="retro-inner-box" style={{ background: '#fff', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 700, color: '#5a4136' }}>
+                      일촌 목록
+                    </span>
+                    <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#7a5c50' }}>
+                      {createType === 'PRIVATE' ? '1명 선택' : `${selectedParticipantIds.length}명 선택`}
+                    </span>
+                  </div>
+
+                  <div className="retro-scrollbar" style={{ maxHeight: 260, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {friendCandidates.length === 0 ? (
+                      <div style={{ padding: 16, textAlign: 'center', fontFamily: 'Be Vietnam Pro', fontSize: 12, color: '#5a4136' }}>
+                        선택할 수 있는 일촌이 없습니다.
+                      </div>
+                    ) : friendCandidates.map((candidate) => {
+                      const checked = selectedParticipantIds.includes(candidate.userId)
+                      return (
+                        <label
+                          key={candidate.userId}
+                          className="retro-inner-box"
+                          style={{
+                            minHeight: 42,
+                            padding: '8px 10px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            background: checked ? '#ffdbcd' : '#fafafa',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <input
+                            type={createType === 'PRIVATE' ? 'radio' : 'checkbox'}
+                            name="chat-create-participant"
+                            checked={checked}
+                            onChange={(event) => handleToggleCreateParticipant(candidate.userId, event.target.checked)}
+                          />
+                          <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#5a4136', fontVariationSettings: "'FILL' 1" }}>person</span>
+                          <span style={{ fontFamily: 'Be Vietnam Pro', fontSize: 13, color: '#2f211c', fontWeight: 600 }}>
+                            {candidate.nickname}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {createError ? (
+                  <div style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#ba1a1a' }}>{createError}</div>
+                ) : null}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                  <button
+                    type="button"
+                    className="retro-btn-gray"
+                    onClick={handleCloseCreatePanel}
+                    disabled={createLoading}
+                    style={{ padding: '7px 12px', opacity: createLoading ? 0.6 : 1 }}
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    className="retro-btn retro-btn-primary"
+                    onClick={handleSubmitCreateRoom}
+                    disabled={createLoading || selectedParticipantIds.length === 0}
+                    style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 6, opacity: createLoading || selectedParticipantIds.length === 0 ? 0.6 : 1 }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 15 }}>check</span>
+                    {createLoading ? '생성 중' : '생성'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <section className="retro-window" style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
           <div className="retro-title-bar" style={{ justifyContent: 'space-between' }}>
