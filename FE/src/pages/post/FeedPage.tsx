@@ -1253,7 +1253,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
             </div>
 
             {/* 피드 필터 */}
-            <div className="flex gap-1">
+            <div className="flex gap-1 items-center">
               {(['전체 피드', '일촌만', '사진만', '북마크'] as const).map((label, i) => {
                 const val = (['전체', '일촌만', '사진만', '북마크'] as const)[i]
                 return (
@@ -1264,6 +1264,13 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                   >{label}</button>
                 )
               })}
+              <button
+                className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1 ml-auto flex items-center gap-1"
+                onClick={() => setShowSearchModal(true)}
+              >
+                <span className="material-symbols-outlined text-sm leading-none">search</span>
+                검색
+              </button>
             </div>
 
             {/* 피드 포스트 */}
