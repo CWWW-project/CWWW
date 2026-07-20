@@ -1308,7 +1308,11 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                     <div key={post.postId} className={`p-2 flex flex-col gap-2${idx < displayPosts.length - 1 ? ' border-b border-[#e3bfb1]' : ''}`}>
                       <div className="flex gap-2 items-start">
                         <div className="w-10 h-10 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                          <span className="material-symbols-outlined text-[28px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                          {post.profileImageUrl ? (
+                            <img src={post.profileImageUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="material-symbols-outlined text-[28px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-baseline gap-1 mb-1">

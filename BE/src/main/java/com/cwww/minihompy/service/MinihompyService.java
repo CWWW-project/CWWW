@@ -82,7 +82,7 @@ public class MinihompyService {
 		// 미니홈피 주인이 아닐 경우 접근 권한 체크(PRIVATE, FRIEND, ALL)
 		if(!isOwner) {
 
-			checkAccessPermission(response.getAccessLevel(), ownerId, viewerId);
+			checkAccessPermission(ownerId, viewerId);
 
 			// 로그인한 유저일 경우
 			if(viewerId != null) {
@@ -92,6 +92,7 @@ public class MinihompyService {
 				} catch(Exception e) {
 					log.warn("방문 기록 실패: ownerId={}, viewerId={}", ownerId, viewerId, e);
 				}
+
 			}
 		}
 
@@ -108,26 +109,36 @@ public class MinihompyService {
 				.build();
 	}
 
+	/*
+	 * 접근 권한 체크(PRIVATE는 무조건 차단, FRIEND는 일촌 여부 확인, ALL은 통과)
+	 * package-private → public으로 변경, 다른 도메인(방명록/다이어리 등)에서도 재사용
+	 */
+	public void checkAccessPermission(Long ownerId, Long viewerId) {
 
-	// 접근 권한 체크(PRIVATE는 무조건 차단, FRIEND는 일촌 여부 확인, ALL은 통과)
-	private void checkAccessPermission(Minihompy.AccessLevel accessLevel, Long ownerId, Long viewerId) {
+		String accessLevelStr = minihompyMapper.selectAccessLevelByOwnerId(ownerId);
+
+		if (accessLevelStr == null) {
+			throw new BusinessException(ErrorCode.MINIHOMPY_NOT_FOUND);
+		}
+
+		// 본인은 항상 통과
+		if (viewerId != null && viewerId.equals(ownerId)) {
+			return;
+		}
+
+		Minihompy.AccessLevel accessLevel = Minihompy.AccessLevel.valueOf(accessLevelStr);
 
 		switch (accessLevel) {
 			case PRIVATE -> throw new BusinessException(ErrorCode.MINIHOMPY_FORBIDDEN);
-			case FRIEND ->  {
-
-				if(viewerId == null || !friendMapper.isFriend(ownerId, viewerId)) {
+			case FRIEND -> {
+				if (viewerId == null || !friendMapper.isFriend(ownerId, viewerId)) {
 					throw new BusinessException(ErrorCode.MINIHOMPY_FORBIDDEN);
 				}
-
 			}
 			case ALL -> {
-
-				// 비회원(비로그인)은 ALL이어도 차단 - 반드시 로그인해야 조회 가능
-				if(viewerId == null) {
+				if (viewerId == null) {
 					throw new BusinessException(ErrorCode.MINIHOMPY_FORBIDDEN);
 				}
-
 			}
 		}
 	}

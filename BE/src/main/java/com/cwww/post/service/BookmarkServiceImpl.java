@@ -92,11 +92,16 @@ public class BookmarkServiceImpl implements BookmarkService {
                 .collect(Collectors.groupingBy(Media::getTargetId,
                         Collectors.mapping(Media::getMediaUrl, Collectors.toList())));
 
+        // 작성자별 프로필 사진 맵
+        Map<Long, String> profileImageMap = mediaMapper.findAllByTargets("PROFILE", userIds).stream()
+                .collect(Collectors.toMap(Media::getTargetId, Media::getMediaUrl, (a, b) -> a));
+
         java.util.Set<Long> likedPostIds = postLikeMapper.findLikedPostIds(userId, postIds);
 
         return posts.stream()
                 .map(post -> PostResponse.from(post,
                         nicknameMap.getOrDefault(post.getUserId(), ""),
+                        profileImageMap.get(post.getUserId()),
                         likedPostIds.contains(post.getPostId()),
                         true,
                         hashtagMap.getOrDefault(post.getPostId(), List.of()),

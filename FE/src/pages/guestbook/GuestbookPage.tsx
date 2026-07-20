@@ -283,60 +283,72 @@ export default function GuestbookPage() {
               )}
 
               {entries.map((entry, idx) => (
-                <div key={entry.guestbookId} className={`p-3 flex gap-3${idx < entries.length - 1 ? ' border-b border-[#e3bfb1]' : ''}`}>
-                  <div className="w-20 h-24 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                    {entry.writerProfileImageUrl ? (
-                      <img src={entry.writerProfileImageUrl} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="material-symbols-outlined text-[40px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                <div key={entry.guestbookId} className={`flex flex-col${idx < entries.length - 1 ? ' border-b border-[#e3bfb1]' : ''}`}>
+                  {/* 상단 바 — 번호 + 닉네임 + 날짜 */}
+                  <div className="bg-[#f3f3f3] px-3 py-1.5 flex items-center gap-2 border-b border-[#e3bfb1]">
+                    <span className="font-[Geist,monospace] text-[11px] text-[#8e7164]">NO.{entry.guestbookId}</span>
+                    <span className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00]">{entry.writerNickname}</span>
+                    {entry.isSecret && (
+                      <span
+                        className="material-symbols-outlined text-[#5a4136]"
+                        style={{ fontSize: '16px' }}
+                        title="비밀글"
+                      >
+                        lock
+                      </span>
                     )}
+                    <span className="font-[Geist,monospace] text-[10px] text-[#5a4136] ml-auto">{formatTime(entry.createdAt)}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00]">{entry.writerNickname}</span>
-                      {entry.isSecret && (
-                        <span className="material-symbols-outlined text-[13px] text-[#5a4136]" title="비밀글">lock</span>
+
+                  {/* 본문 — 프로필 사진 + 내용 */}
+                  <div className="p-5 flex gap-5">
+                    <div className="w-28 h-32 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
+                      {entry.writerProfileImageUrl ? (
+                        <img src={entry.writerProfileImageUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="material-symbols-outlined text-[40px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
                       )}
-                      <span className="font-[Geist,monospace] text-[10px] text-[#5a4136]">{formatTime(entry.createdAt)}</span>
                     </div>
 
-                    {editingId === entry.guestbookId ? (
-                      <div className="flex flex-col gap-1">
-                        <textarea
-                          className="window-inset w-full text-[13px] p-1 focus:outline-none resize-none"
-                          rows={2}
-                          value={editContent}
-                          onChange={(e) => setEditContent(e.target.value)}
-                          maxLength={500}
-                        />
-                        <div className="flex items-center justify-between">
-                          <label className="flex items-center gap-1 font-[Geist,monospace] text-[11px] text-[#5a4136] cursor-pointer">
-                            <input type="checkbox" checked={editSecret} onChange={(e) => setEditSecret(e.target.checked)} />
-                            비밀글
-                          </label>
-                          <div className="flex gap-1">
-                            <button className="retro-btn font-[Geist,monospace] text-[11px] px-2 py-1" onClick={cancelEdit}>취소</button>
-                            <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[11px] px-2 py-1" onClick={() => submitEdit(entry.guestbookId)}>저장</button>
+                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                      {editingId === entry.guestbookId ? (
+                        <div className="flex flex-col gap-1">
+                          <textarea
+                            className="window-inset w-full text-[13px] p-1 focus:outline-none resize-none"
+                            rows={2}
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            maxLength={500}
+                          />
+                          <div className="flex items-center justify-between">
+                            <label className="flex items-center gap-1 font-[Geist,monospace] text-[11px] text-[#5a4136] cursor-pointer">
+                              <input type="checkbox" checked={editSecret} onChange={(e) => setEditSecret(e.target.checked)} />
+                              비밀글
+                            </label>
+                            <div className="flex gap-1">
+                              <button className="retro-btn font-[Geist,monospace] text-[11px] px-2 py-1" onClick={cancelEdit}>취소</button>
+                              <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[11px] px-2 py-1" onClick={() => submitEdit(entry.guestbookId)}>저장</button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ) : (
-                      <>
-                        <p className="text-[13px] text-[#1a1c1c]">
-                          {entry.visible ? entry.content : <span className="text-[#5a4136] italic">비밀글입니다</span>}
-                        </p>
-                        {(entry.canEdit || entry.canDelete) && (
-                          <div className="flex gap-2 mt-1">
-                            {entry.canEdit && (
-                              <button className="font-[Geist,monospace] text-[10px] text-[#5a4136] hover:underline" onClick={() => startEdit(entry)}>수정</button>
-                            )}
-                            {entry.canDelete && (
-                              <button className="font-[Geist,monospace] text-[10px] text-[#ba1a1a] hover:underline" onClick={() => removeGuestbook(entry.guestbookId)}>삭제</button>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    )}
+                      ) : (
+                        <>
+                          <p className="text-[14px] text-[#1a1c1c] whitespace-pre-wrap leading-relaxed">
+                            {entry.visible ? entry.content : <span className="text-[#5a4136] italic">비밀글입니다</span>}
+                          </p>
+                          {(entry.canEdit || entry.canDelete) && (
+                            <div className="flex justify-end gap-2 mt-1">
+                              {entry.canEdit && (
+                                <button className="font-[Geist,monospace] text-[11px] text-[#5a4136] hover:underline" onClick={() => startEdit(entry)}>수정</button>
+                              )}
+                              {entry.canDelete && (
+                                <button className="font-[Geist,monospace] text-[11px] text-[#ba1a1a] hover:underline" onClick={() => removeGuestbook(entry.guestbookId)}>삭제</button>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

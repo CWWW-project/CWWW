@@ -10,6 +10,7 @@ import com.cwww.guestbook.dto.request.GuestbookUpdateRequest;
 import com.cwww.guestbook.dto.response.GuestbookFeedResponse;
 import com.cwww.guestbook.dto.response.GuestbookResponse;
 import com.cwww.guestbook.mapper.GuestbookMapper;
+import com.cwww.minihompy.service.MinihompyService;
 import com.cwww.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ public class GuestbookService {
     private final GuestbookMapper guestbookMapper;
     private final UserMapper userMapper;
     private final RedisNotificationPublisher notificationPublisher;
+    private final MinihompyService minihompyService;
 
     // 방명록 작성
     @Transactional
@@ -65,6 +67,9 @@ public class GuestbookService {
 
     // 방명록 목록 조회 (커서 기반 페이징, 비밀글 마스킹 처리)
     public GuestbookFeedResponse getGuestbooks(Long ownerId, Long viewerId, Long cursor, int size) {
+
+        // 미니홈피 접근 권한 확인
+        minihompyService.checkAccessPermission(ownerId, viewerId);
 
         Long minihompyId = guestbookMapper.selectMinihompyIdByOwnerId(ownerId);
 

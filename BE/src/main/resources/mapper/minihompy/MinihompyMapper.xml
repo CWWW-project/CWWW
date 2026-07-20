@@ -52,6 +52,12 @@
 	</select>
 
 
+	<!-- 접근 권한 확인 -->
+	<select id="selectAccessLevelByOwnerId" resultType="String">
+		SELECT access_level FROM minihompy WHERE user_id = #{ownerId} AND deleted_at IS NULL
+	</select>
+
+
 	<!--
 		회원가입/로그인 후 처음 미니홈피 조회한 사용자 자동 미니홈피 생성(기본값으로)
 		동시 요청으로 이미 다른 요청이 먼저 생성한 경우 -> 아무것도 안 함(멱등)
@@ -65,12 +71,13 @@
 	</insert>
 
 
-	<!-- 미니홈피 설정 변경 (accessLevel, introduction, mood 한번에) -->
+	<!-- 미니홈피 설정 변경 (accessLevel, introduction, mood 한번에)
+     introduction/mood가 null로 오면(=해당 필드를 건드리지 않은 요청) 기존 값 유지 (COALESCE) -->
 	<update id="updateSettings">
 		UPDATE minihompy
 		SET access_level = #{accessLevel},
-		introduction = #{introduction},
-		mood = #{mood}
+			introduction = COALESCE(#{introduction}, introduction),
+			mood = COALESCE(#{mood}, mood)
 		WHERE user_id = #{userId}
 		AND deleted_at IS NULL
 	</update>
