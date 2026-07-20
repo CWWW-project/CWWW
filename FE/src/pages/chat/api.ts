@@ -81,10 +81,10 @@ export async function leaveChatRoom(chatId: number): Promise<void> {
   await api.patch(`/chat/rooms/${chatId}/leave`)
 }
 
-export async function inviteParticipant(chatId: number, participantUserId: number): Promise<void> {
+export async function inviteParticipant(chatId: number, participantUserIds: number[]): Promise<void> {
   try {
     await api.post('/chat/rooms/' + chatId + '/participants', {
-      participantUserIds: [participantUserId],
+      participantUserIds,
     })
   } catch (error: any) {
     throw new Error(error.response?.data?.message || '참여자 초대에 실패했습니다.')

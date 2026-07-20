@@ -35,7 +35,7 @@ export function ChatPageView({
   handleSelectRoom,
   hasMoreByRoom,
   input,
-  inviteUserId,
+  inviteUserIds,
   isReady,
   isRoomViewportSettling,
   isSending,
@@ -55,7 +55,7 @@ export function ChatPageView({
   setCreateName,
   setCreateType,
   setInput,
-  setInviteUserId,
+  setInviteUserIds,
   setOpenMessageMenuId,
   setSelectedParticipantIds,
   textareaRef,
@@ -124,7 +124,7 @@ export function ChatPageView({
 
   const handleOpenInvitePanel = () => {
     setCreateError('')
-    setInviteUserId(inviteCandidates[0]?.userId ?? null)
+    setInviteUserIds([])
     setIsInvitePanelOpen(true)
   }
 
@@ -138,6 +138,15 @@ export function ChatPageView({
     if (invited) {
       setIsInvitePanelOpen(false)
     }
+  }
+
+  const handleToggleInviteParticipant = (userId: number, checked: boolean) => {
+    setInviteUserIds((prev) => {
+      if (!checked) {
+        return prev.filter((id) => id !== userId)
+      }
+      return prev.includes(userId) ? prev : [...prev, userId]
+    })
   }
 
   const privateRoomOpponentId = activeRoom?.type === 'PRIVATE'
@@ -436,7 +445,7 @@ export function ChatPageView({
                       초대할 일촌
                     </span>
                     <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#7a5c50' }}>
-                      1명 선택
+                      {inviteUserIds.length}명 선택
                     </span>
                   </div>
 
@@ -446,7 +455,7 @@ export function ChatPageView({
                         초대할 수 있는 일촌이 없습니다.
                       </div>
                     ) : inviteCandidates.map((candidate) => {
-                      const checked = inviteUserId === candidate.userId
+                      const checked = inviteUserIds.includes(candidate.userId)
                       return (
                         <label
                           key={candidate.userId}
@@ -462,10 +471,9 @@ export function ChatPageView({
                           }}
                         >
                           <input
-                            type="radio"
-                            name="chat-invite-participant"
+                            type="checkbox"
                             checked={checked}
-                            onChange={() => setInviteUserId(candidate.userId)}
+                            onChange={(event) => handleToggleInviteParticipant(candidate.userId, event.target.checked)}
                           />
                           <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#5a4136', fontVariationSettings: "'FILL' 1" }}>person</span>
                           <span style={{ fontFamily: 'Be Vietnam Pro', fontSize: 13, color: '#2f211c', fontWeight: 600 }}>
@@ -494,8 +502,8 @@ export function ChatPageView({
                     type="button"
                     className="retro-btn retro-btn-primary"
                     onClick={handleSubmitInviteParticipant}
-                    disabled={inviteUserId === null}
-                    style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 6, opacity: inviteUserId === null ? 0.6 : 1 }}
+                    disabled={inviteUserIds.length === 0}
+                    style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 6, opacity: inviteUserIds.length === 0 ? 0.6 : 1 }}
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: 15 }}>person_add</span>
                     초대

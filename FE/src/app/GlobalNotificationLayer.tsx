@@ -176,7 +176,7 @@ export function GlobalNotificationLayer() {
                   <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, fontWeight: 700 }}>{formatNotificationActorName(notification.actorName)}</span>
                   <span style={{ fontFamily: 'Geist, monospace', fontSize: 10, color: '#5a4136' }}>{formatNotificationTime(notification.createdAt)}</span>
                 </div>
-                <div style={{ fontFamily: 'Be Vietnam Pro', fontSize: 12, color: '#5a4136', wordBreak: 'break-word' }}>
+                <div style={{ fontFamily: 'Be Vietnam Pro', fontSize: 12, color: '#5a4136', wordBreak: 'break-word', whiteSpace: 'pre-line' }}>
                   {notification.preview}
                 </div>
               </div>
@@ -197,7 +197,7 @@ export function GlobalNotificationLayer() {
                 <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, fontWeight: 700 }}>{formatNotificationActorName(notification.actorName)}</span>
                 <span style={{ fontFamily: 'Geist, monospace', fontSize: 10, color: '#5a4136' }}>{formatNotificationTime(notification.createdAt)}</span>
               </div>
-              <div style={{ fontFamily: 'Be Vietnam Pro', fontSize: 12, color: '#5a4136', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontFamily: 'Be Vietnam Pro', fontSize: 12, color: '#5a4136', whiteSpace: 'pre-line', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                 {notification.preview}
               </div>
             </button>

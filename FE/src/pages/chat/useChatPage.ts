@@ -76,7 +76,7 @@ export function useChatPage() {
   const [loadingMoreRoomId, setLoadingMoreRoomId] = useState<number | null>(null)
   const [isRoomViewportSettling, setIsRoomViewportSettling] = useState(false)
   const [openMessageMenuId, setOpenMessageMenuId] = useState<number | null>(null)
-  const [inviteUserId, setInviteUserId] = useState<number | null>(null)
+  const [inviteUserIds, setInviteUserIds] = useState<number[]>([])
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
   const [isSending, setIsSending] = useState(false)
   const [reconnectKey, setReconnectKey] = useState(0)
@@ -252,7 +252,7 @@ export function useChatPage() {
   useEffect(() => {
     if (!accessToken || !currentUserId) {
       setFriendCandidates([])
-      setInviteUserId(null)
+      setInviteUserIds([])
       return
     }
 
@@ -263,11 +263,11 @@ export function useChatPage() {
           nickname: friend.opponentNickname,
         }))
         setFriendCandidates(candidates)
-        setInviteUserId(candidates[0]?.userId ?? null)
+        setInviteUserIds([])
       })
       .catch(() => {
         setFriendCandidates([])
-        setInviteUserId(null)
+        setInviteUserIds([])
       })
   }, [accessToken, currentUserId, reconnectKey])
 
@@ -601,11 +601,12 @@ export function useChatPage() {
   }
 
   const handleInviteParticipant = async (): Promise<boolean> => {
-    if (activeId === null || inviteUserId === null) return false
+    if (activeId === null || inviteUserIds.length === 0) return false
 
     try {
-      await inviteParticipant(activeId, inviteUserId)
+      await inviteParticipant(activeId, inviteUserIds)
       await refreshParticipants(activeId)
+      setInviteUserIds([])
       return true
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : '참여자 초대에 실패했습니다.')
@@ -634,7 +635,7 @@ export function useChatPage() {
     handleSelectRoom,
     hasMoreByRoom,
     input,
-    inviteUserId,
+    inviteUserIds,
     isReady,
     isRoomViewportSettling,
     isSending,
@@ -655,7 +656,7 @@ export function useChatPage() {
     setCreateError,
     setCreateType,
     setInput,
-    setInviteUserId,
+    setInviteUserIds,
     setOpenMessageMenuId,
     setSelectedParticipantIds,
     textareaRef,
