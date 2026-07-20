@@ -15,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 
@@ -57,23 +59,30 @@ public class CommentServiceImpl implements CommentService {
         postMapper.incrementCommentCount(postId);
 
         if (!userId.equals(post.getUserId())) {
-            try {
-                String actorName = userMapper.findNicknameById(userId);
-                String preview = request.getContent().length() > 30
-                        ? request.getContent().substring(0, 30) + "..."
-                        : request.getContent();
-                notificationPublisher.publish(NotificationEvent.builder()
-                        .eventType("COMMENT")
-                        .targetUserId(post.getUserId())
-                        .actorId(userId)
-                        .actorName(actorName)
-                        .targetId(postId)
-                        .targetType("POST")
-                        .preview(actorName + ": " + preview)
-                        .createdAt(java.time.LocalDateTime.now())
-                        .build());
-            } catch (Exception e) {
-                log.warn("댓글 알림 발행 실패: postId={}, userId={}", postId, userId, e);
+            String actorName = userMapper.findNicknameById(userId);
+            NotificationEvent event = NotificationEvent.builder()
+                    .eventType("COMMENT")
+                    .targetUserId(post.getUserId())
+                    .actorId(userId)
+                    .actorName(actorName)
+                    .targetId(postId)
+                    .targetType("POST")
+                    .preview(actorName + ": " + truncatePreview(request.getContent(), 30))
+                    .createdAt(java.time.LocalDateTime.now())
+                    .build();
+            Runnable publish = () -> {
+                try {
+                    notificationPublisher.publish(event);
+                } catch (Exception e) {
+                    log.warn("댓글 알림 발행 실패: postId={}, userId={}", postId, userId, e);
+                }
+            };
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override public void afterCommit() { publish.run(); }
+                });
+            } else {
+                publish.run();
             }
         }
     }
@@ -127,5 +136,14 @@ public class CommentServiceImpl implements CommentService {
         if (deleted == 1) {
             postMapper.decrementCommentCount(postId);
         }
+    }
+
+    private String truncatePreview(String content, int maxCodePoints) {
+        int cpCount = content.codePointCount(0, content.length());
+        if (cpCount <= maxCodePoints) {
+            return content;
+        }
+        int end = content.offsetByCodePoints(0, maxCodePoints);
+        return content.substring(0, end) + "...";
     }
 }

@@ -6,8 +6,10 @@ import com.cwww.post.domain.Post;
 import com.cwww.post.domain.PostComment;
 import com.cwww.post.dto.CommentCreateRequest;
 import com.cwww.post.dto.CommentResponse;
+import com.cwww.global.notification.redis.RedisNotificationPublisher;
 import com.cwww.post.mapper.CommentMapper;
 import com.cwww.post.mapper.PostMapper;
+import com.cwww.user.mapper.UserMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +22,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -28,6 +31,8 @@ class CommentServiceTest {
 
     @Mock private CommentMapper commentMapper;
     @Mock private PostMapper postMapper;
+    @Mock private UserMapper userMapper;
+    @Mock private RedisNotificationPublisher notificationPublisher;
 
     @InjectMocks
     private CommentServiceImpl commentService;
@@ -42,6 +47,7 @@ class CommentServiceTest {
         Post post = Post.builder().postId(1L).userId(2L).build();
         CommentCreateRequest request = new CommentCreateRequest("댓글 내용", null);
         given(postMapper.findById(1L)).willReturn(Optional.of(post));
+        given(userMapper.findNicknameById(anyLong())).willReturn("테스터");
 
         // Act
         commentService.createComment(userId, 1L, request);
@@ -61,6 +67,7 @@ class CommentServiceTest {
         CommentCreateRequest request = new CommentCreateRequest("대댓글 내용", 10L);
         given(postMapper.findById(1L)).willReturn(Optional.of(post));
         given(commentMapper.findById(10L)).willReturn(Optional.of(parent));
+        given(userMapper.findNicknameById(anyLong())).willReturn("테스터");
 
         // Act
         commentService.createComment(userId, 1L, request);

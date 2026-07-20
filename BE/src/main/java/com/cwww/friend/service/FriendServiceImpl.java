@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Map;
@@ -48,20 +50,30 @@ public class FriendServiceImpl implements FriendService {
             throw new BusinessException(ErrorCode.ALREADY_FRIEND);
         }
 
-        try {
-            String actorName = userMapper.findNicknameById(requesterId);
-            notificationPublisher.publish(NotificationEvent.builder()
-                    .eventType("FRIEND_REQUEST")
-                    .targetUserId(receiverId)
-                    .actorId(requesterId)
-                    .actorName(actorName)
-                    .targetId(friend.getFriendId())
-                    .targetType("FRIEND")
-                    .preview(actorName + "님이 일촌 신청을 보냈습니다.")
-                    .createdAt(java.time.LocalDateTime.now())
-                    .build());
-        } catch (Exception e) {
-            log.warn("일촌 신청 알림 발행 실패: requesterId={}, receiverId={}", requesterId, receiverId, e);
+        String actorName = userMapper.findNicknameById(requesterId);
+        NotificationEvent event = NotificationEvent.builder()
+                .eventType("FRIEND_REQUEST")
+                .targetUserId(receiverId)
+                .actorId(requesterId)
+                .actorName(actorName)
+                .targetId(friend.getFriendId())
+                .targetType("FRIEND")
+                .preview(actorName + "님이 일촌 신청을 보냈습니다.")
+                .createdAt(java.time.LocalDateTime.now())
+                .build();
+        Runnable publishRequest = () -> {
+            try {
+                notificationPublisher.publish(event);
+            } catch (Exception e) {
+                log.warn("일촌 신청 알림 발행 실패: requesterId={}, receiverId={}", requesterId, receiverId, e);
+            }
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override public void afterCommit() { publishRequest.run(); }
+            });
+        } else {
+            publishRequest.run();
         }
     }
 
@@ -79,20 +91,31 @@ public class FriendServiceImpl implements FriendService {
             throw new BusinessException(ErrorCode.FRIEND_REQUEST_NOT_FOUND);
         }
 
-        try {
-            String actorName = userMapper.findNicknameById(userId);
-            notificationPublisher.publish(NotificationEvent.builder()
-                    .eventType("FRIEND_ACCEPT")
-                    .targetUserId(friend.getRequesterId())
-                    .actorId(userId)
-                    .actorName(actorName)
-                    .targetId(friendId)
-                    .targetType("FRIEND")
-                    .preview(actorName + "님이 일촌 신청을 수락했습니다.")
-                    .createdAt(java.time.LocalDateTime.now())
-                    .build());
-        } catch (Exception e) {
-            log.warn("일촌 수락 알림 발행 실패: userId={}, requesterId={}", userId, friend.getRequesterId(), e);
+        String actorName = userMapper.findNicknameById(userId);
+        Long requesterId = friend.getRequesterId();
+        NotificationEvent event = NotificationEvent.builder()
+                .eventType("FRIEND_ACCEPT")
+                .targetUserId(requesterId)
+                .actorId(userId)
+                .actorName(actorName)
+                .targetId(friendId)
+                .targetType("FRIEND")
+                .preview(actorName + "님이 일촌 신청을 수락했습니다.")
+                .createdAt(java.time.LocalDateTime.now())
+                .build();
+        Runnable publishAccept = () -> {
+            try {
+                notificationPublisher.publish(event);
+            } catch (Exception e) {
+                log.warn("일촌 수락 알림 발행 실패: userId={}, requesterId={}", userId, requesterId, e);
+            }
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override public void afterCommit() { publishAccept.run(); }
+            });
+        } else {
+            publishAccept.run();
         }
     }
 
