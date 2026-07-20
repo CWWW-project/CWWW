@@ -364,6 +364,7 @@ export default function GuestbookPage() {
             { icon: 'edit_note', label: '다이어리', path: `/diary/${userId}` },
             { icon: 'photo_library', label: '사진첩', path: `/photo/${userId}` },
             { icon: 'forum', label: '방명록', path: `/guestbook/${userId}` },
+            { icon: 'footprint', label: '방문자', path: `/visitor/${userId}` },
             { icon: 'storefront', label: '상점', path: '/shop' },
           ].map(tab => {
             const active = location.pathname === tab.path

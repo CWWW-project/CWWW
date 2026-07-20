@@ -17,6 +17,7 @@ import GuestbookPage from './pages/guestbook/GuestbookPage'
 import { getAudioElement } from './store/audioPlayer'
 import { useMinihompyStore } from './store/minihompyStore'
 import { useEffect } from 'react'
+import VisitorPage from './pages/visitor/VisitorPage'
 
 const MOBILE_TABS = [
   { icon: 'home', label: '홈', path: '/' },
@@ -125,6 +126,8 @@ function App() {
         <Route path="/home/:userId" element={<MinihompyPage />} />
         {/* GUESTBOOk - 김채린 */}
         <Route path="/guestbook/:userId" element={<GuestbookPage />} />
+        {/* 최근 방문자 확인 */}
+        <Route path="/visitor/:userId" element={<VisitorPage />} />
 
         {/* CHAT - 김찬호 */}
         <Route path="/chat" element={<ChatPage />} />

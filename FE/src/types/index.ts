@@ -247,3 +247,8 @@ export interface GuestbookFeedResponse {
   nextCursor: number | null
   hasNext: boolean
 }
+
+export interface VisitorLogResponse {
+  nickname: string
+  visitedAt: string
+}
