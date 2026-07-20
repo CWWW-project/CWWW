@@ -9,6 +9,7 @@ import com.cwww.chat.dto.response.CreateChatRoomResponse;
 import com.cwww.chat.mapper.ChatParticipantMapper;
 import com.cwww.chat.mapper.ChatRoomMapper;
 import com.cwww.global.exception.BusinessException;
+import com.cwww.global.exception.ErrorCode;
 import com.cwww.user.mapper.UserMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -120,6 +121,32 @@ class ChatRoomServiceTest {
 
         verify(chatRoomMapper).insert(any(ChatRoom.class));
         verify(chatParticipantMapper, times(2)).insert(any(ChatParticipant.class));
+    }
+
+    @Test
+    @DisplayName("채팅방 생성 실패 - 이미 1:1 채팅방이 존재")
+    void createChatRoom_privateAlreadyExists_fail() {
+        // Arrange
+        CreateChatRoomRequest request = CreateChatRoomRequest.builder()
+                .type(ChatRoomType.PRIVATE)
+                .name(null)
+                .participantUserIds(List.of(1L, 2L))
+                .build();
+        ChatRoom existingRoom = ChatRoom.builder()
+                .chatId(30L)
+                .type(ChatRoomType.PRIVATE)
+                .build();
+        org.mockito.BDDMockito.given(chatRoomMapper.findActivePrivateRoomByUserIds(1L, 2L))
+                .willReturn(existingRoom);
+
+        // Act & Assert
+        assertThatThrownBy(() -> chatRoomService.createChatRoom(1L, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PRIVATE_CHAT_ROOM_ALREADY_EXISTS);
+
+        verify(chatRoomMapper, never()).insert(any(ChatRoom.class));
+        verify(chatParticipantMapper, never()).insert(any(ChatParticipant.class));
     }
 
     @Test
