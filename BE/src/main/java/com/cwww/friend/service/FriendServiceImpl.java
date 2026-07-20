@@ -2,6 +2,7 @@ package com.cwww.friend.service;
 
 import com.cwww.friend.domain.Friend;
 import com.cwww.friend.dto.response.FriendResponse;
+import com.cwww.friend.dto.response.FriendSendResponse;
 import com.cwww.friend.mapper.FriendMapper;
 import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
@@ -31,7 +32,7 @@ public class FriendServiceImpl implements FriendService {
 
     @Override
     @Transactional
-    public void sendRequest(Long requesterId, Long receiverId) {
+    public FriendSendResponse sendRequest(Long requesterId, Long receiverId) {
         if (requesterId.equals(receiverId)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
@@ -79,6 +80,10 @@ public class FriendServiceImpl implements FriendService {
         } else {
             publishRequest.run();
         }
+
+        return FriendSendResponse.builder()
+                .friendId(friend.getFriendId())
+                .build();
     }
 
     @Override
