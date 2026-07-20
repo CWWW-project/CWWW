@@ -143,7 +143,9 @@ public class CommentServiceImpl implements CommentService {
         if (cpCount <= maxCodePoints) {
             return content;
         }
-        int end = content.offsetByCodePoints(0, maxCodePoints);
+        int ellipsisLen = 3; // "..."
+        int cutAt = Math.max(0, maxCodePoints - ellipsisLen);
+        int end = content.offsetByCodePoints(0, cutAt);
         return content.substring(0, end) + "...";
     }
 }

@@ -2,17 +2,19 @@ package com.cwww.post.service;
 
 import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
+import com.cwww.global.notification.dto.NotificationEvent;
+import com.cwww.global.notification.redis.RedisNotificationPublisher;
 import com.cwww.post.domain.Post;
 import com.cwww.post.domain.PostComment;
 import com.cwww.post.dto.CommentCreateRequest;
 import com.cwww.post.dto.CommentResponse;
-import com.cwww.global.notification.redis.RedisNotificationPublisher;
 import com.cwww.post.mapper.CommentMapper;
 import com.cwww.post.mapper.PostMapper;
 import com.cwww.user.mapper.UserMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -55,6 +57,14 @@ class CommentServiceTest {
         // Assert
         verify(commentMapper).insert(org.mockito.ArgumentMatchers.any(PostComment.class));
         verify(postMapper).incrementCommentCount(1L);
+
+        ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
+        verify(notificationPublisher).publish(captor.capture());
+        NotificationEvent event = captor.getValue();
+        assertThat(event.getEventType()).isEqualTo("COMMENT");
+        assertThat(event.getTargetUserId()).isEqualTo(post.getUserId());
+        assertThat(event.getActorId()).isEqualTo(userId);
+        assertThat(event.getPreview()).contains("테스터");
     }
 
     @Test
@@ -74,6 +84,14 @@ class CommentServiceTest {
 
         // Assert
         verify(commentMapper).insert(org.mockito.ArgumentMatchers.any(PostComment.class));
+
+        ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
+        verify(notificationPublisher).publish(captor.capture());
+        NotificationEvent event = captor.getValue();
+        assertThat(event.getEventType()).isEqualTo("COMMENT");
+        assertThat(event.getTargetUserId()).isEqualTo(post.getUserId());
+        assertThat(event.getActorId()).isEqualTo(userId);
+        assertThat(event.getPreview()).contains("테스터");
     }
 
     @Test
