@@ -74,7 +74,7 @@ export function GlobalNotificationLayer() {
 
         setNotifications((prev) => [notification, ...prev.filter((item) => item.id !== notification.id)])
 
-        if (location.pathname === '/chat') {
+        if (location.pathname === '/chat' && payload.eventType === 'CHAT_NOTIFICATION') {
           return
         }
 
