@@ -82,16 +82,18 @@ declare global {
   }
 }
 
-export function loadTossSdk(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (window.TossPayments) return resolve()
-    const script = document.createElement('script')
-    script.src = 'https://js.tosspayments.com/v1/payment'
-    script.onload = () => resolve()
-    script.onerror = () => reject(new Error('토스 SDK 로드 실패'))
-    document.head.appendChild(script)
-  })
-}
+ export function loadTossSdk(): Promise<void> {
++  if (window.TossPayments) return Promise.resolve()
++  if (loadTossSdk._promise) return loadTossSdk._promise
++  loadTossSdk._promise = new Promise((resolve, reject) => {
++    const script = document.createElement('script')
++    script.src = 'https://js.tosspayments.com/v1/payment'
++    script.onload = () => resolve()
++    script.onerror = () => reject(new Error('토스 SDK 로드 실패'))
++    document.head.appendChild(script)
++  })
++  return loadTossSdk._promise
+ }
 
 /** 주문 생성 → 토스 결제창 열기 (완료되면 /payment/success 로 돌아옴) */
 export async function startCharge(acornAmount: number) {
