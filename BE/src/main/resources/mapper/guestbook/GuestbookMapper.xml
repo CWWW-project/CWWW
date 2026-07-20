@@ -35,10 +35,20 @@
 
     <!-- 순수 도메인 단건 조회 (수정/삭제 권한 체크용), 소프트 삭제된 건 제외 -->
     <select id="findById" resultMap="guestbookMap">
-        SELECT guestbook_id, minihompy_id, writer_id, content, is_secret, created_at, updated_at, deleted_at
-        FROM guestbook
-        WHERE guestbook_id = #{guestbookId}
-        AND deleted_at IS NULL
+        SELECT
+            g.guestbook_id,
+            g.minihompy_id,
+            g.writer_id,
+            g.content,
+            g.is_secret,
+            g.created_at,
+            g.updated_at,
+            g.deleted_at
+        FROM guestbook g
+        JOIN minihompy m ON m.minihompy_id = g.minihompy_id
+        AND m.deleted_at IS NULL
+        WHERE g.guestbook_id = #{guestbookId}
+        AND g.deleted_at IS NULL
     </select>
 
 
@@ -81,6 +91,7 @@
         JOIN users u ON u.user_id = g.writer_id
         LEFT JOIN media wm_media ON wm_media.target_type = 'PROFILE'
         AND wm_media.target_id = g.writer_id
+        AND wm_media.deleted_at IS NULL
         WHERE m.user_id = #{ownerId}
         AND g.deleted_at IS NULL
         <if test="cursor != null">

@@ -79,7 +79,7 @@ export default function VisitorPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3">
         <p className="font-[Geist,monospace] text-[14px] text-[#5a4136]">방문자 목록은 본인만 볼 수 있어요.</p>
-        <button className="retro-btn px-4 py-2" onClick={() => navigate(`/home/${userId}`)}>돌아가기</button>
+        <button className="retro-btn px-4 py-2" onClick={() => navigate(`/`)}>돌아가기</button>
       </div>
     )
   }
@@ -126,7 +126,7 @@ export default function VisitorPage() {
 
               <div className="flex flex-col gap-1 w-full mt-auto">
                 <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                  onClick={() => navigate('/home/me')}>
+                  onClick={() => navigate('/')}>
                   <span className="material-symbols-outlined text-base">home</span> 내 홈피 가기
                 </button>
                 <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ba1a1a]"

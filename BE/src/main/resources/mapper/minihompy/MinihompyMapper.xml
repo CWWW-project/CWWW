@@ -54,9 +54,10 @@
 
 	<!--
 		회원가입/로그인 후 처음 미니홈피 조회한 사용자 자동 미니홈피 생성(기본값으로)
-        동시 요청으로 이미 다른 요청이 먼저 생성한 경우, uq_minihompy_user_id 위반 대신
-        ON CONFLICT DO NOTHING으로 조용히 무시 (Service에서 무조건 재조회하므로 멱등하게 동작)
-    -->
+		동시 요청으로 이미 다른 요청이 먼저 생성한 경우 -> 아무것도 안 함(멱등)
+		단, 과거에 소프트 삭제된 행이 남아있는 경우(예: 탈퇴 후 재방문) -> deleted_at을 NULL로 되돌리고
+		기본값으로 리셋 (재조회가 계속 null을 반환해 NPE 나는 것을 방지)
+	-->
 	<insert id="insertDefaultMinihompy" parameterType="com.cwww.minihompy.domain.Minihompy">
 		INSERT INTO minihompy (user_id, title, introduction, mood, access_level, created_at)
 		VALUES (#{userId}, #{title}, #{introduction}, #{mood}, #{accessLevel}, #{createdAt})
