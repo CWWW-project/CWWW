@@ -18,6 +18,7 @@ import { getAudioElement } from './store/audioPlayer'
 import { useMinihompyStore } from './store/minihompyStore'
 import { useEffect } from 'react'
 import VisitorPage from './pages/visitor/VisitorPage'
+import DiaryPage from './pages/post/DiaryPage'
 
 const MOBILE_TABS = [
   { icon: 'home', label: '홈', path: '/' },
@@ -99,6 +100,7 @@ function useGlobalBgm() {
 
     if (audio.src === main.bgmUrl) return   // 이미 같은 곡이면 아무것도 안 함
     audio.src = main.bgmUrl
+    audio.volume = 0.2
     audio.play().catch(() => {})
   }, [main?.bgmUrl])
 }
@@ -121,6 +123,7 @@ function App() {
         {/* POST - 송경용 */}
         <Route path="/" element={<FeedPage />} />
         <Route path="/friends" element={<FriendsPage />} />
+        <Route path="/diary/:userId" element={<DiaryPage />} />
 
         {/* HOME - 김채린, 특정 유저(다른 사람) 미니홈피 가기 */}
         <Route path="/home/:userId" element={<MinihompyPage />} />

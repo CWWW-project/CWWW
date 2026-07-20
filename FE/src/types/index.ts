@@ -233,6 +233,7 @@ export interface GuestbookResponse {
   guestbookId: number
   writerId: number
   writerNickname: string
+  writerProfileImageUrl: string | null   // TODO: 백엔드 추가 전까지 항상 null로 옴
   content: string | null   // 비밀글이고 볼 권한 없으면 null
   visible: boolean         // 지금 요청자가 content를 볼 수 있는지
   isSecret: boolean        // @JsonProperty("isSecret") 그대로 매핑

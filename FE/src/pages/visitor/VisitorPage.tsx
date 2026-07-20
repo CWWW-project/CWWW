@@ -4,7 +4,9 @@ import { minihompyApi } from '../../api/minihompy'
 import type { MinihompyMainResponse, VisitorLogResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
 import { useMinihompyStore } from '../../store/minihompyStore'
-import { parseMood } from '../../utils/mood'
+import { parseMoodEmoji } from '../../utils/mood'
+import MinihompyTabs from '../../components/MinihompyTabs'
+import MoodIntroQuickEditModal from '../../components/MoodIntroQuickEditModal'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -17,7 +19,6 @@ function formatTime(iso: string): string {
 
 export default function VisitorPage() {
   const navigate = useNavigate()
-  const location = useLocation()
   const { userId } = useParams<{ userId: string }>()
   const isMe = userId === 'me'
   const { clearAuth } = useAuthStore()
@@ -27,6 +28,7 @@ export default function VisitorPage() {
   const [pageError, setPageError] = useState('')
   const [visitors, setVisitors] = useState<VisitorLogResponse[]>([])
   const [visitorsLoading, setVisitorsLoading] = useState(false)
+  const [showMoodIntroEdit, setShowMoodIntroEdit] = useState(false)
 
   // 미니홈피 프로필 조회
   useEffect(() => {
@@ -48,16 +50,18 @@ export default function VisitorPage() {
 
   // 방문자 목록 조회 — 본인일 때만
   useEffect(() => {
-    if (!isMe) return
+    if (!main?.owner) return
     setVisitorsLoading(true)
     minihompyApi.getRecentVisitors()
       .then(res => setVisitors(res.data.data))
       .catch(err => console.error('방문자 목록 조회 실패', err))
       .finally(() => setVisitorsLoading(false))
-  }, [isMe])
+  }, [main?.owner])
 
-  const { emoji: moodEmoji, text: moodText } = parseMood(main?.mood)
 
+  const moodEmoji = parseMoodEmoji(main?.mood)
+
+  
   if (pageLoading) {
     return <div className="min-h-screen flex items-center justify-center font-[Geist,monospace] text-[13px] text-[#5a4136]">불러오는 중...</div>
   }
@@ -71,7 +75,7 @@ export default function VisitorPage() {
     )
   }
 
-  if (!isMe) {
+  if (!main.owner) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3">
         <p className="font-[Geist,monospace] text-[14px] text-[#5a4136]">방문자 목록은 본인만 볼 수 있어요.</p>
@@ -82,6 +86,13 @@ export default function VisitorPage() {
 
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
+      {showMoodIntroEdit && (
+        <MoodIntroQuickEditModal
+          main={main}
+          onClose={() => setShowMoodIntroEdit(false)}
+          onSaved={(updated) => { setMain(updated); setShowMoodIntroEdit(false) }}
+        />
+        )}
       <div className="max-w-[1024px] w-full mx-auto flex gap-0 relative z-10 px-2 md:px-0">
         <div className="window-frame p-4 w-full flex flex-col md:flex-row gap-4 border border-[#8e7164] relative">
 
@@ -105,10 +116,13 @@ export default function VisitorPage() {
                   {main.introduction || '소개글이 없습니다'}
                 </p>
               </div>
-              <div className="flex items-center gap-1 font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136] w-full bg-[#f9f9f9] py-1 px-2 window-inset">
-                <span className="text-sm">{moodEmoji}</span>
-                오늘의 기분: {moodText || '알 수 없음'}
-              </div>
+              <button
+                className="flex items-center gap-1 font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136] w-full bg-[#f9f9f9] py-1 px-2 window-inset cursor-pointer hover:bg-[#eeeeee]"
+                onClick={() => setShowMoodIntroEdit(true)}
+              >
+                <span className="text-sm">오늘의 기분: {moodEmoji || '❓'}</span>
+                <span className="material-symbols-outlined text-[13px] ml-auto">edit</span>
+              </button>
 
               <div className="flex flex-col gap-1 w-full mt-auto">
                 <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
@@ -134,22 +148,40 @@ export default function VisitorPage() {
                 <span className="material-symbols-outlined text-sm">footprint</span>
                 최근 방문자
               </div>
+
+              {!visitorsLoading && visitors.length > 0 && (
+                <div className="px-3 py-2 border-b border-[#e3bfb1] bg-[#f9f9f9] font-[Geist,monospace] text-[12px] text-[#5a4136]">
+                  최근 <span className="text-[#a33e00] font-bold">{visitors.length}명</span>이 다녀갔어요
+                </div>
+              )}
+
               <div className="flex flex-col overflow-y-auto" style={{ maxHeight: 520 }}>
                 {visitorsLoading && (
                   <div className="p-8 text-center font-[Geist,monospace] text-[12px] text-[#5a4136]">불러오는 중...</div>
                 )}
+
                 {!visitorsLoading && visitors.length === 0 && (
-                  <div className="p-8 text-center font-[Geist,monospace] text-[12px] text-[#5a4136]">
-                    아직 방문자가 없어요.
+                  <div className="flex flex-col items-center justify-center gap-2 py-20">
+                    <span className="material-symbols-outlined text-[40px] text-[#d8d8d8]">footprint</span>
+                    <p className="font-[Geist,monospace] text-[12px] text-[#8e8e8e]">아직 방문자가 없어요</p>
                   </div>
                 )}
+
                 {visitors.map((v, idx) => (
-                  <div key={idx} className={`p-2 flex items-center gap-2${idx < visitors.length - 1 ? ' border-b border-[#e3bfb1]' : ''}`}>
+                  <div
+                    key={idx}
+                    className={`px-3 py-2.5 flex items-center gap-2${idx < visitors.length - 1 ? ' border-b border-[#f0ebe3]' : ''}`}
+                  >
                     <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] flex items-center justify-center">
                       <span className="material-symbols-outlined text-[22px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
                     </div>
-                    <span className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00] flex-1">{v.nickname}</span>
-                    <span className="font-[Geist,monospace] text-[10px] text-[#5a4136]">{formatTime(v.visitedAt)}</span>
+                    <span className="font-[Geist,monospace] text-[13px] font-semibold text-[#4a3728] flex-1 truncate">
+                      {v.nickname}
+                      {idx === 0 && (
+                        <span className="ml-2 bg-[#baeaff] text-[#09657f] text-[10px] px-1.5 py-0.5 rounded font-[Geist,monospace] font-normal align-middle">최근 방문</span>
+                      )}
+                    </span>
+                    <span className="font-[Geist,monospace] text-[11px] text-[#a8a8a8] flex-shrink-0">{formatTime(v.visitedAt)}</span>
                   </div>
                 ))}
               </div>
@@ -159,22 +191,10 @@ export default function VisitorPage() {
 
         {/* 우측 탭 */}
         <nav className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
-          {[
-            { icon: 'home', label: '홈', path: `/home/${userId}` },
-            { icon: 'edit_note', label: '다이어리', path: `/diary/${userId}` },
-            { icon: 'forum', label: '방명록', path: `/guestbook/${userId}` },
-            { icon: 'footprint', label: '방문자', path: `/visitor/${userId}` },
-            { icon: 'storefront', label: '상점', path: '/shop' },
-          ].map(tab => {
-            const active = location.pathname === tab.path
-            return (
-              <button key={tab.label} onClick={() => navigate(tab.path)}
-                className={`tab-item${active ? ' tab-active' : ' bg-[#f3f3f3] text-[#5a4136] hover:bg-[#e2e2e2]'} py-2 px-1 text-center font-[Geist,monospace] text-[12px] font-semibold flex flex-col items-center gap-1 cursor-pointer border-none`}>
-                <span className="material-symbols-outlined text-lg">{tab.icon}</span>
-                {tab.label}
-              </button>
-            )
-          })}
+          <MinihompyTabs
+            owner={main?.owner ?? false}
+            ownerId={main?.ownerId ?? 0}
+          />
         </nav>
       </div>
     </div>

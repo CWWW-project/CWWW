@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { minihompyApi } from '../api/minihompy' 
+import { minihompyApi } from '../api/minihompy'
 import type { AccessLevel, BackgroundDotOptionResponse, MinihompyMainResponse } from '../types'
-import { MOOD_EMOJIS, parseMood } from '../utils/mood'
 
 interface Props {
   main: MinihompyMainResponse | null
@@ -10,11 +9,6 @@ interface Props {
 }
 
 export default function MinihompySettingsModal({ main, onClose, onSaved }: Props) {
-  const initialMood = parseMood(main?.mood)
-
-  const [introduction, setIntroduction] = useState(main?.introduction ?? '')
-  const [moodEmoji, setMoodEmoji] = useState(initialMood.emoji)
-  const [moodText, setMoodText] = useState(initialMood.text)
   const [accessLevel, setAccessLevel] = useState<AccessLevel>(main?.accessLevel ?? 'ALL')
 
   const [bgMode, setBgMode] = useState<'color' | 'image'>(main?.backgroundImageUrl ? 'image' : 'color')
@@ -65,11 +59,8 @@ export default function MinihompySettingsModal({ main, onClose, onSaved }: Props
         await minihompyApi.applyDotBackground(selectedDotCode)
       }
 
-      const res = await minihompyApi.updateSettings({
-        accessLevel,
-        introduction: introduction.trim(),
-        mood: `${moodEmoji} ${moodText.trim()}`.trim(),
-      })
+      // introduction/mood는 optional이라 안 보내면 기존 값 유지됨 — 여기선 accessLevel만 갱신
+      const res = await minihompyApi.updateSettings({ accessLevel })
       onSaved(res.data.data)
     } catch (e: any) {
       setError(e.response?.data?.message ?? '설정 저장에 실패했습니다.')
@@ -118,35 +109,6 @@ export default function MinihompySettingsModal({ main, onClose, onSaved }: Props
                 {bgImagePreview && <img src={bgImagePreview} alt="" className="w-full h-32 object-cover border border-[#8e7164]" />}
               </div>
             )}
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136]">소개글</label>
-            <textarea
-              className="window-inset p-2 text-[14px] focus:outline-none w-full resize-none"
-              rows={2}
-              maxLength={200}
-              placeholder="자신을 소개해보세요"
-              value={introduction}
-              onChange={(e) => setIntroduction(e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136]">오늘의 기분</label>
-            <div className="flex gap-1 flex-wrap">
-              {MOOD_EMOJIS.map(e => (
-                <button key={e} className={`retro-btn px-2 py-1 text-lg${moodEmoji === e ? ' retro-btn-primary' : ''}`} onClick={() => setMoodEmoji(e)}>{e}</button>
-              ))}
-            </div>
-            <input
-              className="window-inset p-2 text-[14px] focus:outline-none w-full mt-1"
-              type="text"
-              placeholder="기분을 텍스트로 표현해보세요 (예: 맑음)"
-              maxLength={20}
-              value={moodText}
-              onChange={(e) => setMoodText(e.target.value)}
-            />
           </div>
 
           <div className="flex flex-col gap-1">
