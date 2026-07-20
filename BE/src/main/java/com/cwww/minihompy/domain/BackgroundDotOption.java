@@ -7,11 +7,11 @@ import lombok.Getter;
 public enum BackgroundDotOption {
 
     // 색 정의 (고정), 하나 선택 가능
-    RED("RED", "#FF6B6B"),
-    ORANGE("ORANGE", "#FFA94D"),
-    YELLOW("YELLOW", "#FFD43B"),
-    GREEN("GREEN", "#69DB7C"),
-    BLUE("BLUE", "#4DABF7"),
+    RED("RED", "#F4A6A6"),
+    ORANGE("ORANGE", "#FBC08A"),
+    YELLOW("YELLOW", "#FDE28A"),
+    GREEN("GREEN", "#A8E6B0"),
+    BLUE("BLUE", "#89D0ED"),
     PURPLE("PURPLE", "#B197FC");
 
     private final String code; // 색상 이름

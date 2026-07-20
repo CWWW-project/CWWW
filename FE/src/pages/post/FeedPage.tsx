@@ -8,11 +8,13 @@ import type { PostResponse, CommentResponse, RoomResponse, MinihompyMainResponse
 import { useAuthStore } from '../../store/authStore'
 import { minihompyApi } from '../../api/minihompy'
 import MinihompySettingsModal from '../../components/MinihompySettingsModal'
-import { parseMood } from '../../utils/mood'
+import { parseMoodEmoji } from '../../utils/mood'
 import ProfileImageMenuModal from '../../components/ProfileImageMenuModal'
 import BgmPlayer from '../../components/BgmPlayer'
 import { useMinihompyStore } from '../../store/minihompyStore'
 import UserNameLink from '../../components/UserNameLink'
+import MinihompyTabs from '../../components/MinihompyTabs'
+import MoodIntroQuickEditModal from '../../components/MoodIntroQuickEditModal'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -190,6 +192,8 @@ const profileInputRef = useRef<HTMLInputElement>(null)
   
   // 미니홈피 설정 모달
   const [showSettings, setShowSettings] = useState(false)
+  // 미니홈피 기분, 소개 설정 모달
+  const [showMoodIntroEdit, setShowMoodIntroEdit] = useState(false)
 
   // BGM
   const [currentTrackName, setCurrentTrackName] = useState<string | null>(null)
@@ -584,7 +588,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
   })
   const displayPosts = selectedTag ? searchPosts : filter === '북마크' ? bookmarkPosts : filteredPosts
 
-  const { emoji: moodEmoji, text: moodText } = parseMood(main?.mood)
+  const moodEmoji = parseMoodEmoji(main?.mood)
 
   const handleChangeProfile = () => {
     setShowProfileMenu(false)
@@ -837,6 +841,14 @@ const profileInputRef = useRef<HTMLInputElement>(null)
         </div>
       )}
 
+      {showMoodIntroEdit && (
+        <MoodIntroQuickEditModal
+          main={main}
+          onClose={() => setShowMoodIntroEdit(false)}
+          onSaved={(updated) => { setMain(updated); setShowMoodIntroEdit(false) }}
+        />
+		)}
+		
       {/* 일촌 신청 모달 */}
       {friendRequestTarget && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 px-2">
@@ -1123,10 +1135,13 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                     {main?.introduction || '소개글이 없습니다'}
                   </p>
                 </div>
-                <div className="flex items-center gap-1 font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136] w-full bg-[#f9f9f9] py-1 px-2 window-inset">
-                  <span className="text-sm">{moodEmoji}</span>
-                  오늘의 기분: {moodText || '알 수 없음'}
-                </div>
+                <button
+                  className="flex items-center gap-1 font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136] w-full bg-[#f9f9f9] py-1 px-2 window-inset cursor-pointer hover:bg-[#eeeeee]"
+                  onClick={() => setShowMoodIntroEdit(true)}
+                >
+                  <span className="text-sm">오늘의 기분: {moodEmoji || '❓'}</span>
+                  <span className="material-symbols-outlined text-[13px] ml-auto">edit</span>
+                </button>
                 <div className="flex flex-col gap-1 w-full mt-auto">
                   <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
                     onClick={() => navigate(`/`)}>
@@ -1181,7 +1196,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                         <div
                           key={f.friendId}
                           className="flex items-center gap-2 cursor-pointer hover:bg-[#eeeeee] p-1 rounded"
-                          onClick={() => navigate(`/minihompy/${opponentId}`)}
+                          onClick={() => navigate(`/home/${opponentId}`)}
                         >
                           <div className="w-7 h-7 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex-shrink-0 flex items-center justify-center">
                             <span className="material-symbols-outlined text-[20px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
@@ -1438,38 +1453,19 @@ const profileInputRef = useRef<HTMLInputElement>(null)
 
         {/* 우측 탭 */}
         <nav className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
-          {(() => {
-            const tabs = [
-              { icon: 'home', label: '홈', path: '/' },
-              { icon: 'edit_note', label: '다이어리', path: `/home/${user?.id ?? 'me'}` },
-              { icon: 'photo_library', label: '사진첩', path: `/home/${user?.id ?? 'me'}` },
-              { icon: 'forum', label: '방명록', path: `/guestbook/${user?.id ?? 'me'}` },
-              { icon: 'chat', label: '채팅', path: '/chat' },
-              { icon: 'storefront', label: '상점', path: '/shop' },
-            ]
-            // 첫 번째 매칭 탭만 active → 동일 경로 탭 중복 active 방지
-            const activeIndex = tabs.findIndex(t => location.pathname === t.path)
-            return tabs.map((tab, index) => {
-              const active = index === activeIndex
-              return (
-                <button key={tab.label}
-                  onClick={() => navigate(tab.path)}
-                  aria-current={active ? 'page' : undefined}
-                  className={`tab-item${active ? ' tab-active' : ' bg-[#f3f3f3] text-[#5a4136] hover:bg-[#e2e2e2]'} py-2 px-1 text-center font-[Geist,monospace] text-[12px] font-semibold flex flex-col items-center gap-1 cursor-pointer border-none`}>
-                  <span className="material-symbols-outlined text-lg">{tab.icon}</span>
-                  {tab.label}
-                </button>
-              )
-            })
-          })()}
+          <MinihompyTabs
+            owner={main?.owner ?? false}
+            ownerId={main?.ownerId ?? 0}
+          />
 
-          {/* 설정 버튼(프로필 사진, 배경화면, 소개글 등 설정) — 기존 탭 목록과 완전히 분리, 모달이라 path 필요없음 */}
           {main?.owner && (
             <button
               onClick={() => setShowSettings(true)}
               className="tab-item bg-[#f3f3f3] text-[#5a4136] hover:bg-[#e2e2e2] py-2 px-1 text-center font-[Geist,monospace] text-[12px] font-semibold flex flex-col items-center gap-1 cursor-pointer border-none"
             >
-              <span className="material-symbols-outlined text-lg">settings</span>
+              <span className="material-symbols-outlined text-lg">
+                settings
+              </span>
               설정
             </button>
           )}

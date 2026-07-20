@@ -30,6 +30,7 @@
         JOIN media m ON m.target_type = 'BGM'
         AND m.target_id = i.item_id
         JOIN minihompy mh ON mh.user_id = ui.user_id
+        AND mh.deleted_at IS NULL
         WHERE ui.user_id = #{userId}
         ORDER BY i.item_id DESC
     </select>
@@ -79,6 +80,7 @@
         SELECT COUNT(*)
         FROM minihompy
         WHERE user_id = #{userId}
+        AND deleted_at IS NULL
     </select>
     
 </mapper>

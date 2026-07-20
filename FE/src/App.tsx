@@ -16,6 +16,8 @@ import GuestbookPage from './pages/guestbook/GuestbookPage'
 import { getAudioElement } from './store/audioPlayer'
 import { useMinihompyStore } from './store/minihompyStore'
 import { useEffect } from 'react'
+import VisitorPage from './pages/visitor/VisitorPage'
+import DiaryPage from './pages/post/DiaryPage'
 import PaymentSuccessPage from './pages/pay/PaymentSuccessPage'
 import PaymentFailPage from './pages/pay/PaymentFailPage'
 const MOBILE_TABS = [
@@ -98,6 +100,7 @@ function useGlobalBgm() {
 
     if (audio.src === main.bgmUrl) return   // 이미 같은 곡이면 아무것도 안 함
     audio.src = main.bgmUrl
+    audio.volume = 0.2
     audio.play().catch(() => {})
   }, [main?.bgmUrl])
 }
@@ -120,11 +123,14 @@ function App() {
         {/* POST - 송경용 */}
         <Route path="/" element={<FeedPage />} />
         <Route path="/friends" element={<FriendsPage />} />
+        <Route path="/diary/:userId" element={<DiaryPage />} />
 
         {/* HOME - 김채린, 특정 유저(다른 사람) 미니홈피 가기 */}
         <Route path="/home/:userId" element={<MinihompyPage />} />
         {/* GUESTBOOk - 김채린 */}
         <Route path="/guestbook/:userId" element={<GuestbookPage />} />
+        {/* 최근 방문자 확인 */}
+        <Route path="/visitor/:userId" element={<VisitorPage />} />
 
         {/* CHAT - 김찬호 */}
         <Route path="/chat" element={<ChatPage />} />

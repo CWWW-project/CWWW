@@ -121,8 +121,21 @@ public class MinihompyService {
 				}
 
 			}
-			case ALL -> {/* 누구나 조회 가능 */} // 빈 블록으로 그냥 통과 시킴
+			case ALL -> {
+
+				// 비회원(비로그인)은 ALL이어도 차단 - 반드시 로그인해야 조회 가능
+				if(viewerId == null) {
+					throw new BusinessException(ErrorCode.MINIHOMPY_FORBIDDEN);
+				}
+
+			}
 		}
+	}
+
+	// 회원 탈퇴 시 미니홈피 소프트 삭제 (auth 도메인 탈퇴 처리 흐름에서 호출)
+	@Transactional
+	public void softDeleteMinihompy(Long userId) {
+		minihompyMapper.softDeleteByUserId(userId);
 	}
 
 

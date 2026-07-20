@@ -16,6 +16,7 @@
         SELECT minihompy_id
         FROM minihompy
         WHERE user_id = #{ownerId}
+        AND deleted_at IS NULL
     </select>
 
 
@@ -41,6 +42,7 @@
         FROM visit_log v
         JOIN minihompy m ON m.minihompy_id = v.minihompy_id
         WHERE m.user_id = #{ownerId}
+        AND m.deleted_at IS NULL
         AND v.visited_at::date = CURRENT_DATE
     </select>
 
@@ -55,6 +57,7 @@
         FROM visit_log v
         JOIN minihompy m ON m.minihompy_id = v.minihompy_id
         WHERE m.user_id = #{ownerId}
+        AND m.deleted_at IS NULL
     </select>
 
 
@@ -69,6 +72,7 @@
         JOIN minihompy m ON m.minihompy_id = v.minihompy_id
         JOIN users u ON u.user_id = v.visitor_id
         WHERE m.user_id = #{ownerId}
+        AND m.deleted_at IS NULL
         ORDER BY v.visited_at DESC
         LIMIT #{limit}
     </select>
