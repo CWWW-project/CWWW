@@ -51,6 +51,9 @@ public class AuthServiceImpl implements AuthService {
     @Value("${spring.mail.username}")
     private String mailUsername;
 
+    @Value("${app.reset-password-url}")
+    private String resetPasswordUrl;
+
     // 비밀번호
     @Override
     public void forgotPassword(String email) {
@@ -61,6 +64,8 @@ public class AuthServiceImpl implements AuthService {
         }
         String resetToken = generateResetToken();
         userMapper.updateResetToken(email, resetToken, LocalDateTime.now().plusMinutes(30));
+
+        String resetLink = resetPasswordUrl + "?token=" + resetToken;
 
         MimeMessage mimeMessage = mailSender.createMimeMessage();
         try {
@@ -76,25 +81,33 @@ public class AuthServiceImpl implements AuthService {
                     </div>
                     <div style="padding:32px 28px;">
                       <h2 style="margin:0 0 8px;font-size:22px;color:#7c2e00;">비밀번호를 잊으셨나요?</h2>
-                      <p style="margin:0 0 24px;font-size:14px;color:#5a4136;line-height:1.6;">
+                      <p style="margin:0 0 20px;font-size:14px;color:#5a4136;line-height:1.6;">
                         비밀번호 재설정 요청이 접수되었습니다.<br>
-                        아래 인증번호를 재설정 화면에 입력해주세요.
+                        아래 인증번호를 재설정 화면에 입력하거나, 버튼을 눌러 바로 이동해주세요.
                       </p>
-                      <div style="text-align:center;margin-bottom:24px;">
+                      <div style="text-align:center;margin-bottom:20px;">
                         <span style="display:inline-block;background:#f0ebe6;color:#7c2e00;
                                      padding:14px 28px;border-radius:4px;font-size:26px;font-weight:bold;
                                      letter-spacing:4px;border:2px solid #7c2e00;">
                           %s
                         </span>
                       </div>
+                      <div style="text-align:center;margin-bottom:24px;">
+                        <a href="%s"
+                           style="display:inline-block;background:#a33e00;color:#fff;text-decoration:none;
+                                  padding:12px 32px;border-radius:4px;font-size:14px;font-weight:bold;
+                                  border:2px solid #7c2e00;">
+                          비밀번호 재설정하기
+                        </a>
+                      </div>
                       <p style="margin:0;font-size:12px;color:#8a6a5e;text-align:center;">
-                        인증번호는 <strong>30분</strong> 동안 유효합니다.<br>
+                        인증번호와 링크는 <strong>30분</strong> 동안 유효합니다.<br>
                         본인이 요청하지 않았다면 이 메일을 무시해주세요.
                       </p>
                     </div>
                   </div>
                 </div>
-                """.formatted(resetToken), true);
+                """.formatted(resetToken, resetLink), true);
             mailSender.send(mimeMessage);
         } catch (MessagingException | UnsupportedEncodingException | MailException e) {
             throw new BusinessException(ErrorCode.MAIL_SEND_FAILED);

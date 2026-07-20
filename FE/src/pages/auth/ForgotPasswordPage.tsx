@@ -18,6 +18,7 @@ export default function ForgotPasswordPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showNewPw, setShowNewPw] = useState(false)
   const [showConfirmPw, setShowConfirmPw] = useState(false)
+  const [resetSuccessOpen, setResetSuccessOpen] = useState(false)
 
   useEffect(() => {
     const token = searchParams.get('token')
@@ -55,9 +56,7 @@ export default function ForgotPasswordPage() {
     setIsSubmitting(true)
     try {
       await authApi.resetPassword(resetToken, newPassword)
-      setIsSuccess(true)
-      setMessage('비밀번호가 재설정되었어요. 로그인해주세요.')
-      setTimeout(() => navigate('/auth/login'), 1200)
+      setResetSuccessOpen(true)
     } catch (e: any) {
       setIsSuccess(false)
       setMessage(e.response?.data?.message ?? '비밀번호 재설정에 실패했습니다.')
@@ -177,6 +176,33 @@ export default function ForgotPasswordPage() {
           </Link>
         </div>
       </div>
+
+      {resetSuccessOpen && (
+        <div className="fixed inset-0 z-[200] bg-black/40 flex items-center justify-center">
+          <div className="window-frame w-72">
+            <div className="retro-title-bar" style={{ background: '#0c6780', color: '#fff' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>check_circle</span>
+              <span>비밀번호 재설정 완료</span>
+            </div>
+            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <p style={{ fontFamily: 'Geist, monospace', fontSize: 13, fontWeight: 700, color: '#0c6780', margin: 0 }}>
+                비밀번호가 재설정되었어요!
+              </p>
+              <p style={{ fontFamily: 'Be Vietnam Pro', fontSize: 13, color: '#5a4136', margin: 0 }}>
+                새 비밀번호로 로그인해주세요.
+              </p>
+              <button
+                className="retro-btn retro-btn-primary"
+                onClick={() => navigate('/auth/login')}
+                style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>login</span>
+                로그인하러가기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

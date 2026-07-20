@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams, useLocation } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { minihompyApi } from '../../api/minihompy'
 import { guestbookApi } from '../../api/guestbook'
-import { roomApi } from '../../api/room'
-import type { MinihompyMainResponse, GuestbookResponse, RoomResponse } from '../../types'
+import type { GuestbookResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
 import { useMinihompyStore } from '../../store/minihompyStore'
-import { parseMood } from '../../utils/mood'
+import { parseMoodEmoji } from '../../utils/mood'
+import MinihompyTabs from '../../components/MinihompyTabs'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -18,84 +18,41 @@ function formatTime(iso: string): string {
 }
 
 const MINIROOM_ASSET_ROOT = '/miniroom-assets'
-const MINIROOM_WIDTH = 750
-const MINIROOM_HEIGHT = 606
 
-function MiniroomFeedPreview({ room, nickname }: { room: RoomResponse | null; nickname?: string }) {
-  const backgroundUrl = room?.backgroundAssetUrl ?? `${MINIROOM_ASSET_ROOT}/rooms/room-pink.svg`
-  const savedItems = [...(room?.items ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)
-  const hasSavedItems = savedItems.length > 0
-  const avatar = room?.avatar
-  const hasRoomContent = hasSavedItems || Boolean(avatar?.avatarInventoryId)
-  const shouldShowFallbackItems = room == null
-
+// TODO: roomApi에 남의 방 조회 함수(예: getRoomByUserId)가 추가되면 여기서 불러와서
+// 프리뷰에 실제 방 데이터를 보여준다. 정용혁님 확인 필요.
+function MiniroomFeedPreview({ nickname }: { nickname?: string }) {
   return (
     <div className="relative w-full bg-[#dff6f4]" style={{ height: 240, overflow: 'hidden' }}>
-      <img src={backgroundUrl} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ imageRendering: 'auto' }} />
-      {hasRoomContent ? (
-        <>
-          {savedItems.map(item => (
-            <div key={item.roomItemId} className="absolute" title={item.name} style={{
-              left: `${(item.posX / MINIROOM_WIDTH) * 100}%`,
-              top: `${(item.posY / MINIROOM_HEIGHT) * 100}%`,
-              width: `${((item.assetWidth ?? 80) / MINIROOM_WIDTH) * 100}%`,
-              zIndex: item.sortOrder,
-              transform: `scale(${item.scale ?? 1}) rotate(${item.rotation ?? 0}deg)`,
-              transformOrigin: 'center bottom',
-              filter: 'drop-shadow(2px 5px 2px rgba(44, 58, 65, 0.16))',
-            }}>
-              {item.assetUrl ? (
-                <img src={item.assetUrl} alt="" className="block w-full" style={{ imageRendering: 'pixelated', transform: `scaleX(${item.flipped ? -1 : 1})` }} />
-              ) : (
-                <span className="material-symbols-outlined text-[#a33e00]" style={{ fontSize: 42, fontVariationSettings: "'FILL' 1" }}>
-                  {item.category === 'AVATAR' ? 'face' : 'inventory_2'}
-                </span>
-              )}
-            </div>
-          ))}
-          {avatar?.avatarInventoryId ? (
-            <div className="absolute flex flex-col items-center" style={{
-              left: `${((avatar.posX ?? 318) / MINIROOM_WIDTH) * 100}%`,
-              top: `${((avatar.posY ?? 438) / MINIROOM_HEIGHT) * 100}%`,
-              zIndex: 10000,
-              transform: `scale(${avatar.scale ?? 1})`,
-              transformOrigin: 'center bottom',
-            }}>
-              <img src={`${MINIROOM_ASSET_ROOT}/avatars-grafxkid/grafxkid_avatar_01.png`} alt=""
-                style={{ width: 36, imageRendering: 'pixelated', transform: `scaleX(${avatar.flipped ? -1 : 1})` }} />
-            </div>
-          ) : null}
-        </>
-      ) : shouldShowFallbackItems ? (
-        <>
-          <div className="absolute" style={{ left: '50%', top: '52%', transform: 'translate(-50%, -50%)' }}>
-            <img src={`${MINIROOM_ASSET_ROOT}/items/sofa_blue.png`} alt="" style={{ width: 100, imageRendering: 'pixelated' }} />
-          </div>
-          <div className="absolute flex flex-col items-center" style={{ left: '43%', top: '48%' }}>
-            <img src={`${MINIROOM_ASSET_ROOT}/avatars-grafxkid/grafxkid_avatar_01.png`} alt="" style={{ width: 30, imageRendering: 'pixelated' }} />
-            <div style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid #ccc', padding: '1px 6px', fontSize: 9, fontFamily: 'Geist, monospace', marginTop: 2, whiteSpace: 'nowrap' }}>
-              {nickname ?? '미니미'}
-            </div>
-          </div>
-        </>
-      ) : null}
+      <img
+        src={`${MINIROOM_ASSET_ROOT}/rooms/room-pink.svg`}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ imageRendering: 'auto' }}
+      />
+      <div className="absolute" style={{ left: '50%', top: '52%', transform: 'translate(-50%, -50%)' }}>
+        <img src={`${MINIROOM_ASSET_ROOT}/items/sofa_blue.png`} alt="" style={{ width: 100, imageRendering: 'pixelated' }} />
+      </div>
+      <div className="absolute flex flex-col items-center" style={{ left: '43%', top: '48%' }}>
+        <img src={`${MINIROOM_ASSET_ROOT}/avatars-grafxkid/grafxkid_avatar_01.png`} alt="" style={{ width: 30, imageRendering: 'pixelated' }} />
+        <div style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid #ccc', padding: '1px 6px', fontSize: 9, fontFamily: 'Geist, monospace', marginTop: 2, whiteSpace: 'nowrap' }}>
+          {nickname ?? '미니미'}
+        </div>
+      </div>
     </div>
   )
 }
 
 export default function MinihompyPage() {
   const navigate = useNavigate()
-  const location = useLocation()
   const { userId } = useParams<{ userId: string }>()
-  const isMe = userId === 'me'
-  const { user, clearAuth } = useAuthStore()
+  const { clearAuth } = useAuthStore()
   const { main, setMain, clearMain } = useMinihompyStore()
 
   const [pageLoading, setPageLoading] = useState(true)
   const [pageError, setPageError] = useState('')
-  const [roomPreview, setRoomPreview] = useState<RoomResponse | null>(null)
 
-  // 방명록 (남의 홈피일 때 메인으로 표시)
+  // 방명록
   const [entries, setEntries] = useState<GuestbookResponse[]>([])
   const [cursor, setCursor] = useState<number | undefined>(undefined)
   const [hasNext, setHasNext] = useState(false)
@@ -107,34 +64,19 @@ export default function MinihompyPage() {
   const [editContent, setEditContent] = useState('')
   const [editSecret, setEditSecret] = useState(false)
 
-  // 미니홈피 프로필 조회
+  // 미니홈피 프로필 조회 — 이 페이지는 항상 남의 미니홈피 조회용
   useEffect(() => {
     setPageLoading(true)
     setPageError('')
     let ignore = false
 
-    const fetchMain = isMe
-      ? minihompyApi.getMyMinihompy()
-      : minihompyApi.getMinihompyMain(Number(userId))
-
-    fetchMain
+    minihompyApi.getMinihompyMain(Number(userId))
       .then(res => { if (!ignore) setMain(res.data.data) })
       .catch(e => { if (!ignore) setPageError(e.response?.data?.message ?? '미니홈피를 불러올 수 없습니다.') })
       .finally(() => { if (!ignore) setPageLoading(false) })
 
     return () => { ignore = true }
-  }, [userId, isMe])
-
-  // 미니룸 프리뷰 — 본인일 때만 (남의 방 조회 API 확인 전까지)
-  // TODO: roomApi에 남의 방 조회 함수(getRoomByUserId 등)가 있는지 확인 필요
-  useEffect(() => {
-    if (!isMe) { setRoomPreview(null); return }
-    let ignore = false
-    roomApi.getMyRoom()
-      .then(res => { if (!ignore) setRoomPreview(res.data.data) })
-      .catch(() => { if (!ignore) setRoomPreview(null) })
-    return () => { ignore = true }
-  }, [isMe])
+  }, [userId])
 
   // 방명록 목록 조회
   const loadGuestbooks = (ownerId: number, cursorParam?: number) => {
@@ -147,7 +89,7 @@ export default function MinihompyPage() {
         setHasNext(more)
       })
       .catch(() => {
-        if (cursorParam === undefined) setEntries([])   // 초기 로드 실패일 때만 목록 비움
+        if (cursorParam === undefined) setEntries([])
       })
       .finally(() => setLoading(false))
   }
@@ -207,7 +149,7 @@ export default function MinihompyPage() {
     }
   }
 
-  const { emoji: moodEmoji, text: moodText } = parseMood(main?.mood)
+  const moodEmoji = parseMoodEmoji(main?.mood)
 
   if (pageLoading) {
     return <div className="min-h-screen flex items-center justify-center font-[Geist,monospace] text-[13px] text-[#5a4136]">불러오는 중...</div>
@@ -247,31 +189,29 @@ export default function MinihompyPage() {
                   {main.introduction || '소개글이 없습니다'}
                 </p>
               </div>
-              <div className="flex items-center gap-1 font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136] w-full bg-[#f9f9f9] py-1 px-2 window-inset">
-                <span className="text-sm">{moodEmoji}</span>
-                오늘의 기분: {moodText || '알 수 없음'}
+              <div className="flex items-center gap-1 font-[Geist,monospace] text-[12px] font-semibold text-[#5a4136] w-full bg-[#f9f9f9] py-1 px-2 window-inset justify-center">
+                <span className="text-sm">오늘의 기분: {moodEmoji || '❓'}</span>
               </div>
 
               <div className="flex flex-col gap-1 w-full mt-auto">
-                <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                  onClick={() => navigate('/')}>
+                <button
+                  className="retro-btn retro-btn-primary font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
+                  onClick={() => navigate('/')}
+                >
                   <span className="material-symbols-outlined text-base">home</span> 내 홈피 가기
                 </button>
 
-                {main.owner ? (
-                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                    onClick={() => navigate(`/diary/${userId}`)}>
-                    <span className="material-symbols-outlined text-base">edit_note</span> 다이어리 쓰기
-                  </button>
-                ) : (
-                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                    onClick={() => {/* TODO: 일촌 신청 API 연결 */}}>
-                    <span className="material-symbols-outlined text-base">person_add</span> 일촌 신청
-                  </button>
-                )}
+                <button
+                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
+                  onClick={() => {/* TODO: 일촌 신청 API 연결 */}}
+                >
+                  <span className="material-symbols-outlined text-base">person_add</span> 일촌 신청
+                </button>
 
-                <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ba1a1a]"
-                  onClick={() => { clearAuth(); clearMain(); navigate('/auth/login') }}>
+                <button
+                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ba1a1a]"
+                  onClick={() => { clearAuth(); clearMain(); navigate('/auth/login') }}
+                >
                   <span className="material-symbols-outlined text-base">logout</span> 로그아웃
                 </button>
               </div>
@@ -285,21 +225,16 @@ export default function MinihompyPage() {
               <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">{main.nickname}님의 미니홈피</div>
             </div>
 
-            {/* 미니룸 프리뷰 */}
+            {/* 미니룸 프리뷰 — 조회 전용, 꾸미기 버튼 없음 */}
             <div className="window-inset border border-[#8e7164] overflow-hidden bg-white flex flex-col">
               <div className="bg-[#baeaff] px-2 py-1 border-b border-[#8e7164] font-[Geist,monospace] text-[12px] font-semibold text-[#09657f] flex items-center gap-1">
                 <span className="material-symbols-outlined text-sm">house</span>
                 미니룸
-                {main.owner && (
-                  <button className="retro-btn font-[Geist,monospace] text-[11px] font-semibold px-2 py-1 ml-auto flex items-center gap-1" onClick={() => navigate('/room')}>
-                    <span className="material-symbols-outlined text-[13px]">edit</span> 꾸미기
-                  </button>
-                )}
               </div>
-              <MiniroomFeedPreview room={roomPreview} nickname={main.nickname} />
+              <MiniroomFeedPreview nickname={main.nickname} />
             </div>
 
-            {/* 방명록 작성 */}
+            {/* 방명록 작성 — 방문자로서 남기기 */}
             <div className="window-inset border border-[#8e7164] bg-white p-2 flex flex-col gap-2">
               <div className="flex gap-2">
                 <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
@@ -329,7 +264,7 @@ export default function MinihompyPage() {
               </div>
             </div>
 
-            {/* 방명록 목록 (일촌 소식 자리 — 남의 홈피에서 메인으로 표시) */}
+            {/* 방명록 목록 */}
             <div className="window-inset border border-[#8e7164] flex-1 flex flex-col bg-white">
               <div className="bg-[#e2e2e2] px-2 py-1 border-b border-[#8e7164] font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c] flex items-center gap-1">
                 <span className="material-symbols-outlined text-sm">forum</span>
@@ -413,20 +348,7 @@ export default function MinihompyPage() {
 
         {/* 우측 탭 */}
         <nav className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
-          {[
-            { icon: 'home', label: '홈', path: `/home/${userId}` },
-            { icon: 'edit_note', label: '다이어리', path: `/diary/${userId}` },
-            { icon: 'photo_library', label: '사진첩', path: `/photo/${userId}` },
-          ].map(tab => {
-            const active = location.pathname === tab.path
-            return (
-              <button key={tab.label} onClick={() => navigate(tab.path)}
-                className={`tab-item${active ? ' tab-active' : ' bg-[#f3f3f3] text-[#5a4136] hover:bg-[#e2e2e2]'} py-2 px-1 text-center font-[Geist,monospace] text-[12px] font-semibold flex flex-col items-center gap-1 cursor-pointer border-none`}>
-                <span className="material-symbols-outlined text-lg">{tab.icon}</span>
-                {tab.label}
-              </button>
-            )
-          })}
+          <MinihompyTabs owner={false} ownerId={main.ownerId} />
         </nav>
       </div>
     </div>

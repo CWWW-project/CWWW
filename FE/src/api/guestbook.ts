@@ -17,7 +17,7 @@ export const guestbookApi = {
     api.post<ApiResponse<void>>(`/guestbooks/${ownerId}`, body),
 
   // 방명록 목록 조회 (커서 기반 페이징)
-  getList: (ownerId: number, cursor?: number, size = 10) =>
+  getList: (ownerId: number, cursor?: number, size = 4) =>
     api.get<ApiResponse<GuestbookFeedResponse>>(`/guestbooks/${ownerId}`, { params: { cursor, size } }),
 
   // 방명록 수정 (작성자 본인만)

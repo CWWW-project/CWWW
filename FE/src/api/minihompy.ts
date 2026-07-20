@@ -8,6 +8,7 @@ import type {
   BackgroundResponse,
   BackgroundDotOptionResponse,
   AccessLevel,
+  VisitorLogResponse,
 } from '../types'
 
 export interface MinihompySettingsRequest {
@@ -63,5 +64,9 @@ export const minihompyApi = {
     form.append('file', file)
     return api.put<ApiResponse<BackgroundResponse>>('/minihompy/background/photo', form)
   },
+
+  //  ── 방문자 조회 ──
+  getRecentVisitors: () =>
+  api.get<ApiResponse<VisitorLogResponse[]>>('/minihompy/visitors'),
   
 }

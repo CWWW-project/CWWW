@@ -121,6 +121,7 @@ public class GuestbookService {
                     .guestbookId(g.getGuestbookId())
                     .writerId(g.getWriterId())
                     .writerNickname(g.getWriterNickname())
+                    .writerProfileImageUrl(g.getWriterProfileImageUrl())   // 추가 — 프로필 사진은 비밀글이어도 보여줌
                     .content(null) // 내용 숨김
                     .secret(true)
                     .visible(false) // 못 본다는 표시
