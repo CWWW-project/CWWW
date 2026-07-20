@@ -24,6 +24,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Map;
@@ -153,20 +155,30 @@ public class PostServiceImpl implements PostService {
         postMapper.incrementLikeCount(postId);
 
         if (!userId.equals(post.getUserId())) {
-            try {
-                String actorName = userMapper.findNicknameById(userId);
-                notificationPublisher.publish(NotificationEvent.builder()
-                        .eventType("LIKE")
-                        .targetUserId(post.getUserId())
-                        .actorId(userId)
-                        .actorName(actorName)
-                        .targetId(postId)
-                        .targetType("POST")
-                        .preview(actorName + "님이 게시글을 좋아합니다.")
-                        .createdAt(java.time.LocalDateTime.now())
-                        .build());
-            } catch (Exception e) {
-                log.warn("좋아요 알림 발행 실패: postId={}, userId={}", postId, userId, e);
+            String actorName = userMapper.findNicknameById(userId);
+            NotificationEvent event = NotificationEvent.builder()
+                    .eventType("LIKE")
+                    .targetUserId(post.getUserId())
+                    .actorId(userId)
+                    .actorName(actorName)
+                    .targetId(postId)
+                    .targetType("POST")
+                    .preview(actorName + "님이 게시글을 좋아합니다.")
+                    .createdAt(java.time.LocalDateTime.now())
+                    .build();
+            Runnable publish = () -> {
+                try {
+                    notificationPublisher.publish(event);
+                } catch (Exception e) {
+                    log.warn("좋아요 알림 발행 실패: postId={}, userId={}", postId, userId, e);
+                }
+            };
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override public void afterCommit() { publish.run(); }
+                });
+            } else {
+                publish.run();
             }
         }
     }

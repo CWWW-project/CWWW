@@ -94,6 +94,7 @@ class FeedLikeServiceTest {
         Post post = Post.builder().postId(1L).userId(2L).build();
         given(postMapper.findById(1L)).willReturn(Optional.of(post));
         given(postLikeMapper.exists(1L, userId)).willReturn(false);
+        given(userMapper.findNicknameById(anyLong())).willReturn("테스터");
 
         // Act
         postService.likePost(userId, 1L);
