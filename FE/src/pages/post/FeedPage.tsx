@@ -1152,6 +1152,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
               { icon: 'photo_library', label: '사진첩', path: `/home/${user?.id ?? 'me'}` },
               { icon: 'forum', label: '방명록', path: `/guestbook/${user?.id ?? 'me'}` },
               { icon: 'footprint', label: '방문자', path: `/visitor/${user?.id ?? 'me'}` },
+              { icon: 'chat', label: '채팅', path: '/chat' },
               { icon: 'storefront', label: '상점', path: '/shop' },
             ]
             // 첫 번째 매칭 탭만 active → 동일 경로 탭 중복 active 방지

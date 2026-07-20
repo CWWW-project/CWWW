@@ -6,7 +6,6 @@ import { useAuthStore } from '../../store/authStore'
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
 
 type Tab = 'login' | 'signup'
-type SignupStep = 'form' | 'verify'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -14,14 +13,21 @@ export default function LoginPage() {
   const { setAuth } = useAuthStore()
 
   const [tab, setTab] = useState<Tab>('login')
-  const [signupStep, setSignupStep] = useState<SignupStep>('form')
+  const [signupEmail, setSignupEmail] = useState('')
   const [verifyCode, setVerifyCode] = useState('')
+  const [codeSent, setCodeSent] = useState(false)
+  const [emailVerified, setEmailVerified] = useState(false)
   const [showPw, setShowPw] = useState(false)
   const [showSignupPw, setShowSignupPw] = useState(false)
   const [showSignupConfirmPw, setShowSignupConfirmPw] = useState(false)
   const [message, setMessage] = useState('')
   const [isSuccess, setIsSuccess] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSendingCode, setIsSendingCode] = useState(false)
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false)
+
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' })
+  const [signupForm, setSignupForm] = useState({ nickname: '', password: '', confirmPassword: '' })
 
   useEffect(() => {
     if (searchParams.get('error') === 'oauth') {
@@ -30,8 +36,14 @@ export default function LoginPage() {
     }
   }, [])
 
-  const [loginForm, setLoginForm] = useState({ email: '', password: '' })
-  const [signupForm, setSignupForm] = useState({ email: '', password: '', confirmPassword: '', nickname: '' })
+  const resetSignup = () => {
+    setSignupEmail('')
+    setVerifyCode('')
+    setCodeSent(false)
+    setEmailVerified(false)
+    setSignupForm({ nickname: '', password: '', confirmPassword: '' })
+    setMessage('')
+  }
 
   const handleLogin = async () => {
     if (isSubmitting) return
@@ -50,9 +62,55 @@ export default function LoginPage() {
     }
   }
 
+  const handleSendCode = async () => {
+    if (isSendingCode) return
+    if (!signupEmail) {
+      setIsSuccess(false)
+      setMessage('이메일을 입력해주세요.')
+      return
+    }
+    setMessage('')
+    setIsSendingCode(true)
+    try {
+      await authApi.sendEmailCode(signupEmail)
+      setCodeSent(true)
+      setEmailVerified(false)
+      setVerifyCode('')
+      setIsSuccess(true)
+      setMessage(`${signupEmail}로 인증 코드를 보냈어요.`)
+    } catch (e: any) {
+      setIsSuccess(false)
+      setMessage(e.response?.data?.message ?? '인증 코드 발송에 실패했습니다.')
+    } finally {
+      setIsSendingCode(false)
+    }
+  }
+
+  const handleVerifyCode = async () => {
+    if (isVerifyingCode) return
+    setMessage('')
+    setIsVerifyingCode(true)
+    try {
+      await authApi.verifyEmailCode(signupEmail, verifyCode)
+      setEmailVerified(true)
+      setIsSuccess(true)
+      setMessage('이메일 인증 완료!')
+    } catch (e: any) {
+      setIsSuccess(false)
+      setMessage(e.response?.data?.message ?? '인증 코드가 올바르지 않습니다.')
+    } finally {
+      setIsVerifyingCode(false)
+    }
+  }
+
   const handleSignup = async () => {
     if (isSubmitting) return
     setMessage('')
+    if (!emailVerified) {
+      setIsSuccess(false)
+      setMessage('이메일 인증을 먼저 완료해주세요.')
+      return
+    }
     if (signupForm.password !== signupForm.confirmPassword) {
       setIsSuccess(false)
       setMessage('비밀번호가 일치하지 않습니다.')
@@ -61,53 +119,18 @@ export default function LoginPage() {
     setIsSubmitting(true)
     try {
       await authApi.signup({
-        email: signupForm.email,
+        email: signupEmail,
         password: signupForm.password,
         nickname: signupForm.nickname,
       })
-      await authApi.sendEmailCode(signupForm.email)
-      setSignupStep('verify')
+      setTab('login')
+      resetSignup()
+      setLoginForm(f => ({ ...f, email: signupEmail }))
       setIsSuccess(true)
-      setMessage('인증 코드를 이메일로 보냈어요. 코드를 입력해주세요.')
+      setMessage('회원가입 완료! 로그인해주세요.')
     } catch (e: any) {
       setIsSuccess(false)
       setMessage(e.response?.data?.message ?? '회원가입에 실패했습니다.')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleResendCode = async () => {
-    if (isSubmitting) return
-    setIsSubmitting(true)
-    try {
-      await authApi.sendEmailCode(signupForm.email)
-      setIsSuccess(true)
-      setMessage('인증 코드를 다시 보냈어요.')
-    } catch (e: any) {
-      setIsSuccess(false)
-      setMessage(e.response?.data?.message ?? '재전송에 실패했습니다.')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleVerifyCode = async () => {
-    if (isSubmitting) return
-    setMessage('')
-    setIsSubmitting(true)
-    try {
-      await authApi.verifyEmailCode(signupForm.email, verifyCode)
-      setTab('login')
-      setSignupStep('form')
-      setVerifyCode('')
-      setSignupForm({ email: '', password: '', confirmPassword: '', nickname: '' })
-      setLoginForm({ email: signupForm.email, password: '' })
-      setIsSuccess(true)
-      setMessage('이메일 인증 완료! 로그인해주세요.')
-    } catch (e: any) {
-      setIsSuccess(false)
-      setMessage(e.response?.data?.message ?? '인증 코드가 올바르지 않습니다.')
     } finally {
       setIsSubmitting(false)
     }
@@ -138,7 +161,7 @@ export default function LoginPage() {
           {(['login', 'signup'] as Tab[]).map((t) => (
             <button
               key={t}
-              onClick={() => { setTab(t); setSignupStep('form'); setMessage('') }}
+              onClick={() => { setTab(t); resetSignup(); setMessage('') }}
               style={{
                 borderTop: '1px solid #a0a0a0',
                 borderLeft: '1px solid #a0a0a0',
@@ -165,7 +188,7 @@ export default function LoginPage() {
           </p>
         )}
 
-        {/* Login Form */}
+        {/* ── Login Form ── */}
         {tab === 'login' && (
           <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -217,14 +240,12 @@ export default function LoginPage() {
               비밀번호를 잊으셨나요?
             </Link>
 
-            {/* Divider */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ flex: 1, borderTop: '1px solid #e3bfb1' }} />
               <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136' }}>또는</span>
               <div style={{ flex: 1, borderTop: '1px solid #e3bfb1' }} />
             </div>
 
-            {/* 깃허브 */}
             <button
               className="retro-btn"
               style={{ width: '100%', padding: '8px 0', background: '#24292e', borderColor: '#24292e', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
@@ -235,7 +256,6 @@ export default function LoginPage() {
               </svg>
               GitHub으로 시작하기
             </button>
-            {/* 구글 */}
             <button
               className="retro-btn"
               style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
@@ -252,90 +272,138 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Signup Form */}
-        {tab === 'signup' && signupStep === 'form' && (
+        {/* ── Signup Form (one-page) ── */}
+        {tab === 'signup' && (
           <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {[
-              { label: '이메일', icon: 'mail', type: 'email', placeholder: '이메일 주소', field: 'email' },
-              { label: '닉네임', icon: 'badge', type: 'text', placeholder: '사용할 닉네임 (2~20자)', field: 'nickname' },
-              { label: '비밀번호', icon: 'lock', type: 'password', placeholder: '영문+숫자 포함 8~20자', field: 'password' },
-              { label: '비밀번호 확인', icon: 'lock_reset', type: 'password', placeholder: '비밀번호 재입력', field: 'confirmPassword' },
-            ].map(({ label, icon, type, placeholder, field }) => {
-              const isPwField = field === 'password' || field === 'confirmPassword'
-              const showThisPw = field === 'password' ? showSignupPw : showSignupConfirmPw
-              const toggleThisPw = field === 'password' ? () => setShowSignupPw(v => !v) : () => setShowSignupConfirmPw(v => !v)
-              return (
-                <div key={field} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>{label}</label>
-                  <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>{icon}</span>
-                    <input
-                      type={isPwField ? (showThisPw ? 'text' : 'password') : type}
-                      placeholder={placeholder}
-                      value={signupForm[field as keyof typeof signupForm]}
-                      onChange={e => setSignupForm(f => ({ ...f, [field]: e.target.value }))}
-                      style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }}
-                    />
-                    {isPwField && (
-                      <button onClick={toggleThisPw} type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>
-                          {showThisPw ? 'visibility_off' : 'visibility'}
-                        </span>
-                      </button>
-                    )}
-                  </div>
+
+            {/* 이메일 + 인증번호 발송 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>이메일</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <div className="window-inset" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>
+                    {emailVerified ? 'verified' : 'mail'}
+                  </span>
+                  <input
+                    type="email"
+                    placeholder="이메일 주소"
+                    value={signupEmail}
+                    onChange={e => { setSignupEmail(e.target.value); setCodeSent(false); setEmailVerified(false) }}
+                    disabled={emailVerified}
+                    onKeyDown={e => e.key === 'Enter' && !emailVerified && handleSendCode()}
+                    style={{
+                      flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                      fontFamily: 'Be Vietnam Pro', fontSize: 14,
+                      color: emailVerified ? '#0c6780' : undefined,
+                    }}
+                  />
                 </div>
-              )
-            })}
+                {!emailVerified && (
+                  <button
+                    className="retro-btn retro-btn-primary"
+                    onClick={handleSendCode}
+                    disabled={isSendingCode}
+                    style={{ whiteSpace: 'nowrap', padding: '0 10px', fontSize: 11 }}
+                  >
+                    {isSendingCode ? '발송 중...' : codeSent ? '재전송' : '인증번호 발송'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 인증 코드 입력 — 코드 발송 후 표시 */}
+            {codeSent && !emailVerified && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>인증 코드</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="window-inset" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>pin</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="6자리 숫자"
+                      value={verifyCode}
+                      onChange={e => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      onKeyDown={e => e.key === 'Enter' && verifyCode.length === 6 && handleVerifyCode()}
+                      style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14, letterSpacing: 4 }}
+                    />
+                  </div>
+                  <button
+                    className="retro-btn retro-btn-primary"
+                    onClick={handleVerifyCode}
+                    disabled={isVerifyingCode || verifyCode.length !== 6}
+                    style={{ whiteSpace: 'nowrap', padding: '0 10px', fontSize: 11 }}
+                  >
+                    {isVerifyingCode ? '확인 중...' : '인증 확인'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 닉네임 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>닉네임</label>
+              <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>badge</span>
+                <input
+                  type="text"
+                  placeholder="사용할 닉네임 (2~20자)"
+                  value={signupForm.nickname}
+                  onChange={e => setSignupForm(f => ({ ...f, nickname: e.target.value }))}
+                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }}
+                />
+              </div>
+            </div>
+
+            {/* 비밀번호 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>비밀번호</label>
+              <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>lock</span>
+                <input
+                  type={showSignupPw ? 'text' : 'password'}
+                  placeholder="영문+숫자 포함 8~20자"
+                  value={signupForm.password}
+                  onChange={e => setSignupForm(f => ({ ...f, password: e.target.value }))}
+                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }}
+                />
+                <button onClick={() => setShowSignupPw(v => !v)} type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>
+                    {showSignupPw ? 'visibility_off' : 'visibility'}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* 비밀번호 확인 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>비밀번호 확인</label>
+              <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>lock_reset</span>
+                <input
+                  type={showSignupConfirmPw ? 'text' : 'password'}
+                  placeholder="비밀번호 재입력"
+                  value={signupForm.confirmPassword}
+                  onChange={e => setSignupForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }}
+                />
+                <button onClick={() => setShowSignupConfirmPw(v => !v)} type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>
+                    {showSignupConfirmPw ? 'visibility_off' : 'visibility'}
+                  </span>
+                </button>
+              </div>
+            </div>
+
             <button
               className="retro-btn retro-btn-primary"
               onClick={handleSignup}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !emailVerified}
               style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>person_add</span>
               {isSubmitting ? '처리 중...' : '회원가입'}
-            </button>
-          </div>
-        )}
-
-        {/* Signup - Email Verify Step */}
-        {tab === 'signup' && signupStep === 'verify' && (
-          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <p style={{ fontFamily: 'Be Vietnam Pro', fontSize: 13, color: '#5a4136' }}>
-              <strong>{signupForm.email}</strong>로 인증 코드를 보냈어요. 6자리 코드를 입력해주세요.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>인증 코드</label>
-              <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>pin</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="6자리 숫자"
-                  value={verifyCode}
-                  onChange={e => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  onKeyDown={e => e.key === 'Enter' && handleVerifyCode()}
-                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14, letterSpacing: 4 }}
-                />
-              </div>
-            </div>
-            <button
-              className="retro-btn retro-btn-primary"
-              onClick={handleVerifyCode}
-              disabled={isSubmitting || verifyCode.length !== 6}
-              style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>verified</span>
-              {isSubmitting ? '확인 중...' : '인증하기'}
-            </button>
-            <button
-              onClick={handleResendCode}
-              disabled={isSubmitting}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136', textDecoration: 'underline' }}
-            >
-              코드 재전송
             </button>
           </div>
         )}

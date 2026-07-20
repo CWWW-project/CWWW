@@ -36,8 +36,12 @@ public class FriendServiceImpl implements FriendService {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
-        friendMapper.findActiveByUsers(requesterId, receiverId)
-                .ifPresent(f -> { throw new BusinessException(ErrorCode.ALREADY_FRIEND); });
+        friendMapper.findActiveByUsers(requesterId, receiverId).ifPresent(f -> {
+            if ("PENDING".equals(f.getStatus()) && f.getRequesterId().equals(receiverId)) {
+                throw new BusinessException(ErrorCode.FRIEND_REQUEST_ALREADY_RECEIVED);
+            }
+            throw new BusinessException(ErrorCode.ALREADY_FRIEND);
+        });
 
         Friend friend = Friend.builder()
                 .requesterId(requesterId)

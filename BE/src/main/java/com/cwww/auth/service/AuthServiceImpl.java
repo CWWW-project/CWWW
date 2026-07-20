@@ -5,12 +5,14 @@ import com.cwww.auth.dto.LoginResponse;
 import com.cwww.auth.dto.OAuthTokenResponse;
 import com.cwww.auth.dto.SignupRequest;
 import com.cwww.auth.dto.SignupResponse;
+import com.cwww.auth.email.EmailVerificationService;
 import com.cwww.auth.jwt.JwtUtil;
 import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
 import com.cwww.user.domain.User;
 import com.cwww.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -27,6 +29,7 @@ import java.util.Date;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
@@ -38,6 +41,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final EmailVerificationService emailVerificationService;
     private final RedisTemplate<String, String> redisTemplate;
 
     @Value("${spring.mail.username}")
@@ -97,6 +101,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public SignupResponse signup(SignupRequest request) {
+        if (!emailVerificationService.isVerified(request.getEmail())) {
+            throw new BusinessException(ErrorCode.EMAIL_NOT_VERIFIED);
+        }
         if (userMapper.findByEmail(request.getEmail()) != null) {
             throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
         }
@@ -123,6 +130,11 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
         }
 
+        try {
+            emailVerificationService.deleteVerifiedFlag(request.getEmail());
+        } catch (Exception e) {
+            log.warn("이메일 인증 플래그 삭제 실패 — TTL 만료로 자동 소멸됨: email={}", request.getEmail(), e);
+        }
         return SignupResponse.from(user);
     }
 
