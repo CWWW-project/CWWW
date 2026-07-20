@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { cartApi } from '../../api/cart'
 import { itemApi } from '../../api/item'
 import type { CartItemResponse, InventoryItemResponse, ItemResponse } from '../../types'
+import AcornChargeModal from '../../components/AcornChargeModal'
 
 type CategoryFilter = 'ALL' | 'MINIROOM_ITEM' | 'MINIROOM_BACKGROUND' | 'AVATAR' | 'BGM'
 
@@ -47,6 +48,7 @@ export default function ShopPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [acorns, setAcorns] = useState<number | null>(null)
+  const [chargeOpen, setChargeOpen] = useState(false)
 
   const inventoryItemIds = useMemo(() => new Set(inventory.map(item => item.itemId)), [inventory])
   const cartItemIds = useMemo(() => new Set(cart.map(item => item.itemId)), [cart])
@@ -158,8 +160,16 @@ export default function ShopPage() {
                 <div className="font-[Geist,monospace] text-[12px] text-[#5a4136]">
                   {loading ? '불러오는 중...' : <>아이템 <span className="text-[#a33e00] font-bold">{filteredItems.length}</span>개</>}
                 </div>
-                <div className="window-frame px-2 py-1 font-bold text-[#a33e00] text-sm">
-                  보유 도토리 {acorns == null ? '-' : acorns.toLocaleString()}
+                <div className="flex items-center gap-1">
+                  <div className="window-frame px-2 py-1 font-bold text-[#a33e00] text-sm">
+                    보유 도토리 {acorns == null ? '-' : acorns.toLocaleString()}
+                  </div>
+                  <button
+                    className="retro-btn retro-btn-primary px-2 py-1 text-[11px] font-semibold"
+                    onClick={() => setChargeOpen(true)}
+                  >
+                    🌰 충전
+                  </button>
                 </div>
               </div>
 
@@ -317,6 +327,8 @@ export default function ShopPage() {
           {error}
         </div>
       )}
+
+      <AcornChargeModal open={chargeOpen} onClose={() => setChargeOpen(false)} />
     </div>
   )
 }
