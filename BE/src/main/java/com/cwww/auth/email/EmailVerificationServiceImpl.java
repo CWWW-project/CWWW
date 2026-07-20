@@ -20,7 +20,9 @@ import java.time.Duration;
 public class EmailVerificationServiceImpl implements EmailVerificationService {
 
     private static final String KEY_PREFIX = "email:verify:";
+    private static final String VERIFIED_PREFIX = "email:verified:";
     private static final Duration CODE_TTL = Duration.ofMinutes(5);
+    private static final Duration VERIFIED_TTL = Duration.ofMinutes(10);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final RedisTemplate<String,String> redisTemplate;
@@ -32,10 +34,8 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 
     @Override
     public void sendCode(String email) {
-        User user = userMapper.findByEmail(email);
-        if (user == null) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
-
+        if (userMapper.findByEmail(email) != null) {
+            throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
         }
         String code = generateCode();
 
@@ -60,12 +60,16 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
             throw new BusinessException(ErrorCode.INVALID_VERIFICATION_CODE);
         }
 
-        int updated = userMapper.activateUser(email);
-        if (updated == 0) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
-        }
-
         redisTemplate.delete(KEY_PREFIX + email);
+        redisTemplate.opsForValue().set(VERIFIED_PREFIX + email, "true", VERIFIED_TTL);
+    }
+
+    public boolean isVerified(String email) {
+        return Boolean.parseBoolean(redisTemplate.opsForValue().get(VERIFIED_PREFIX + email));
+    }
+
+    public void deleteVerifiedFlag(String email) {
+        redisTemplate.delete(VERIFIED_PREFIX + email);
     }
 
     private String generateCode() {
