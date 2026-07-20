@@ -5,6 +5,7 @@ import com.cwww.auth.dto.LoginResponse;
 import com.cwww.auth.dto.OAuthTokenResponse;
 import com.cwww.auth.dto.SignupRequest;
 import com.cwww.auth.dto.SignupResponse;
+import com.cwww.auth.email.EmailVerificationService;
 import com.cwww.auth.jwt.JwtUtil;
 import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
@@ -38,6 +39,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final EmailVerificationService emailVerificationService;
     private final RedisTemplate<String, String> redisTemplate;
 
     @Value("${spring.mail.username}")
@@ -97,6 +99,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public SignupResponse signup(SignupRequest request) {
+        if (!emailVerificationService.isVerified(request.getEmail())) {
+            throw new BusinessException(ErrorCode.EMAIL_NOT_VERIFIED);
+        }
         if (userMapper.findByEmail(request.getEmail()) != null) {
             throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
         }
@@ -123,6 +128,7 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
         }
 
+        emailVerificationService.deleteVerifiedFlag(request.getEmail());
         return SignupResponse.from(user);
     }
 

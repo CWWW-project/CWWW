@@ -6,7 +6,7 @@ import { useAuthStore } from '../../store/authStore'
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
 
 type Tab = 'login' | 'signup'
-type SignupStep = 'form' | 'verify'
+type SignupStep = 'email' | 'verify' | 'form'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -14,7 +14,8 @@ export default function LoginPage() {
   const { setAuth } = useAuthStore()
 
   const [tab, setTab] = useState<Tab>('login')
-  const [signupStep, setSignupStep] = useState<SignupStep>('form')
+  const [signupStep, setSignupStep] = useState<SignupStep>('email')
+  const [signupEmail, setSignupEmail] = useState('')
   const [verifyCode, setVerifyCode] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [showSignupPw, setShowSignupPw] = useState(false)
@@ -23,6 +24,9 @@ export default function LoginPage() {
   const [isSuccess, setIsSuccess] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' })
+  const [signupForm, setSignupForm] = useState({ nickname: '', password: '', confirmPassword: '' })
+
   useEffect(() => {
     if (searchParams.get('error') === 'oauth') {
       setIsSuccess(false)
@@ -30,8 +34,13 @@ export default function LoginPage() {
     }
   }, [])
 
-  const [loginForm, setLoginForm] = useState({ email: '', password: '' })
-  const [signupForm, setSignupForm] = useState({ email: '', password: '', confirmPassword: '', nickname: '' })
+  const resetSignup = () => {
+    setSignupStep('email')
+    setSignupEmail('')
+    setVerifyCode('')
+    setSignupForm({ nickname: '', password: '', confirmPassword: '' })
+    setMessage('')
+  }
 
   const handleLogin = async () => {
     if (isSubmitting) return
@@ -50,6 +59,49 @@ export default function LoginPage() {
     }
   }
 
+  // step 1: 인증번호 발송
+  const handleSendCode = async () => {
+    if (isSubmitting) return
+    if (!signupEmail) {
+      setIsSuccess(false)
+      setMessage('이메일을 입력해주세요.')
+      return
+    }
+    setMessage('')
+    setIsSubmitting(true)
+    try {
+      await authApi.sendEmailCode(signupEmail)
+      setSignupStep('verify')
+      setIsSuccess(true)
+      setMessage(`${signupEmail}로 인증 코드를 보냈어요.`)
+    } catch (e: any) {
+      setIsSuccess(false)
+      setMessage(e.response?.data?.message ?? '인증 코드 발송에 실패했습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // step 2: 인증 코드 확인
+  const handleVerifyCode = async () => {
+    if (isSubmitting) return
+    setMessage('')
+    setIsSubmitting(true)
+    try {
+      await authApi.verifyEmailCode(signupEmail, verifyCode)
+      setVerifyCode('')
+      setSignupStep('form')
+      setIsSuccess(true)
+      setMessage('이메일 인증 완료! 나머지 정보를 입력해주세요.')
+    } catch (e: any) {
+      setIsSuccess(false)
+      setMessage(e.response?.data?.message ?? '인증 코드가 올바르지 않습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // step 3: 회원가입
   const handleSignup = async () => {
     if (isSubmitting) return
     setMessage('')
@@ -61,14 +113,15 @@ export default function LoginPage() {
     setIsSubmitting(true)
     try {
       await authApi.signup({
-        email: signupForm.email,
+        email: signupEmail,
         password: signupForm.password,
         nickname: signupForm.nickname,
       })
-      await authApi.sendEmailCode(signupForm.email)
-      setSignupStep('verify')
+      setTab('login')
+      resetSignup()
+      setLoginForm(f => ({ ...f, email: signupEmail }))
       setIsSuccess(true)
-      setMessage('인증 코드를 이메일로 보냈어요. 코드를 입력해주세요.')
+      setMessage('회원가입 완료! 로그인해주세요.')
     } catch (e: any) {
       setIsSuccess(false)
       setMessage(e.response?.data?.message ?? '회원가입에 실패했습니다.')
@@ -77,41 +130,9 @@ export default function LoginPage() {
     }
   }
 
-  const handleResendCode = async () => {
-    if (isSubmitting) return
-    setIsSubmitting(true)
-    try {
-      await authApi.sendEmailCode(signupForm.email)
-      setIsSuccess(true)
-      setMessage('인증 코드를 다시 보냈어요.')
-    } catch (e: any) {
-      setIsSuccess(false)
-      setMessage(e.response?.data?.message ?? '재전송에 실패했습니다.')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleVerifyCode = async () => {
-    if (isSubmitting) return
-    setMessage('')
-    setIsSubmitting(true)
-    try {
-      await authApi.verifyEmailCode(signupForm.email, verifyCode)
-      setTab('login')
-      setSignupStep('form')
-      setVerifyCode('')
-      setSignupForm({ email: '', password: '', confirmPassword: '', nickname: '' })
-      setLoginForm({ email: signupForm.email, password: '' })
-      setIsSuccess(true)
-      setMessage('이메일 인증 완료! 로그인해주세요.')
-    } catch (e: any) {
-      setIsSuccess(false)
-      setMessage(e.response?.data?.message ?? '인증 코드가 올바르지 않습니다.')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+  const stepLabel = signupStep === 'email' ? '1/3 이메일 인증'
+    : signupStep === 'verify' ? '2/3 코드 확인'
+    : '3/3 정보 입력'
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center py-12 gap-6">
@@ -138,7 +159,7 @@ export default function LoginPage() {
           {(['login', 'signup'] as Tab[]).map((t) => (
             <button
               key={t}
-              onClick={() => { setTab(t); setSignupStep('form'); setMessage('') }}
+              onClick={() => { setTab(t); resetSignup(); setMessage('') }}
               style={{
                 borderTop: '1px solid #a0a0a0',
                 borderLeft: '1px solid #a0a0a0',
@@ -165,7 +186,7 @@ export default function LoginPage() {
           </p>
         )}
 
-        {/* Login Form */}
+        {/* ── Login Form ── */}
         {tab === 'login' && (
           <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -217,14 +238,12 @@ export default function LoginPage() {
               비밀번호를 잊으셨나요?
             </Link>
 
-            {/* Divider */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ flex: 1, borderTop: '1px solid #e3bfb1' }} />
               <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136' }}>또는</span>
               <div style={{ flex: 1, borderTop: '1px solid #e3bfb1' }} />
             </div>
 
-            {/* 깃허브 */}
             <button
               className="retro-btn"
               style={{ width: '100%', padding: '8px 0', background: '#24292e', borderColor: '#24292e', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
@@ -235,7 +254,6 @@ export default function LoginPage() {
               </svg>
               GitHub으로 시작하기
             </button>
-            {/* 구글 */}
             <button
               className="retro-btn"
               style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
@@ -252,11 +270,89 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Signup Form */}
+        {/* ── Signup: Step 1 - 이메일 입력 + 발송 ── */}
+        {tab === 'signup' && signupStep === 'email' && (
+          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <p style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#8a6a5e' }}>{stepLabel}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>이메일</label>
+              <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>mail</span>
+                <input
+                  type="email"
+                  placeholder="이메일 주소"
+                  value={signupEmail}
+                  onChange={e => setSignupEmail(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSendCode()}
+                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }}
+                />
+              </div>
+            </div>
+            <button
+              className="retro-btn retro-btn-primary"
+              onClick={handleSendCode}
+              disabled={isSubmitting}
+              style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>send</span>
+              {isSubmitting ? '발송 중...' : '인증번호 발송'}
+            </button>
+          </div>
+        )}
+
+        {/* ── Signup: Step 2 - 코드 입력 + 확인 ── */}
+        {tab === 'signup' && signupStep === 'verify' && (
+          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <p style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#8a6a5e' }}>{stepLabel}</p>
+            <p style={{ fontFamily: 'Be Vietnam Pro', fontSize: 13, color: '#5a4136' }}>
+              <strong>{signupEmail}</strong>로 보낸 6자리 코드를 입력해주세요.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>인증 코드</label>
+              <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>pin</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="6자리 숫자"
+                  value={verifyCode}
+                  onChange={e => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onKeyDown={e => e.key === 'Enter' && verifyCode.length === 6 && handleVerifyCode()}
+                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14, letterSpacing: 4 }}
+                />
+              </div>
+            </div>
+            <button
+              className="retro-btn retro-btn-primary"
+              onClick={handleVerifyCode}
+              disabled={isSubmitting || verifyCode.length !== 6}
+              style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>verified</span>
+              {isSubmitting ? '확인 중...' : '인증 확인'}
+            </button>
+            <button
+              onClick={handleSendCode}
+              disabled={isSubmitting}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136', textDecoration: 'underline' }}
+            >
+              코드 재전송
+            </button>
+            <button
+              onClick={() => { setSignupStep('email'); setVerifyCode(''); setMessage('') }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Geist, monospace', fontSize: 12, color: '#8a6a5e', textDecoration: 'underline' }}
+            >
+              이메일 다시 입력
+            </button>
+          </div>
+        )}
+
+        {/* ── Signup: Step 3 - 닉네임/비밀번호 입력 ── */}
         {tab === 'signup' && signupStep === 'form' && (
           <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <p style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#8a6a5e' }}>{stepLabel}</p>
             {[
-              { label: '이메일', icon: 'mail', type: 'email', placeholder: '이메일 주소', field: 'email' },
               { label: '닉네임', icon: 'badge', type: 'text', placeholder: '사용할 닉네임 (2~20자)', field: 'nickname' },
               { label: '비밀번호', icon: 'lock', type: 'password', placeholder: '영문+숫자 포함 8~20자', field: 'password' },
               { label: '비밀번호 확인', icon: 'lock_reset', type: 'password', placeholder: '비밀번호 재입력', field: 'confirmPassword' },
@@ -295,47 +391,6 @@ export default function LoginPage() {
             >
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>person_add</span>
               {isSubmitting ? '처리 중...' : '회원가입'}
-            </button>
-          </div>
-        )}
-
-        {/* Signup - Email Verify Step */}
-        {tab === 'signup' && signupStep === 'verify' && (
-          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <p style={{ fontFamily: 'Be Vietnam Pro', fontSize: 13, color: '#5a4136' }}>
-              <strong>{signupForm.email}</strong>로 인증 코드를 보냈어요. 6자리 코드를 입력해주세요.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>인증 코드</label>
-              <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>pin</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="6자리 숫자"
-                  value={verifyCode}
-                  onChange={e => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  onKeyDown={e => e.key === 'Enter' && handleVerifyCode()}
-                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14, letterSpacing: 4 }}
-                />
-              </div>
-            </div>
-            <button
-              className="retro-btn retro-btn-primary"
-              onClick={handleVerifyCode}
-              disabled={isSubmitting || verifyCode.length !== 6}
-              style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>verified</span>
-              {isSubmitting ? '확인 중...' : '인증하기'}
-            </button>
-            <button
-              onClick={handleResendCode}
-              disabled={isSubmitting}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136', textDecoration: 'underline' }}
-            >
-              코드 재전송
             </button>
           </div>
         )}
