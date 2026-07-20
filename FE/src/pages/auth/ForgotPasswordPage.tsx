@@ -45,6 +45,17 @@ export default function ForgotPasswordPage() {
     }
   }
 
+  const handleResendClick = () => {
+    if (!email) {
+      // 토큰 링크로 바로 진입한 경우 email을 모르므로, 이메일 입력 단계로 되돌린다
+      setStep('request')
+      setResetToken('')
+      setMessage('')
+      return
+    }
+    handleRequest()
+  }
+
   const handleReset = async () => {
     if (isSubmitting) return
     setMessage('')
@@ -158,11 +169,11 @@ export default function ForgotPasswordPage() {
               {isSubmitting ? '변경 중...' : '비밀번호 변경'}
             </button>
             <button
-              onClick={handleRequest}
+              onClick={handleResendClick}
               disabled={isSubmitting}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136', textDecoration: 'underline' }}
             >
-              인증번호 다시 받기
+              {email ? '인증번호 다시 받기' : '이메일로 다시 요청하기'}
             </button>
           </div>
         )}
