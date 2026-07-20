@@ -289,9 +289,11 @@ const profileInputRef = useRef<HTMLInputElement>(null)
       setFriends([])
       return
     }
+    let ignore = false
     friendApi.getFriends()
-      .then(res => setFriends(res.data.data))
-      .catch(() => setFriends([]))
+      .then(res => { if (!ignore) setFriends(res.data.data) })
+      .catch(() => { if (!ignore) setFriends([]) })
+    return () => { ignore = true }
   }, [user?.id])
 
   const toggleLike = async (postId: number) => {
