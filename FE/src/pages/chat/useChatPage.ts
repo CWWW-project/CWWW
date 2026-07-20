@@ -566,14 +566,16 @@ export function useChatPage() {
     }
   }
 
-  const handleInviteParticipant = async () => {
-    if (activeId === null || inviteUserId === null) return
+  const handleInviteParticipant = async (): Promise<boolean> => {
+    if (activeId === null || inviteUserId === null) return false
 
     try {
       await inviteParticipant(activeId, inviteUserId)
       await refreshParticipants(activeId)
+      return true
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : '참여자 초대에 실패했습니다.')
+      return false
     }
   }
 

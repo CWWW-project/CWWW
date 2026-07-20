@@ -61,6 +61,7 @@ export function ChatPageView({
   textareaRef,
 }: ChatPageViewProps) {
   const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false)
+  const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false)
 
   const handleTextareaKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.nativeEvent.isComposing) {
@@ -112,6 +113,28 @@ export function ChatPageView({
     const created = await handleCreateChatRoom()
     if (created) {
       setIsCreatePanelOpen(false)
+    }
+  }
+
+  const inviteCandidates = friendCandidates.filter(
+    (candidate) => !activeParticipants.some((participant) => participant.userId === candidate.userId),
+  )
+
+  const handleOpenInvitePanel = () => {
+    setCreateError('')
+    setInviteUserId(inviteCandidates[0]?.userId ?? null)
+    setIsInvitePanelOpen(true)
+  }
+
+  const handleCloseInvitePanel = () => {
+    setCreateError('')
+    setIsInvitePanelOpen(false)
+  }
+
+  const handleSubmitInviteParticipant = async () => {
+    const invited = await handleInviteParticipant()
+    if (invited) {
+      setIsInvitePanelOpen(false)
     }
   }
 
@@ -347,6 +370,118 @@ export function ChatPageView({
           </div>
         ) : null}
 
+        {isInvitePanelOpen ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1100,
+              background: 'rgba(45, 31, 25, 0.28)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16,
+            }}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                handleCloseInvitePanel()
+              }
+            }}
+          >
+            <div className="retro-window" style={{ width: '100%', maxWidth: 400, background: '#fff7f4' }}>
+              <div className="retro-title-bar" style={{ justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>person_add</span>
+                  <span style={{ fontWeight: 700 }}>일촌 초대</span>
+                </div>
+                <button
+                  type="button"
+                  className="retro-btn-gray"
+                  onClick={handleCloseInvitePanel}
+                  style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  title="닫기"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+                </button>
+              </div>
+
+              <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div className="retro-inner-box" style={{ background: '#fff', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 700, color: '#5a4136' }}>
+                      초대할 일촌
+                    </span>
+                    <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#7a5c50' }}>
+                      1명 선택
+                    </span>
+                  </div>
+
+                  <div className="retro-scrollbar" style={{ maxHeight: 260, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {inviteCandidates.length === 0 ? (
+                      <div style={{ padding: 16, textAlign: 'center', fontFamily: 'Be Vietnam Pro', fontSize: 12, color: '#5a4136' }}>
+                        초대할 수 있는 일촌이 없습니다.
+                      </div>
+                    ) : inviteCandidates.map((candidate) => {
+                      const checked = inviteUserId === candidate.userId
+                      return (
+                        <label
+                          key={candidate.userId}
+                          className="retro-inner-box"
+                          style={{
+                            minHeight: 42,
+                            padding: '8px 10px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            background: checked ? '#ffdbcd' : '#fafafa',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            name="chat-invite-participant"
+                            checked={checked}
+                            onChange={() => setInviteUserId(candidate.userId)}
+                          />
+                          <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#5a4136', fontVariationSettings: "'FILL' 1" }}>person</span>
+                          <span style={{ fontFamily: 'Be Vietnam Pro', fontSize: 13, color: '#2f211c', fontWeight: 600 }}>
+                            {candidate.nickname}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {createError ? (
+                  <div style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#ba1a1a' }}>{createError}</div>
+                ) : null}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                  <button
+                    type="button"
+                    className="retro-btn-gray"
+                    onClick={handleCloseInvitePanel}
+                    style={{ padding: '7px 12px' }}
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    className="retro-btn retro-btn-primary"
+                    onClick={handleSubmitInviteParticipant}
+                    disabled={inviteUserId === null}
+                    style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 6, opacity: inviteUserId === null ? 0.6 : 1 }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 15 }}>person_add</span>
+                    초대
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <section className="retro-window" style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
           <div className="retro-title-bar" style={{ justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -389,27 +524,14 @@ export function ChatPageView({
             </div>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
               {activeRoom?.type === 'GROUP' ? (
-                <>
-                  <select
-                    value={inviteUserId ?? ''}
-                    onChange={(event) => setInviteUserId(Number(event.target.value))}
-                    style={{ height: 24, fontFamily: 'Be Vietnam Pro', fontSize: 12 }}
-                  >
-                    {friendCandidates.map((candidate) => (
-                      <option key={candidate.userId} value={candidate.userId}>
-                        {candidate.nickname}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    className="retro-btn-gray"
-                    onClick={handleInviteParticipant}
-                    style={{ padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: 13 }}>person_add</span>
-                    초대
-                  </button>
-                </>
+                <button
+                  className="retro-btn-gray"
+                  onClick={handleOpenInvitePanel}
+                  style={{ padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 13 }}>person_add</span>
+                  초대
+                </button>
               ) : null}
               <button className="retro-btn-gray" style={{ padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 13 }}>person</span> 홈피
