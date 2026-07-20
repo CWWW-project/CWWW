@@ -2,15 +2,20 @@ package com.cwww.guestbook.service;
 
 import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
+import com.cwww.global.notification.dto.NotificationEvent;
+import com.cwww.global.notification.redis.RedisNotificationPublisher;
 import com.cwww.guestbook.domain.Guestbook;
 import com.cwww.guestbook.dto.request.GuestbookCreateRequest;
 import com.cwww.guestbook.dto.request.GuestbookUpdateRequest;
 import com.cwww.guestbook.dto.response.GuestbookFeedResponse;
 import com.cwww.guestbook.dto.response.GuestbookResponse;
 import com.cwww.guestbook.mapper.GuestbookMapper;
+import com.cwww.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,6 +25,8 @@ import java.util.List;
 public class GuestbookService {
 
     private final GuestbookMapper guestbookMapper;
+    private final UserMapper userMapper;
+    private final RedisNotificationPublisher notificationPublisher;
 
     // 방명록 작성
     @Transactional
@@ -48,6 +55,8 @@ public class GuestbookService {
         if(inserted != 1) {
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
+
+        publishGuestbookCreatedNotification(ownerId, guestbook);
 
     }
 
@@ -194,6 +203,36 @@ public class GuestbookService {
             throw new BusinessException(ErrorCode.GUESTBOOK_NOT_FOUND);
         }
 
+    }
+
+    private void publishGuestbookCreatedNotification(Long ownerId, Guestbook guestbook) {
+        if(ownerId.equals(guestbook.getWriterId())) {
+            return;
+        }
+
+        String actorName = userMapper.findNicknameById(guestbook.getWriterId());
+        NotificationEvent event = NotificationEvent.builder()
+                .eventType("GUESTBOOK_CREATED")
+                .targetUserId(ownerId)
+                .actorId(guestbook.getWriterId())
+                .actorName(actorName)
+                .targetId(guestbook.getGuestbookId())
+                .targetType("GUESTBOOK")
+                .preview(actorName + "님이 방명록을 남겼습니다.")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        if(TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    notificationPublisher.publish(event);
+                }
+            });
+            return;
+        }
+
+        notificationPublisher.publish(event);
     }
 
 }
