@@ -1,11 +1,12 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '../../api/auth'
 
 type Step = 'request' | 'reset'
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   const [step, setStep] = useState<Step>('request')
   const [email, setEmail] = useState('')
@@ -15,6 +16,16 @@ export default function ForgotPasswordPage() {
   const [message, setMessage] = useState('')
   const [isSuccess, setIsSuccess] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showNewPw, setShowNewPw] = useState(false)
+  const [showConfirmPw, setShowConfirmPw] = useState(false)
+
+  useEffect(() => {
+    const token = searchParams.get('token')
+    if (token) {
+      setResetToken(token)
+      setStep('reset')
+    }
+  }, [searchParams])
 
   const handleRequest = async () => {
     if (isSubmitting) return
@@ -23,7 +34,7 @@ export default function ForgotPasswordPage() {
     try {
       await authApi.forgotPassword(email)
       setIsSuccess(true)
-      setMessage('재설정 토큰을 이메일로 보냈어요. 30분 이내에 입력해주세요.')
+      setMessage('인증번호를 이메일로 보냈어요. 30분 이내에 입력해주세요.')
       setStep('reset')
     } catch (e: any) {
       setIsSuccess(false)
@@ -86,6 +97,8 @@ export default function ForgotPasswordPage() {
                 <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>mail</span>
                 <input
                   type="email"
+                  name="email"
+                  autoComplete="email"
                   placeholder="가입한 이메일 주소"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
@@ -101,7 +114,7 @@ export default function ForgotPasswordPage() {
               style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>send</span>
-              {isSubmitting ? '전송 중...' : '재설정 토큰 받기'}
+              {isSubmitting ? '전송 중...' : '인증번호 받기'}
             </button>
           </div>
         )}
@@ -109,21 +122,30 @@ export default function ForgotPasswordPage() {
         {step === 'reset' && (
           <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[
-              { label: '재설정 토큰', icon: 'key', type: 'text', placeholder: '이메일로 받은 토큰', value: resetToken, onChange: setResetToken },
-              { label: '새 비밀번호', icon: 'lock', type: 'password', placeholder: '영문+숫자 포함 8~20자', value: newPassword, onChange: setNewPassword },
-              { label: '새 비밀번호 확인', icon: 'lock_reset', type: 'password', placeholder: '비밀번호 재입력', value: confirmPassword, onChange: setConfirmPassword },
-            ].map(({ label, icon, type, placeholder, value, onChange }) => (
+              { label: '인증번호', icon: 'key', type: 'text', name: 'resetCode', autoComplete: 'one-time-code', placeholder: '이메일로 받은 인증번호', value: resetToken, onChange: setResetToken },
+              { label: '새 비밀번호', icon: 'lock', type: 'password', name: 'newPassword', autoComplete: 'new-password', placeholder: '영문+숫자 포함 8~20자', value: newPassword, onChange: setNewPassword, show: showNewPw, toggleShow: () => setShowNewPw(v => !v) },
+              { label: '새 비밀번호 확인', icon: 'lock_reset', type: 'password', name: 'confirmNewPassword', autoComplete: 'new-password', placeholder: '비밀번호 재입력', value: confirmPassword, onChange: setConfirmPassword, show: showConfirmPw, toggleShow: () => setShowConfirmPw(v => !v) },
+            ].map(({ label, icon, type, name, autoComplete, placeholder, value, onChange, show, toggleShow }) => (
               <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>{label}</label>
                 <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>{icon}</span>
                   <input
-                    type={type}
+                    type={type === 'password' && show ? 'text' : type}
+                    name={name}
+                    autoComplete={autoComplete}
                     placeholder={placeholder}
                     value={value}
                     onChange={e => onChange(e.target.value)}
                     style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }}
                   />
+                  {type === 'password' && (
+                    <button onClick={toggleShow} type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>
+                        {show ? 'visibility_off' : 'visibility'}
+                      </span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -141,7 +163,7 @@ export default function ForgotPasswordPage() {
               disabled={isSubmitting}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Geist, monospace', fontSize: 12, color: '#5a4136', textDecoration: 'underline' }}
             >
-              토큰 다시 받기
+              인증번호 다시 받기
             </button>
           </div>
         )}

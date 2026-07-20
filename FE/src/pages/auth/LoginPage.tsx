@@ -9,7 +9,7 @@ type Tab = 'login' | 'signup'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { setAuth } = useAuthStore()
 
   const [tab, setTab] = useState<Tab>('login')
@@ -22,17 +22,28 @@ export default function LoginPage() {
   const [showSignupConfirmPw, setShowSignupConfirmPw] = useState(false)
   const [message, setMessage] = useState('')
   const [isSuccess, setIsSuccess] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<{
+    loginEmail?: string
+    loginPassword?: string
+    signupEmail?: string
+    signupNickname?: string
+  }>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSendingCode, setIsSendingCode] = useState(false)
   const [isVerifyingCode, setIsVerifyingCode] = useState(false)
+  const [nicknameChecked, setNicknameChecked] = useState(false)
+  const [isCheckingNickname, setIsCheckingNickname] = useState(false)
+  const [signupFailReason, setSignupFailReason] = useState<string | null>(null)
+  const [signupSuccessOpen, setSignupSuccessOpen] = useState(false)
+  const [loginFailReason, setLoginFailReason] = useState<string | null>(null)
 
   const [loginForm, setLoginForm] = useState({ email: '', password: '' })
   const [signupForm, setSignupForm] = useState({ nickname: '', password: '', confirmPassword: '' })
 
   useEffect(() => {
     if (searchParams.get('error') === 'oauth') {
-      setIsSuccess(false)
-      setMessage('소셜 로그인에 실패했습니다. 다시 시도해 주세요.')
+      setLoginFailReason('소셜 로그인에 실패했습니다. 다시 시도해 주세요.')
+      setSearchParams({}, { replace: true })
     }
   }, [])
 
@@ -42,21 +53,30 @@ export default function LoginPage() {
     setCodeSent(false)
     setEmailVerified(false)
     setSignupForm({ nickname: '', password: '', confirmPassword: '' })
+    setNicknameChecked(false)
     setMessage('')
+    setFieldErrors({})
   }
 
   const handleLogin = async () => {
     if (isSubmitting) return
     setMessage('')
+    setFieldErrors({})
     setIsSubmitting(true)
     try {
       const res = await authApi.login({ email: loginForm.email, password: loginForm.password })
-      const { accessToken, userId, nickname } = res.data.data
-      setAuth({ id: userId, email: loginForm.email, nickname }, accessToken)
+      const { accessToken, refreshToken, userId, nickname } = res.data.data
+      setAuth({ id: userId, email: loginForm.email, nickname }, accessToken, refreshToken)
       navigate('/')
     } catch (e: any) {
-      setIsSuccess(false)
-      setMessage(e.response?.data?.message ?? '로그인에 실패했습니다.')
+      const code = e.response?.data?.code
+      const msg = e.response?.data?.message ?? '로그인에 실패했습니다.'
+      if (code === 'A014') {
+        setFieldErrors({ loginEmail: msg })
+      } else if (code === 'A002') {
+        setFieldErrors({ loginPassword: msg })
+      }
+      setLoginFailReason(msg)
     } finally {
       setIsSubmitting(false)
     }
@@ -93,8 +113,6 @@ export default function LoginPage() {
     try {
       await authApi.verifyEmailCode(signupEmail, verifyCode)
       setEmailVerified(true)
-      setIsSuccess(true)
-      setMessage('이메일 인증 완료!')
     } catch (e: any) {
       setIsSuccess(false)
       setMessage(e.response?.data?.message ?? '인증 코드가 올바르지 않습니다.')
@@ -103,17 +121,43 @@ export default function LoginPage() {
     }
   }
 
+  const handleCheckNickname = async () => {
+    if (isCheckingNickname) return
+    if (!signupForm.nickname) {
+      setFieldErrors(fe => ({ ...fe, signupNickname: '닉네임을 입력해주세요.' }))
+      return
+    }
+    setFieldErrors(fe => ({ ...fe, signupNickname: undefined }))
+    setIsCheckingNickname(true)
+    try {
+      const res = await authApi.checkNickname(signupForm.nickname)
+      const available = res.data.data
+      setNicknameChecked(available)
+      if (!available) {
+        setFieldErrors(fe => ({ ...fe, signupNickname: '이미 사용 중인 닉네임입니다.' }))
+      }
+    } catch (e: any) {
+      setNicknameChecked(false)
+      setFieldErrors(fe => ({ ...fe, signupNickname: e.response?.data?.message ?? '중복확인에 실패했습니다.' }))
+    } finally {
+      setIsCheckingNickname(false)
+    }
+  }
+
   const handleSignup = async () => {
     if (isSubmitting) return
     setMessage('')
+    setFieldErrors({})
     if (!emailVerified) {
-      setIsSuccess(false)
-      setMessage('이메일 인증을 먼저 완료해주세요.')
+      setSignupFailReason('이메일 인증을 먼저 완료해주세요.')
+      return
+    }
+    if (!nicknameChecked) {
+      setSignupFailReason('닉네임 중복확인을 먼저 해주세요.')
       return
     }
     if (signupForm.password !== signupForm.confirmPassword) {
-      setIsSuccess(false)
-      setMessage('비밀번호가 일치하지 않습니다.')
+      setSignupFailReason('비밀번호가 일치하지 않습니다.')
       return
     }
     setIsSubmitting(true)
@@ -126,11 +170,16 @@ export default function LoginPage() {
       setTab('login')
       resetSignup()
       setLoginForm(f => ({ ...f, email: signupEmail }))
-      setIsSuccess(true)
-      setMessage('회원가입 완료! 로그인해주세요.')
+      setSignupSuccessOpen(true)
     } catch (e: any) {
-      setIsSuccess(false)
-      setMessage(e.response?.data?.message ?? '회원가입에 실패했습니다.')
+      const code = e.response?.data?.code
+      const msg = e.response?.data?.message ?? '회원가입에 실패했습니다.'
+      if (code === 'A005') {
+        setFieldErrors({ signupEmail: msg })
+      } else if (code === 'A007') {
+        setFieldErrors({ signupNickname: msg })
+      }
+      setSignupFailReason(msg)
     } finally {
       setIsSubmitting(false)
     }
@@ -192,27 +241,41 @@ export default function LoginPage() {
         {tab === 'login' && (
           <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>이메일</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>이메일</label>
+                {fieldErrors.loginEmail && (
+                  <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#ba1a1a' }}>{fieldErrors.loginEmail}</span>
+                )}
+              </div>
               <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>mail</span>
                 <input
                   type="email"
+                  name="loginEmail"
+                  autoComplete="username"
                   placeholder="example@email.com"
                   value={loginForm.email}
-                  onChange={e => setLoginForm(f => ({ ...f, email: e.target.value }))}
+                  onChange={e => { setLoginForm(f => ({ ...f, email: e.target.value })); setFieldErrors(fe => ({ ...fe, loginEmail: undefined })) }}
                   style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }}
                 />
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>비밀번호</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>비밀번호</label>
+                {fieldErrors.loginPassword && (
+                  <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#ba1a1a' }}>{fieldErrors.loginPassword}</span>
+                )}
+              </div>
               <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>lock</span>
                 <input
                   type={showPw ? 'text' : 'password'}
+                  name="loginPassword"
+                  autoComplete="current-password"
                   placeholder="비밀번호 입력"
                   value={loginForm.password}
-                  onChange={e => setLoginForm(f => ({ ...f, password: e.target.value }))}
+                  onChange={e => { setLoginForm(f => ({ ...f, password: e.target.value })); setFieldErrors(fe => ({ ...fe, loginPassword: undefined })) }}
                   onKeyDown={e => e.key === 'Enter' && handleLogin()}
                   style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }}
                 />
@@ -278,7 +341,17 @@ export default function LoginPage() {
 
             {/* 이메일 + 인증번호 발송 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>이메일</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>이메일</label>
+                {emailVerified && (
+                  <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, fontWeight: 600, color: '#0c6780' }}>
+                    이메일 인증 완료!
+                  </span>
+                )}
+                {fieldErrors.signupEmail && (
+                  <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#ba1a1a' }}>{fieldErrors.signupEmail}</span>
+                )}
+              </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <div className="window-inset" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>
@@ -286,9 +359,11 @@ export default function LoginPage() {
                   </span>
                   <input
                     type="email"
+                    name="signupEmail"
+                    autoComplete="email"
                     placeholder="이메일 주소"
                     value={signupEmail}
-                    onChange={e => { setSignupEmail(e.target.value); setCodeSent(false); setEmailVerified(false) }}
+                    onChange={e => { setSignupEmail(e.target.value); setCodeSent(false); setEmailVerified(false); setFieldErrors(fe => ({ ...fe, signupEmail: undefined })) }}
                     disabled={emailVerified}
                     onKeyDown={e => e.key === 'Enter' && !emailVerified && handleSendCode()}
                     style={{
@@ -320,6 +395,8 @@ export default function LoginPage() {
                     <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>pin</span>
                     <input
                       type="text"
+                      name="verifyCode"
+                      autoComplete="one-time-code"
                       inputMode="numeric"
                       maxLength={6}
                       placeholder="6자리 숫자"
@@ -343,16 +420,41 @@ export default function LoginPage() {
 
             {/* 닉네임 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>닉네임</label>
-              <div className="window-inset" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>badge</span>
-                <input
-                  type="text"
-                  placeholder="사용할 닉네임 (2~20자)"
-                  value={signupForm.nickname}
-                  onChange={e => setSignupForm(f => ({ ...f, nickname: e.target.value }))}
-                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }}
-                />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <label style={{ fontFamily: 'Geist, monospace', fontSize: 12, fontWeight: 600 }}>닉네임</label>
+                {nicknameChecked && (
+                  <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, fontWeight: 600, color: '#0c6780' }}>
+                    사용 가능한 닉네임입니다!
+                  </span>
+                )}
+                {fieldErrors.signupNickname && (
+                  <span style={{ fontFamily: 'Geist, monospace', fontSize: 11, color: '#ba1a1a' }}>{fieldErrors.signupNickname}</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <div className="window-inset" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>
+                    {nicknameChecked ? 'verified' : 'badge'}
+                  </span>
+                  <input
+                    type="text"
+                    name="nickname"
+                    autoComplete="off"
+                    placeholder="사용할 닉네임 (2~20자)"
+                    value={signupForm.nickname}
+                    onChange={e => { setSignupForm(f => ({ ...f, nickname: e.target.value })); setFieldErrors(fe => ({ ...fe, signupNickname: undefined })); setNicknameChecked(false) }}
+                    onKeyDown={e => e.key === 'Enter' && handleCheckNickname()}
+                    style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontFamily: 'Be Vietnam Pro', fontSize: 14 }}
+                  />
+                </div>
+                <button
+                  className="retro-btn retro-btn-primary"
+                  onClick={handleCheckNickname}
+                  disabled={isCheckingNickname}
+                  style={{ whiteSpace: 'nowrap', padding: '0 10px', fontSize: 11 }}
+                >
+                  {isCheckingNickname ? '확인 중...' : '중복확인'}
+                </button>
               </div>
             </div>
 
@@ -363,6 +465,8 @@ export default function LoginPage() {
                 <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>lock</span>
                 <input
                   type={showSignupPw ? 'text' : 'password'}
+                  name="newPassword"
+                  autoComplete="new-password"
                   placeholder="영문+숫자 포함 8~20자"
                   value={signupForm.password}
                   onChange={e => setSignupForm(f => ({ ...f, password: e.target.value }))}
@@ -383,6 +487,8 @@ export default function LoginPage() {
                 <span className="material-symbols-outlined" style={{ fontSize: 15, color: '#5a4136' }}>lock_reset</span>
                 <input
                   type={showSignupConfirmPw ? 'text' : 'password'}
+                  name="confirmPassword"
+                  autoComplete="new-password"
                   placeholder="비밀번호 재입력"
                   value={signupForm.confirmPassword}
                   onChange={e => setSignupForm(f => ({ ...f, confirmPassword: e.target.value }))}
@@ -399,7 +505,7 @@ export default function LoginPage() {
             <button
               className="retro-btn retro-btn-primary"
               onClick={handleSignup}
-              disabled={isSubmitting || !emailVerified}
+              disabled={isSubmitting || !emailVerified || !nicknameChecked}
               style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>person_add</span>
@@ -408,6 +514,88 @@ export default function LoginPage() {
           </div>
         )}
       </div>
+
+      {/* 회원가입 실패 모달 */}
+      {signupFailReason && (
+        <div className="fixed inset-0 z-[200] bg-black/40 flex items-center justify-center">
+          <div className="window-frame w-72">
+            <div className="retro-title-bar" style={{ background: '#ba1a1a', color: '#fff' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>error</span>
+              <span>회원가입 실패</span>
+            </div>
+            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <p style={{ fontFamily: 'Geist, monospace', fontSize: 13, fontWeight: 700, color: '#ba1a1a', margin: 0 }}>
+                회원가입에 실패했습니다.
+              </p>
+              <p style={{ fontFamily: 'Be Vietnam Pro', fontSize: 13, color: '#5a4136', margin: 0 }}>
+                {signupFailReason}
+              </p>
+              <button
+                className="retro-btn retro-btn-primary"
+                onClick={() => setSignupFailReason(null)}
+                style={{ width: '100%', padding: '8px 0' }}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 로그인 실패 모달 */}
+      {loginFailReason && (
+        <div className="fixed inset-0 z-[200] bg-black/40 flex items-center justify-center">
+          <div className="window-frame w-72">
+            <div className="retro-title-bar" style={{ background: '#ba1a1a', color: '#fff' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>error</span>
+              <span>로그인 실패</span>
+            </div>
+            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <p style={{ fontFamily: 'Geist, monospace', fontSize: 13, fontWeight: 700, color: '#ba1a1a', margin: 0 }}>
+                로그인에 실패했습니다.
+              </p>
+              <p style={{ fontFamily: 'Be Vietnam Pro', fontSize: 13, color: '#5a4136', margin: 0 }}>
+                {loginFailReason}
+              </p>
+              <button
+                className="retro-btn retro-btn-primary"
+                onClick={() => setLoginFailReason(null)}
+                style={{ width: '100%', padding: '8px 0' }}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 회원가입 완료 모달 */}
+      {signupSuccessOpen && (
+        <div className="fixed inset-0 z-[200] bg-black/40 flex items-center justify-center">
+          <div className="window-frame w-72">
+            <div className="retro-title-bar" style={{ background: '#0c6780', color: '#fff' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>check_circle</span>
+              <span>회원가입 완료</span>
+            </div>
+            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <p style={{ fontFamily: 'Geist, monospace', fontSize: 13, fontWeight: 700, color: '#0c6780', margin: 0 }}>
+                회원가입이 완료됐어요!
+              </p>
+              <p style={{ fontFamily: 'Be Vietnam Pro', fontSize: 13, color: '#5a4136', margin: 0 }}>
+                이제 로그인해서 CWWW를 시작해보세요.
+              </p>
+              <button
+                className="retro-btn retro-btn-primary"
+                onClick={() => setSignupSuccessOpen(false)}
+                style={{ width: '100%', padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>login</span>
+                로그인하러가기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

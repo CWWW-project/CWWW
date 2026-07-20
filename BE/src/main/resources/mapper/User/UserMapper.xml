@@ -13,6 +13,11 @@
         WHERE provider = #{provider} AND provider_id = #{providerId} AND deleted_at IS NULL
     </select>
 
+    <update id="linkOAuthProvider">
+        UPDATE users SET provider = #{provider}, provider_id = #{providerId}, updated_at = NOW()
+        WHERE user_id = #{userId} AND deleted_at IS NULL
+    </update>
+
     <update id="activateUser">
         UPDATE users SET status = 'ACTIVE', updated_at = NOW() WHERE email = #{email} AND deleted_at IS NULL
     </update>
