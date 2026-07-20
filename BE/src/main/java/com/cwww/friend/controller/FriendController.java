@@ -3,6 +3,7 @@ package com.cwww.friend.controller;
 import com.cwww.friend.dto.request.FriendAliasRequest;
 import com.cwww.friend.dto.request.FriendRequest;
 import com.cwww.friend.dto.response.FriendResponse;
+import com.cwww.friend.dto.response.FriendSendResponse;
 import com.cwww.friend.service.FriendService;
 import com.cwww.global.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -22,11 +23,11 @@ public class FriendController {
     private final FriendService friendService;
 
     @PostMapping
-    public ResponseEntity<ApiResponse<Void>> sendRequest(
+    public ResponseEntity<ApiResponse<FriendSendResponse>> sendRequest(
             @AuthenticationPrincipal Long userId,
             @Valid @RequestBody FriendRequest request) {
-        friendService.sendRequest(userId, request.getReceiverId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(null));
+        FriendSendResponse response = friendService.sendRequest(userId, request.getReceiverId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
     @PatchMapping("/{friendId}/accept")
