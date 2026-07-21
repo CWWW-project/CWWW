@@ -21,6 +21,7 @@ import VisitorPage from './pages/visitor/VisitorPage'
 import DiaryPage from './pages/post/DiaryPage'
 import PaymentSuccessPage from './pages/pay/PaymentSuccessPage'
 import PaymentFailPage from './pages/pay/PaymentFailPage'
+import AdminPaymentPage from './pages/pay/AdminPaymentPage'
 import { minihompyApi } from './api/minihompy'
 const MOBILE_TABS = [
   { icon: 'home', label: '홈', path: '/' },
@@ -171,6 +172,7 @@ function App() {
         <Route path="/shop" element={<ShopPage />} />
         <Route path="/payment/success" element={<PaymentSuccessPage />} />
         <Route path="/payment/fail" element={<PaymentFailPage />} />
+        <Route path="/admin/payments" element={user?.role === 'ADMIN' ? <AdminPaymentPage /> : <Navigate to="/" replace />} />
 
         {/* ROOM - 정용혁 */}
         <Route path="/room" element={<MiniroomPage />} />
