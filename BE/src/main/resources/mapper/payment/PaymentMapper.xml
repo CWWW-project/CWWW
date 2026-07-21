@@ -135,4 +135,13 @@
         LIMIT #{size} OFFSET #{offset}
     </select>
 
+    <select id="findOrdersByUserId" resultType="com.cwww.payment.dto.OrderHistoryResponse">
+        SELECT order_uid, acorn_amount, price, status, created_at
+        FROM orders
+        WHERE user_id = #{userId}
+          AND status != 'PENDING'
+        ORDER BY created_at DESC, order_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
 </mapper>

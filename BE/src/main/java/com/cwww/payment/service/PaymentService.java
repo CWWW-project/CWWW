@@ -16,4 +16,6 @@ public interface PaymentService {
     AcornBalanceResponse getBalance(Long userId);
 
     PaymentCancelResponse cancelPayment(Long userId, PaymentCancelRequest request);
+
+    List<OrderHistoryResponse> getOrderHistory(Long userId, int page, int size);
 }
