@@ -41,7 +41,7 @@ export const authApi = {
     api.post<ApiResponse<OAuthTokenResult>>('/auth/oauth/token', { code }),
 
   logout: () =>
-    api.post<void>('/auth/logout'),
+    api.post<void>('/auth/logout', undefined, { timeout: 5000 }),
 
   sendEmailCode: (email: string) =>
     api.post<ApiResponse<null>>('/auth/email/send', { email }),

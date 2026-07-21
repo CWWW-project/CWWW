@@ -96,6 +96,7 @@ public class AuthController {
             HttpServletRequest request,
             HttpServletResponse httpResponse) {
         if (userId == null) {
+            clearRefreshCookie(httpResponse);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         String bearer = request.getHeader("Authorization");
