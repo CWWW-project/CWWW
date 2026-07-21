@@ -210,6 +210,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
   const [friendRequestAlias, setFriendRequestAlias] = useState('일촌')
   const [friendRequestReceiverAlias, setFriendRequestReceiverAlias] = useState('일촌')
   const [isSendingRequest, setIsSendingRequest] = useState(false)
+  const [friendToast, setFriendToast] = useState<string | null>(null)
 
   // 게시글 수정 모달
   const [editingPost, setEditingPost] = useState<PostResponse | null>(null)
@@ -642,6 +643,8 @@ const profileInputRef = useRef<HTMLInputElement>(null)
       )
       setSentFriendRequestIds(prev => new Set(prev).add(friendRequestTarget.userId))
       setFriendRequestTarget(null)
+      setFriendToast('일촌 신청을 보냈습니다.')
+      setTimeout(() => setFriendToast(null), 3000)
     } catch {
       // 이미 신청했거나 이미 일촌인 경우 조용히 처리
       setFriendRequestTarget(null)
@@ -851,6 +854,14 @@ const profileInputRef = useRef<HTMLInputElement>(null)
         />
 		)}
 		
+      {/* 일촌 신청 토스트 */}
+      {friendToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] window-frame bg-[#fff7f4] text-[#1a1c1c] font-[Geist,monospace] text-[13px] font-semibold px-4 py-2 flex items-center gap-2 border-2 border-[#a33e00]">
+          <span className="material-symbols-outlined text-[#a33e00] text-sm">check_circle</span>
+          {friendToast}
+        </div>
+      )}
+
       {/* 일촌 신청 모달 */}
       {friendRequestTarget && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 px-2">

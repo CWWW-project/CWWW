@@ -48,6 +48,14 @@ export default function FriendsPage() {
     else loadPending()
   }, [tab, loadFriends, loadPending])
 
+  useEffect(() => {
+    const handler = () => {
+      if (tab === '받은 신청') loadPending()
+    }
+    window.addEventListener('cwww:friend-request-received', handler)
+    return () => window.removeEventListener('cwww:friend-request-received', handler)
+  }, [tab, loadPending])
+
   const acceptRequest = async (friendId: number) => {
     try {
       await friendApi.acceptRequest(friendId)
