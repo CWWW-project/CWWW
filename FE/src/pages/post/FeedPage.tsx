@@ -1217,7 +1217,9 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                           <div className="w-7 h-7 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex-shrink-0 flex items-center justify-center">
                             <span className="material-symbols-outlined text-[20px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
                           </div>
-                          <p className="font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c]">{f.opponentNickname}</p>
+                          <p className="font-[Geist,monospace] text-[12px] font-semibold text-[#1a1c1c]">
+                            {(() => { const alias = f.requesterId === user.id ? f.requesterAlias : f.receiverAlias; return alias ? `${alias} ` : '' })()}<span className="font-normal text-[#5a4136]">{f.opponentNickname}</span>
+                          </p>
                         </div>
                       )
                     })}
