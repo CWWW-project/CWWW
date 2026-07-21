@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { authApi } from '../../api/auth'
 import { minihompyApi } from '../../api/minihompy'
 import { guestbookApi } from '../../api/guestbook'
 import type { GuestbookResponse } from '../../types'
@@ -168,7 +169,7 @@ export default function MinihompyPage() {
 
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
-      <div className="max-w-[1024px] w-full mx-auto flex gap-0 relative z-10 px-2 md:px-0">
+      <div className="max-w-[1024px] w-full mx-auto mt-12 flex gap-0 relative z-10 px-2 md:px-0">
         <div className="window-frame p-4 w-full flex flex-col md:flex-row gap-4 border border-[#8e7164] relative">
 
           {/* 왼쪽 사이드바 */}
@@ -204,8 +205,8 @@ export default function MinihompyPage() {
                 </button>
 
                 <button
-                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                  onClick={() => {/* TODO: 일촌 신청 API 연결 */}}
+                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed"
+                  disabled
                 >
                   <span className="material-symbols-outlined text-base">person_add</span> 일촌 신청
                 </button>
@@ -221,7 +222,7 @@ export default function MinihompyPage() {
 
                 <button
                   className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ba1a1a]"
-                  onClick={() => { clearAuth(); clearMain(); navigate('/auth/login') }}
+                  onClick={async () => { try { await authApi.logout() } catch { } finally { clearAuth(); clearMain(); navigate('/auth/login') } }}
                 >
                   <span className="material-symbols-outlined text-base">logout</span> 로그아웃
                 </button>

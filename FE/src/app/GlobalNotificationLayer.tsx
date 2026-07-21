@@ -153,7 +153,7 @@ export function GlobalNotificationLayer() {
 
   return (
     <>
-      <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 1000 }}>
+      <div style={{ position: 'fixed', top: 16, right: 70, zIndex: 1000 }}>
         <button
           type="button"
           onClick={toggleNotificationPanel}
@@ -168,7 +168,7 @@ export function GlobalNotificationLayer() {
           ) : null}
         </button>
         {isNotificationPanelOpen ? (
-          <div className="retro-window retro-scrollbar" style={{ position: 'absolute', top: 44, right: 0, width: 320, maxHeight: 360, overflowY: 'auto', background: '#fff7f4', padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="retro-window retro-scrollbar" style={{ position: 'fixed', top: 60, right: 8, width: 'min(320px, calc(100vw - 16px))', maxHeight: 360, overflowY: 'auto', background: '#fff7f4', padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {notifications.length === 0 ? (
               <div style={{ padding: 12, textAlign: 'center', fontFamily: 'Be Vietnam Pro', fontSize: 12, color: '#5a4136' }}>
                 아직 받은 알림이 없습니다.

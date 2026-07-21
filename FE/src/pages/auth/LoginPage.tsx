@@ -27,8 +27,7 @@ export default function LoginPage() {
           nickname: response.data.data.nickname,
           role: response.data.data.role
         },
-        response.data.data.accessToken,
-        response.data.data.refreshToken
+        response.data.data.accessToken
       )
 
       navigate('/')
@@ -48,10 +47,11 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <div>
-            <label className="block font-[Geist,monospace] text-sm font-semibold text-[#5a4136] mb-2">
+            <label htmlFor="login-email" className="block font-[Geist,monospace] text-sm font-semibold text-[#5a4136] mb-2">
               이메일
             </label>
             <input
+              id="login-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -62,10 +62,11 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block font-[Geist,monospace] text-sm font-semibold text-[#5a4136] mb-2">
+            <label htmlFor="login-password" className="block font-[Geist,monospace] text-sm font-semibold text-[#5a4136] mb-2">
               비밀번호
             </label>
             <input
+              id="login-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
