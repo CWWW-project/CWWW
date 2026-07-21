@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { authApi } from '../../api/auth'
 import { userApi } from '../../api/user'
 import { useAuthStore } from '../../store/authStore'
+import { useMinihompyStore } from '../../store/minihompyStore'
 
 export default function AccountSettingsPage() {
   const navigate = useNavigate()
   const { user, clearAuth } = useAuthStore()
+  const { clearMain } = useMinihompyStore()
 
   useEffect(() => {
     if (!user) navigate('/auth/login')
@@ -59,6 +61,7 @@ export default function AccountSettingsPage() {
       // 서버 호출 실패해도 로컬 로그아웃은 진행
     } finally {
       clearAuth()
+      clearMain()
       navigate('/auth/login')
     }
   }
