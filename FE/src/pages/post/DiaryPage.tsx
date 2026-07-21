@@ -6,6 +6,8 @@ import type { PostResponse, CommentResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
 import UserNameLink from '../../components/UserNameLink'
 import MinihompyTabs from '../../components/MinihompyTabs'
+import { useMinihompyStore } from '../../store/minihompyStore'
+import { minihompyApi } from '../../api/minihompy'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -68,7 +70,20 @@ export default function DiaryPage() {
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState(false)
 
+  const { setMain } = useMinihompyStore()
+
   const isEditMode = editingPostId !== null
+
+
+  // 배경화면/BGM 등 미니홈피 기본 정보 조회 (없으면 새로고침 시 기본 배경으로 보임)
+  useEffect(() => {
+    if (!Number.isFinite(targetUserId)) return
+    let ignore = false
+    minihompyApi.getMinihompyMain(targetUserId)
+      .then(res => { if (!ignore) setMain(res.data.data) })
+      .catch(() => {})
+    return () => { ignore = true }
+  }, [targetUserId])
 
   // ---------------------------------------------------------------------
   // 조회: 내 글 목록 (owner) — /feed에서 내 글만 필터링해서 모음

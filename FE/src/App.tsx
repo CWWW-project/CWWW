@@ -116,6 +116,24 @@ function useMyProfileImage() {
   }, [accessToken])
 }
 
+function useMyMinihompyBackground() {
+  const setDefaultBackgroundIfUnset = useMinihompyStore(state => state.setDefaultBackgroundIfUnset)
+  const accessToken = useAuthStore(state => state.accessToken)
+
+  useEffect(() => {
+    if (!accessToken) {
+      return
+    }
+
+    let ignore = false
+    minihompyApi.getMyMinihompy()
+      .then(res => { if (!ignore) setDefaultBackgroundIfUnset(res.data.data) })
+      .catch(() => {})
+
+    return () => { ignore = true }
+  }, [accessToken])
+}
+
 function useGlobalBgm() {
   const main = useMinihompyStore(state => state.main)
 
@@ -138,6 +156,7 @@ function useGlobalBgm() {
 function App() {
   useGlobalBgm()
   useMyProfileImage()
+  useMyMinihompyBackground()
   const { user } = useAuthStore()
   return (
     <BrowserRouter>
