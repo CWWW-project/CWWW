@@ -159,6 +159,7 @@ export default function ShopPage() {
       setInventory(inventoryResponse.data.data)
       setCart([])
       setAcorns(response.data.data.remainingAcorns)
+      setAvailableBalance(response.data.data.remainingAcorns)
       setShowPayment(false)
       setToast('구매가 완료되었습니다.')
       setTimeout(() => setToast(null), 2500)
