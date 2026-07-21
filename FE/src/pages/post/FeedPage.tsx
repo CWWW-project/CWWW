@@ -15,6 +15,7 @@ import { useMinihompyStore } from '../../store/minihompyStore'
 import UserNameLink from '../../components/UserNameLink'
 import MinihompyTabs from '../../components/MinihompyTabs'
 import MoodIntroQuickEditModal from '../../components/MoodIntroQuickEditModal'
+import { deleteProfileImage, uploadProfileImage } from '../../utils/profileImage'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -627,9 +628,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
 
   const handleDeleteProfile = async () => {
     try {
-      await minihompyApi.deleteProfileImage()
-      const res = await minihompyApi.getMyMinihompy()
-      setMain(res.data.data)
+      await deleteProfileImage()
     } catch (e) {
       console.error('프로필 사진 삭제 실패', e)
       alert('프로필 사진 삭제에 실패했습니다. 다시 시도해주세요.')
@@ -637,7 +636,6 @@ const profileInputRef = useRef<HTMLInputElement>(null)
       setShowProfileMenu(false)
     }
   }
-
 
 
   const searchFriendUsers = async () => {
@@ -1171,9 +1169,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                       if (!file) return
 
                       try {
-                        await minihompyApi.uploadProfileImage(file)
-                        const res = await minihompyApi.getMyMinihompy()
-                        setMain(res.data.data)
+                        await uploadProfileImage(file)
                       } catch (err) {
                         console.error('프로필 사진 업로드 실패', err)
                         alert('프로필 사진 업로드에 실패했습니다. 다시 시도해주세요.')

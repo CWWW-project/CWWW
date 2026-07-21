@@ -22,7 +22,7 @@ export default function GuestbookPage() {
   const { userId } = useParams<{ userId: string }>()
   const isMe = userId === 'me'
 
-  const { main, setMain } = useMinihompyStore()
+  const { main, setMain, clearMain, myProfileImageUrl } = useMinihompyStore()
   const [pageLoading, setPageLoading] = useState(true)
   const [pageError, setPageError] = useState('')
 
@@ -244,7 +244,13 @@ export default function GuestbookPage() {
           <div className="window-inset border border-[#8e7164] bg-white p-2 flex flex-col gap-2">
             <div className="flex gap-2">
               <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                <span className="material-symbols-outlined text-xl text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
+                  {myProfileImageUrl ? (
+                    <img src={myProfileImageUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="material-symbols-outlined text-xl text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                  )}
+                </div>
               </div>
               <textarea
                 className="window-inset flex-1 text-[13px] p-2 focus:outline-none resize-none"

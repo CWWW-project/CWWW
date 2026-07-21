@@ -21,6 +21,7 @@ import VisitorPage from './pages/visitor/VisitorPage'
 import DiaryPage from './pages/post/DiaryPage'
 import PaymentSuccessPage from './pages/pay/PaymentSuccessPage'
 import PaymentFailPage from './pages/pay/PaymentFailPage'
+import { minihompyApi } from './api/minihompy'
 const MOBILE_TABS = [
   { icon: 'home', label: '홈', path: '/' },
   { icon: 'edit_note', label: '다이어리', pathFn: (userId?: number) => `/home/${userId ?? 'me'}` },
@@ -87,6 +88,20 @@ function TopRightSettingsButton() {
   )
 }
 
+function useMyProfileImage() {
+  const setMyProfileImageUrl = useMinihompyStore(state => state.setMyProfileImageUrl)
+
+  useEffect(() => {
+    if (!localStorage.getItem('accessToken')) {
+      setMyProfileImageUrl(null)
+      return
+    }
+    minihompyApi.getMyMinihompy()
+      .then(res => setMyProfileImageUrl(res.data.data.profileImageUrl))
+      .catch(() => setMyProfileImageUrl(null))
+  }, [])
+}
+
 function useGlobalBgm() {
   const main = useMinihompyStore(state => state.main)
 
@@ -108,6 +123,7 @@ function useGlobalBgm() {
 
 function App() {
   useGlobalBgm()
+  useMyProfileImage()
   const { user } = useAuthStore()
   return (
     <BrowserRouter>
