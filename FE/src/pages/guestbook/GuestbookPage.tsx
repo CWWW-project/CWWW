@@ -171,7 +171,7 @@ export default function GuestbookPage() {
         />
       )}
 
-      <div className="max-w-[720px] w-full mx-auto px-2">
+      <div className="max-w-[900px] w-full mx-auto px-2">
         <div className="window-frame p-4 flex flex-col gap-3 border border-[#8e7164]">
 
           {/* 헤더 — 작은 프로필 + 이름 + 기분/소개 한 줄 */}

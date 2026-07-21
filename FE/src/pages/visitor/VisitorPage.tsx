@@ -170,17 +170,23 @@ export default function VisitorPage() {
                 {visitors.map((v, idx) => (
                   <div
                     key={idx}
-                    className={`px-3 py-2.5 flex items-center gap-2${idx < visitors.length - 1 ? ' border-b border-[#f0ebe3]' : ''}`}
+                    className={`px-3 py-3 flex items-center gap-3 hover:bg-[#faf7f3] transition-colors${idx < visitors.length - 1 ? ' border-b border-[#f0ebe3]' : ''}`}
                   >
-                    <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] flex items-center justify-center">
-                      <span className="material-symbols-outlined text-[22px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
-                    </div>
-                    <span className="font-[Geist,monospace] text-[13px] font-semibold text-[#4a3728] flex-1 truncate">
-                      {v.nickname}
-                      {idx === 0 && (
-                        <span className="ml-2 bg-[#baeaff] text-[#09657f] text-[10px] px-1.5 py-0.5 rounded font-[Geist,monospace] font-normal align-middle">최근 방문</span>
+                    <div className="w-9 h-9 flex-shrink-0 rounded-full border-2 border-[#e3bfb1] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
+                      {v.profileImageUrl ? (
+                        <img src={v.profileImageUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="material-symbols-outlined text-[16px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
                       )}
-                    </span>
+                    </div>
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                      <span className="font-[Geist,monospace] text-[13px] font-bold text-[#a33e00] truncate">
+                        {v.nickname}
+                      </span>
+                      {idx === 0 && (
+                        <span className="bg-[#baeaff] text-[#09657f] text-[10px] px-1.5 py-0.5 rounded-full font-[Geist,monospace] font-semibold flex-shrink-0">최근 방문</span>
+                      )}
+                    </div>
                     <span className="font-[Geist,monospace] text-[11px] text-[#a8a8a8] flex-shrink-0">{formatTime(v.visitedAt)}</span>
                   </div>
                 ))}
