@@ -238,7 +238,7 @@ export default function MinihompyPage() {
 
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
-      <div className="max-w-[1024px] w-full mx-auto flex gap-0 relative z-10 px-2 md:px-0">
+      <div className="max-w-[1024px] w-full mx-auto mt-12 flex gap-0 relative z-10 px-2 md:px-0">
         <div className="window-frame p-4 w-full flex flex-col md:flex-row gap-4 border border-[#8e7164] relative">
 
           {/* 왼쪽 사이드바 */}

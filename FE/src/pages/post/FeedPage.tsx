@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { authApi } from '../../api/auth'
 import { postApi } from '../../api/post'
 import { commentApi } from '../../api/comment'
 import { roomApi } from '../../api/room'
@@ -157,7 +156,7 @@ function MiniroomFeedPreview({ room, nickname, today, total, bgmName }: { room: 
 export default function FeedPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, clearAuth } = useAuthStore()
+  const { user } = useAuthStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const friendToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchRequestIdRef = useRef(0)
@@ -187,7 +186,7 @@ export default function FeedPage() {
   const [roomPreview, setRoomPreview] = useState<RoomResponse | null>(null)
   const [friends, setFriends] = useState<FriendResponse[]>([])
   const [pendingFriendCount, setPendingFriendCount] = useState(0)
-const { main, setMain, clearMain } = useMinihompyStore()
+const { main, setMain } = useMinihompyStore()
 
 // 프로필 사진 메뉴(팝업) 열림/닫힘
 const [showProfileMenu, setShowProfileMenu] = useState(false)
@@ -1128,7 +1127,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
         </div>
       </header>
 
-      <div className="max-w-[1024px] w-full mx-auto mt-16 md:mt-0 flex gap-0 relative z-10 px-2 md:px-0">
+      <div className="max-w-[1024px] w-full mx-auto mt-16 md:mt-12 flex gap-0 relative z-10 px-2 md:px-0">
         <div className="window-frame p-4 w-full flex flex-col md:flex-row gap-4 border border-[#8e7164] relative">
 
           {/* 왼쪽 사이드바 */}
@@ -1203,10 +1202,6 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                   <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
                     onClick={openModal}>
                     <span className="material-symbols-outlined text-base">edit_note</span> 다이어리 쓰기
-                  </button>
-                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ba1a1a]"
-                    onClick={async () => { try { await authApi.logout() } catch { /* 서버 호출 실패해도 로컬 로그아웃은 진행 */ } finally { clearAuth(); clearMain(); navigate('/auth/login') } }}>
-                    <span className="material-symbols-outlined text-base">logout</span> 로그아웃
                   </button>
                 </div>
               </div>

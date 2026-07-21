@@ -153,7 +153,7 @@ export function GlobalNotificationLayer() {
 
   return (
     <>
-      <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 1000 }}>
+      <div style={{ position: 'fixed', top: 16, right: 70, zIndex: 1000 }}>
         <button
           type="button"
           onClick={toggleNotificationPanel}

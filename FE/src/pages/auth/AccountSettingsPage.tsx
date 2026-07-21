@@ -48,6 +48,21 @@ export default function AccountSettingsPage() {
     }
   }
 
+  const [logoutSubmitting, setLogoutSubmitting] = useState(false)
+
+  const handleLogout = async () => {
+    if (logoutSubmitting) return
+    setLogoutSubmitting(true)
+    try {
+      await authApi.logout()
+    } catch {
+      // 서버 호출 실패해도 로컬 로그아웃은 진행
+    } finally {
+      clearAuth()
+      navigate('/auth/login')
+    }
+  }
+
   const handleWithdraw = async () => {
     if (withdrawSubmitting) return
     setWithdrawMessage('')
@@ -75,6 +90,17 @@ export default function AccountSettingsPage() {
           {user.nickname}님의 계정 관리
         </p>
       </div>
+
+      {/* 로그아웃 */}
+      <button
+        className="retro-btn w-full max-w-sm"
+        onClick={handleLogout}
+        disabled={logoutSubmitting}
+        style={{ padding: '8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>logout</span>
+        {logoutSubmitting ? '로그아웃 중...' : '로그아웃'}
+      </button>
 
       {/* 비밀번호 변경 */}
       <div className="window-frame w-full max-w-sm">
