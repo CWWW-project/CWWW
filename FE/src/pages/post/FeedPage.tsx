@@ -157,6 +157,7 @@ export default function FeedPage() {
   const location = useLocation()
   const { user, clearAuth } = useAuthStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const friendToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchRequestIdRef = useRef(0)
 
   const [posts, setPosts] = useState<PostResponse[]>([])
@@ -183,6 +184,7 @@ export default function FeedPage() {
   const [searchError, setSearchError] = useState(false)
   const [roomPreview, setRoomPreview] = useState<RoomResponse | null>(null)
   const [friends, setFriends] = useState<FriendResponse[]>([])
+  const [pendingFriendCount, setPendingFriendCount] = useState(0)
 const { main, setMain, clearMain } = useMinihompyStore()
 
 // 프로필 사진 메뉴(팝업) 열림/닫힘
@@ -210,6 +212,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
   const [friendRequestAlias, setFriendRequestAlias] = useState('일촌')
   const [friendRequestReceiverAlias, setFriendRequestReceiverAlias] = useState('일촌')
   const [isSendingRequest, setIsSendingRequest] = useState(false)
+  const [friendToast, setFriendToast] = useState<string | null>(null)
 
   // 게시글 수정 모달
   const [editingPost, setEditingPost] = useState<PostResponse | null>(null)
@@ -292,14 +295,40 @@ const profileInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
     if (!user) {
       setFriends([])
+      setPendingFriendCount(0)
       return
     }
     let ignore = false
     friendApi.getFriends()
       .then(res => { if (!ignore) setFriends(res.data.data) })
       .catch(() => { if (!ignore) setFriends([]) })
+    friendApi.getPendingRequests()
+      .then(res => { if (!ignore) setPendingFriendCount(res.data.data.length) })
+      .catch(() => { if (!ignore) setPendingFriendCount(0) })
     return () => { ignore = true }
   }, [user?.id])
+
+  useEffect(() => {
+    let requestId = 0
+    const handler = () => {
+      const id = ++requestId
+      friendApi.getPendingRequests()
+        .then(res => { if (id === requestId) setPendingFriendCount(res.data.data.length) })
+        .catch(() => {})
+    }
+    window.addEventListener('cwww:friend-request-received', handler)
+    return () => window.removeEventListener('cwww:friend-request-received', handler)
+  }, [])
+
+  useEffect(() => {
+    const handler = () => {
+      friendApi.getFriends()
+        .then(res => setFriends(res.data.data))
+        .catch(() => {})
+    }
+    window.addEventListener('cwww:friend-accepted', handler)
+    return () => window.removeEventListener('cwww:friend-accepted', handler)
+  }, [])
 
   const toggleLike = async (postId: number) => {
     if (pendingLikeIds.has(postId)) return
@@ -642,6 +671,9 @@ const profileInputRef = useRef<HTMLInputElement>(null)
       )
       setSentFriendRequestIds(prev => new Set(prev).add(friendRequestTarget.userId))
       setFriendRequestTarget(null)
+      if (friendToastTimerRef.current) clearTimeout(friendToastTimerRef.current)
+      setFriendToast('일촌 신청을 보냈습니다.')
+      friendToastTimerRef.current = setTimeout(() => setFriendToast(null), 3000)
     } catch {
       // 이미 신청했거나 이미 일촌인 경우 조용히 처리
       setFriendRequestTarget(null)
@@ -851,6 +883,14 @@ const profileInputRef = useRef<HTMLInputElement>(null)
         />
 		)}
 		
+      {/* 일촌 신청 토스트 */}
+      {friendToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] window-frame bg-[#fff7f4] text-[#1a1c1c] font-[Geist,monospace] text-[13px] font-semibold px-4 py-2 flex items-center gap-2 border-2 border-[#a33e00]">
+          <span className="material-symbols-outlined text-[#a33e00] text-sm">check_circle</span>
+          {friendToast}
+        </div>
+      )}
+
       {/* 일촌 신청 모달 */}
       {friendRequestTarget && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 px-2">
@@ -1227,10 +1267,13 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                 </div>
 
                 <button
-                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                  onClick={() => navigate('/friends')}
+                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 relative"
+                  onClick={() => { setPendingFriendCount(0); navigate('/friends') }}
                 >
                   <span className="material-symbols-outlined text-base">group</span> 일촌 관리
+                  {pendingFriendCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#ba1a1a] text-white font-[Geist,monospace] text-[10px] min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center">{pendingFriendCount}</span>
+                  )}
                 </button>
               </>
             )}

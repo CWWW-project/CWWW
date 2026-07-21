@@ -96,6 +96,13 @@ export function GlobalNotificationLayer() {
 
         setNotifications((prev) => [notification, ...prev.filter((item) => item.id !== notification.id)])
 
+        if (payload.eventType === 'FRIEND_REQUEST') {
+          window.dispatchEvent(new CustomEvent('cwww:friend-request-received'))
+        }
+        if (payload.eventType === 'FRIEND_ACCEPT') {
+          window.dispatchEvent(new CustomEvent('cwww:friend-accepted'))
+        }
+
         if (location.pathname === '/chat' && payload.eventType === 'CHAT_NOTIFICATION') {
           return
         }
