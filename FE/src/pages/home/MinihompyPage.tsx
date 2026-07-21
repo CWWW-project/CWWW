@@ -214,7 +214,7 @@ export default function MinihompyPage() {
                 {user?.role === 'ADMIN' && (
                   <button
                     className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ff6b00]"
-                    onClick={() => navigate('/admin')}
+                    onClick={() => navigate('/admin/payments')}
                   >
                     <span className="material-symbols-outlined text-base">admin_panel_settings</span> 관리자 페이지
                   </button>
