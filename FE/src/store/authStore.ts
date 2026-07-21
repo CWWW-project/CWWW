@@ -9,9 +9,8 @@ export interface User {
 interface AuthState {
   user: User | null
   accessToken: string | null
-  refreshToken: string | null
-  setAuth: (user: User, accessToken: string, refreshToken?: string | null) => void
-  setAccessToken: (accessToken: string, refreshToken?: string | null) => void
+  setAuth: (user: User, accessToken: string) => void
+  setAccessToken: (accessToken: string) => void
   clearAuth: () => void
 }
 
@@ -34,26 +33,22 @@ function getStoredUser(): User | null {
 export const useAuthStore = create<AuthState>((set) => ({
   user: getStoredUser(),
   accessToken: localStorage.getItem('accessToken'),
-  refreshToken: localStorage.getItem('refreshToken'),
-  setAuth: (user, accessToken, refreshToken) => {
+  setAuth: (user, accessToken) => {
     localStorage.setItem('accessToken', accessToken)
     localStorage.setItem('userId', String(user.id))
     localStorage.setItem('userEmail', user.email)
     localStorage.setItem('userNickname', user.nickname)
-    if (refreshToken) localStorage.setItem('refreshToken', refreshToken)
-    set({ user, accessToken, refreshToken: refreshToken ?? null })
+    set({ user, accessToken })
   },
-  setAccessToken: (accessToken, refreshToken) => {
+  setAccessToken: (accessToken) => {
     localStorage.setItem('accessToken', accessToken)
-    if (refreshToken) localStorage.setItem('refreshToken', refreshToken)
-    set(state => ({ accessToken, refreshToken: refreshToken ?? state.refreshToken }))
+    set({ accessToken })
   },
   clearAuth: () => {
     localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
     localStorage.removeItem('userId')
     localStorage.removeItem('userEmail')
     localStorage.removeItem('userNickname')
-    set({ user: null, accessToken: null, refreshToken: null })
+    set({ user: null, accessToken: null })
   },
 }))

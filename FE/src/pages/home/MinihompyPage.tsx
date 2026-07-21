@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { authApi } from '../../api/auth'
 import { minihompyApi } from '../../api/minihompy'
 import { guestbookApi } from '../../api/guestbook'
 import type { FriendResponse, GuestbookResponse } from '../../types'
@@ -300,7 +301,7 @@ export default function MinihompyPage() {
 
                 <button
                   className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ba1a1a]"
-                  onClick={() => { clearAuth(); clearMain(); navigate('/auth/login') }}
+                  onClick={async () => { try { await authApi.logout() } catch { /* 서버 호출 실패해도 로컬 로그아웃은 진행 */ } finally { clearAuth(); clearMain(); navigate('/auth/login') } }}
                 >
                   <span className="material-symbols-outlined text-base">logout</span> 로그아웃
                 </button>
