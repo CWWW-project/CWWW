@@ -170,7 +170,7 @@ export default function MinihompyPage() {
 
   // 일촌 관계 확인 — 이미 일촌인지, 신청 대기중인지 판단
   useEffect(() => {
-    if (!main || main.owner) return
+    if (!main || main.owner || !user) return
     setFriendStatusLoading(true)
     let ignore = false
     Promise.all([friendApi.getFriends(), friendApi.getPendingRequests()])
@@ -205,7 +205,7 @@ export default function MinihompyPage() {
       .finally(() => { if (!ignore) setFriendStatusLoading(false) })
 
     return () => { ignore = true }
-  }, [main?.ownerId, main?.owner])
+  }, [main?.ownerId, main?.owner, user?.id])
 
   // 일촌 신청 함수
   const sendFriendRequest = async () => {
@@ -274,40 +274,34 @@ export default function MinihompyPage() {
                   <span className="material-symbols-outlined text-base">home</span> 내 홈피 가기
                 </button>
 
-                {friendStatusLoading ? (
-                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed" disabled>
-                    확인 중...
-                  </button>
-                ) : friendStatus === 'FRIEND' ? (
-                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed text-[#0c6780]" disabled>
-                    <span className="material-symbols-outlined text-base">how_to_reg</span> 이미 일촌입니다
-                  </button>
-                ) : friendStatus === 'PENDING_SENT' ? (
-                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed" disabled>
-                    <span className="material-symbols-outlined text-base">hourglass_empty</span> 신청 완료
-                  </button>
-                ) : friendStatus === 'PENDING_RECEIVED' ? (
-                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed" disabled>
-                    <span className="material-symbols-outlined text-base">mail</span> 일촌 신청이 도착했어요
-                  </button>
-                ) : (
-                  <button
-                    className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                    onClick={sendFriendRequest}
-                    disabled={sendingRequest}
-                  >
-                    <span className="material-symbols-outlined text-base">person_add</span> {sendingRequest ? '신청 중...' : '일촌 신청'}
-                  </button>
+                {!main.owner && user && (
+                  friendStatusLoading ? (
+                    <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed" disabled>
+                      확인 중...
+                    </button>
+                  ) : friendStatus === 'FRIEND' ? (
+                    <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed text-[#0c6780]" disabled>
+                      <span className="material-symbols-outlined text-base">how_to_reg</span> 이미 일촌입니다
+                    </button>
+                  ) : friendStatus === 'PENDING_SENT' ? (
+                    <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed" disabled>
+                      <span className="material-symbols-outlined text-base">hourglass_empty</span> 신청 완료
+                    </button>
+                  ) : friendStatus === 'PENDING_RECEIVED' ? (
+                    <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed" disabled>
+                      <span className="material-symbols-outlined text-base">mail</span> 일촌 신청이 도착했어요
+                    </button>
+                  ) : (
+                    <button
+                      className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
+                      onClick={sendFriendRequest}
+                      disabled={sendingRequest}
+                    >
+                      <span className="material-symbols-outlined text-base">person_add</span> {sendingRequest ? '신청 중...' : '일촌 신청'}
+                    </button>
+                  )
                 )}
-
-                {user?.role === 'ADMIN' && (
-                  <button
-                    className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ff6b00]"
-                    onClick={() => navigate('/admin')}
-                  >
-                    <span className="material-symbols-outlined text-base">admin_panel_settings</span> 관리자 페이지
-                  </button>
-                )}
+                
               </div>
             </div>
           </aside>

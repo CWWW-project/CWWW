@@ -118,10 +118,12 @@ function useMyProfileImage() {
 
 function useMyMinihompyBackground() {
   const setDefaultBackgroundIfUnset = useMinihompyStore(state => state.setDefaultBackgroundIfUnset)
+  const clearMain = useMinihompyStore(state => state.clearMain)
   const accessToken = useAuthStore(state => state.accessToken)
 
   useEffect(() => {
     if (!accessToken) {
+      clearMain()
       return
     }
 

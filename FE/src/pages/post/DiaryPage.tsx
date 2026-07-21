@@ -677,8 +677,7 @@ export default function DiaryPage() {
                                 key={url}
                                 src={url}
                                 alt=""
-                                className="shadow-sm cursor-pointer hover:opacity-80 transition"
-                                style={{ width: 220, height: 'auto' }}
+                                className="w-full max-w-[220px] h-auto shadow-sm cursor-pointer hover:opacity-80 transition"
                                 onClick={() => setLightbox({ urls: post.mediaUrls, index: i })}
                               />
                             ))}
