@@ -20,6 +20,7 @@ import VisitorPage from './pages/visitor/VisitorPage'
 import DiaryPage from './pages/post/DiaryPage'
 import PaymentSuccessPage from './pages/pay/PaymentSuccessPage'
 import PaymentFailPage from './pages/pay/PaymentFailPage'
+import AdminPaymentPage from './pages/pay/AdminPaymentPage'
 const MOBILE_TABS = [
   { icon: 'home', label: '홈', path: '/' },
   { icon: 'edit_note', label: '다이어리', pathFn: (userId?: number) => `/home/${userId ?? 'me'}` },
@@ -139,6 +140,7 @@ function App() {
         <Route path="/shop" element={<ShopPage />} />
         <Route path="/payment/success" element={<PaymentSuccessPage />} />
         <Route path="/payment/fail" element={<PaymentFailPage />} />
+        <Route path="/admin/payments" element={<AdminPaymentPage />} />
 
         {/* ROOM - 정용혁 */}
         <Route path="/room" element={<MiniroomPage />} />

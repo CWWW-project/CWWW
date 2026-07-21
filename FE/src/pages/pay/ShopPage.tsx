@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { cartApi } from '../../api/cart'
 import { itemApi } from '../../api/item'
+import { getBalance } from '../../api/payment'
+import { useAuthStore } from '../../store/authStore'
 import type { CartItemResponse, InventoryItemResponse, ItemResponse } from '../../types'
 import AcornChargeModal from '../../components/AcornChargeModal'
 
@@ -39,6 +42,8 @@ const visualForCategory = (category: string) => {
 }
 
 export default function ShopPage() {
+  const navigate = useNavigate()
+  const authStore = useAuthStore()
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('ALL')
   const [items, setItems] = useState<ItemResponse[]>([])
   const [cart, setCart] = useState<CartItemResponse[]>([])
@@ -74,12 +79,14 @@ export default function ShopPage() {
         return
       }
 
-      const [cartResponse, inventoryResponse] = await Promise.all([
+      const [cartResponse, inventoryResponse, balanceResponse] = await Promise.all([
         cartApi.getCart(),
         itemApi.getInventory(),
+        getBalance(),
       ])
       setCart(cartResponse.data.data)
       setInventory(inventoryResponse.data.data)
+      setAcorns(balanceResponse.balance)
     } catch {
       setError('상점 정보를 불러오지 못했습니다.')
     } finally {
@@ -142,6 +149,8 @@ export default function ShopPage() {
     }
   }
 
+  const isAdmin = authStore.user?.role === 'ADMIN' || localStorage.getItem('userRole') === 'ADMIN'
+
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
       <div className="max-w-[1100px] w-full mx-auto flex gap-0 relative z-10 px-2 md:px-0">
@@ -149,9 +158,13 @@ export default function ShopPage() {
           <div className="retro-title-bar -mx-4 -mt-4 mb-0">
             <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>storefront</span>
             미니룸 상점
-            <button className="retro-btn ml-auto px-2 py-1 text-[11px]" onClick={() => void loadShop()}>
-              새로고침
-            </button>
+            <div className="flex gap-1 ml-auto">
+              <button className="retro-btn px-2 py-1 text-[11px]" onClick={() => navigate('/home')}>🏠 미니홈피</button>
+              {isAdmin && (
+                <button className="retro-btn px-2 py-1 text-[11px]" onClick={() => navigate('/admin/payments')}>👮 관리자</button>
+              )}
+              <button className="retro-btn px-2 py-1 text-[11px]" onClick={() => void loadShop()}>새로고침</button>
+            </div>
           </div>
 
           <div className="flex flex-col md:flex-row gap-4 mt-2">
