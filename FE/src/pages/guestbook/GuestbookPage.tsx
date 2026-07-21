@@ -8,6 +8,7 @@ import { useMinihompyStore } from '../../store/minihompyStore'
 import ProfileImageMenuModal from '../../components/ProfileImageMenuModal'
 import UserNameLink from '../../components/UserNameLink'
 import { deleteProfileImage, uploadProfileImage } from '../../utils/profileImage'
+import MinihompyTabs from '../../components/MinihompyTabs'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -171,8 +172,8 @@ export default function GuestbookPage() {
         />
       )}
 
-      <div className="max-w-[900px] w-full mx-auto px-2">
-        <div className="window-frame p-4 flex flex-col gap-3 border border-[#8e7164]">
+      <div className="max-w-[1024px] w-full mx-auto flex gap-0 relative z-10 px-2 md:px-0">
+        <div className="window-frame p-4 w-full flex flex-col gap-3 border border-[#8e7164] relative">
 
           {/* 헤더 — 작은 프로필 + 이름 + 기분/소개 한 줄 */}
           <div className="flex items-center gap-3">
@@ -241,13 +242,11 @@ export default function GuestbookPage() {
           <div className="window-inset border border-[#8e7164] bg-white p-2 flex flex-col gap-2">
             <div className="flex gap-2">
               <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                  {myProfileImageUrl ? (
-                    <img src={myProfileImageUrl} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="material-symbols-outlined text-xl text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
-                  )}
-                </div>
+                {myProfileImageUrl ? (
+                  <img src={myProfileImageUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="material-symbols-outlined text-xl text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                )}
               </div>
               <textarea
                 className="window-inset flex-1 text-[13px] p-2 focus:outline-none resize-none"
@@ -377,6 +376,10 @@ export default function GuestbookPage() {
             <span className="material-symbols-outlined text-sm align-middle">arrow_back</span> 뒤로가기
           </button>
         </div>
+
+        <nav className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
+          <MinihompyTabs owner={main.owner} ownerId={main.ownerId} />
+        </nav>
       </div>
     </div>
   )

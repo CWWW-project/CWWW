@@ -5,6 +5,7 @@ import { commentApi } from '../../api/comment'
 import type { PostResponse, CommentResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
 import UserNameLink from '../../components/UserNameLink'
+import MinihompyTabs from '../../components/MinihompyTabs'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -547,8 +548,8 @@ export default function DiaryPage() {
         </div>
       )}
 
-      <div className="max-w-[900px] w-full mx-auto px-2">
-        <div className="window-frame p-4 flex flex-col gap-3 border border-[#8e7164]">
+      <div className="max-w-[1024px] w-full mx-auto flex gap-0 relative z-10 px-2 md:px-0">
+        <div className="window-frame p-4 w-full flex flex-col gap-3 border border-[#8e7164] relative">
 
           <div className="flex items-center justify-between">
             <h2 className="font-['Bricolage_Grotesque',sans-serif] text-[20px] font-bold text-[#a33e00] flex items-center gap-1">
@@ -731,7 +732,11 @@ export default function DiaryPage() {
           <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-3 py-2 self-start" onClick={() => navigate(-1)}>
             <span className="material-symbols-outlined text-sm align-middle">arrow_back</span> 뒤로가기
           </button>
-        </div>
+          </div>
+
+          <nav className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
+            <MinihompyTabs owner={isOwner} ownerId={targetUserId} />
+          </nav>
       </div>
     </div>
   )
