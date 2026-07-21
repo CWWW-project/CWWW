@@ -207,7 +207,8 @@ const profileInputRef = useRef<HTMLInputElement>(null)
   const [sentFriendRequestIds, setSentFriendRequestIds] = useState<Set<number>>(new Set())
   const [hashtagSearchInput, setHashtagSearchInput] = useState('')
   const [friendRequestTarget, setFriendRequestTarget] = useState<UserSearchResponse | null>(null)
-  const [friendRequestAlias, setFriendRequestAlias] = useState('')
+  const [friendRequestAlias, setFriendRequestAlias] = useState('일촌')
+  const [friendRequestReceiverAlias, setFriendRequestReceiverAlias] = useState('일촌')
   const [isSendingRequest, setIsSendingRequest] = useState(false)
 
   // 게시글 수정 모달
@@ -626,18 +627,19 @@ const profileInputRef = useRef<HTMLInputElement>(null)
 
   const openFriendRequestModal = (target: UserSearchResponse) => {
     setFriendRequestTarget(target)
-    setFriendRequestAlias('')
+    setFriendRequestAlias('일촌')
+    setFriendRequestReceiverAlias('일촌')
   }
 
   const confirmSendFriendRequest = async () => {
     if (!friendRequestTarget) return
     setIsSendingRequest(true)
     try {
-      const res = await friendApi.sendRequest(friendRequestTarget.userId)
-      const { friendId } = res.data.data
-      if (friendRequestAlias.trim()) {
-        await friendApi.setAlias(friendId, friendRequestAlias.trim())
-      }
+      await friendApi.sendRequest(
+        friendRequestTarget.userId,
+        friendRequestAlias.trim() || '일촌',
+        friendRequestReceiverAlias.trim() || '일촌',
+      )
       setSentFriendRequestIds(prev => new Set(prev).add(friendRequestTarget.userId))
       setFriendRequestTarget(null)
     } catch {
@@ -862,19 +864,33 @@ const profileInputRef = useRef<HTMLInputElement>(null)
               <p className="font-[Geist,monospace] text-[13px] text-[#1a1c1c] text-center">
                 <span className="font-bold text-[#a33e00]">{friendRequestTarget.nickname}</span>님께 일촌을 신청합니다.
               </p>
-              <div className="window-inset p-3 flex flex-col gap-2 bg-white">
-                <label className="font-[Geist,monospace] text-[12px] text-[#5a4136]">
-                  {friendRequestTarget.nickname}님을 나의 일촌으로 부를 이름
-                </label>
-                <input
-                  className="window-inset p-2 font-[Geist,monospace] text-[13px] w-full"
-                  placeholder="일촌명 (선택)"
-                  value={friendRequestAlias}
-                  onChange={e => setFriendRequestAlias(e.target.value)}
-                  maxLength={20}
-                />
-                <p className="font-[Geist,monospace] text-[10px] text-[#8e7164]">비워두면 닉네임으로 표시됩니다.</p>
+              <div className="window-inset p-3 flex flex-col gap-3 bg-white">
+                <div className="flex flex-col gap-1">
+                  <label className="font-[Geist,monospace] text-[12px] text-[#5a4136]">
+                    내가 <span className="font-bold text-[#a33e00]">{friendRequestTarget.nickname}</span>님을 부를 이름
+                  </label>
+                  <input
+                    className="window-inset p-2 font-[Geist,monospace] text-[13px] w-full"
+                    placeholder="일촌"
+                    value={friendRequestAlias}
+                    onChange={e => setFriendRequestAlias(e.target.value)}
+                    maxLength={20}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-[Geist,monospace] text-[12px] text-[#5a4136]">
+                    <span className="font-bold text-[#a33e00]">{friendRequestTarget.nickname}</span>님이 나를 부를 이름
+                  </label>
+                  <input
+                    className="window-inset p-2 font-[Geist,monospace] text-[13px] w-full"
+                    placeholder="일촌"
+                    value={friendRequestReceiverAlias}
+                    onChange={e => setFriendRequestReceiverAlias(e.target.value)}
+                    maxLength={20}
+                  />
+                </div>
               </div>
+              <p className="font-[Geist,monospace] text-[10px] text-[#8e7164] text-center">기본값은 '일촌'이며, 수락 후 언제든 변경할 수 있어요.</p>
               <p className="font-[Geist,monospace] text-[11px] text-[#5a4136] text-center">상대방이 수락하면 일촌이 맺어집니다.</p>
               <div className="flex gap-2 mt-1">
                 <button
