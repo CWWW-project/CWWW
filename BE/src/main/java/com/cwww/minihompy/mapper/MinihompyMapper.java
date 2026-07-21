@@ -36,4 +36,6 @@ public interface MinihompyMapper {
 	// 회원 탈퇴 시 미니홈피 소프트 삭제 (auth 팀에서 탈퇴 처리 시 호출)
 	int softDeleteByUserId(@Param("userId") Long userId);
 
+	String selectBgmNameByOwnerId(@Param("ownerId") Long ownerId);
+
 }

@@ -14,6 +14,7 @@
 		<result property="mood" column="mood"/>
 		<result property="accessLevel" column="access_level"/>
 		<result property="createdAt" column="created_at"/>
+		<result property="bgmName" column="bgm_name"/>
 		<result property="bgmUrl" column="bgm_url"/>
 		<result property="backgroundColor" column="background_color"/>
 		<result property="backgroundImageUrl" column="background_image_url"/>
@@ -105,5 +106,16 @@
 		WHERE user_id = #{userId}
 		AND deleted_at IS NULL
 	</update>
+
+	<!-- 미니홈피에 현재 적용된 BGM의 곡 이름만 별도 조회 (media_id -> item 연결) -->
+	<select id="selectBgmNameByOwnerId" resultType="String">
+		SELECT i.name
+		FROM minihompy m
+		JOIN media bgm ON bgm.media_id = m.media_id
+		JOIN item i ON i.item_id = bgm.target_id
+		AND bgm.target_type = 'BGM'
+		WHERE m.user_id = #{ownerId}
+		AND m.deleted_at IS NULL
+	</select>
 
 </mapper>

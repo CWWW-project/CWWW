@@ -7,6 +7,7 @@ interface Props {
   main: MinihompyMainResponse | null
   onBgmChanged: (bgmUrl: string | null) => void
   onTrackNameChange?: (name: string | null) => void
+  readOnly?: boolean
 }
 
 function MarqueeText({ text }: { text: string }) {
@@ -33,7 +34,7 @@ function MarqueeText({ text }: { text: string }) {
   )
 }
 
-export default function BgmPlayer({ main, onBgmChanged, onTrackNameChange }: Props) {
+export default function BgmPlayer({ main, onBgmChanged, onTrackNameChange, readOnly }: Props) {
   const audio = getAudioElement()
 
   const [isPlaying, setIsPlaying] = useState(!audio.paused)
@@ -44,6 +45,7 @@ export default function BgmPlayer({ main, onBgmChanged, onTrackNameChange }: Pro
 
   // 곡 이름 조회만 (재생 트리거는 절대 안 함 — App.tsx가 유일한 트리거)
   useEffect(() => {
+    if (readOnly) return
     if (!main?.bgmUrl) {
       onTrackNameChange?.(null)
       return
@@ -53,7 +55,7 @@ export default function BgmPlayer({ main, onBgmChanged, onTrackNameChange }: Pro
       const applied = res.data.data.find(o => o.applied)
       onTrackNameChange?.(applied?.name ?? null)
     })
-  }, [main?.bgmUrl])
+  }, [main?.bgmUrl, readOnly])
 
   // 실제 오디오의 재생 상태를 버튼 아이콘에 동기화
   useEffect(() => {
@@ -114,15 +116,17 @@ export default function BgmPlayer({ main, onBgmChanged, onTrackNameChange }: Pro
     <div className="flex items-center gap-2 bg-[#f9f9f9] window-inset px-2 py-1 relative">
       <span className="material-symbols-outlined text-sm text-[#a33e00]">music_note</span>
       <div className="w-36 overflow-hidden">
-        <MarqueeText text={main?.bgmUrl ? (currentTrackName ?? 'BGM 재생 중') : 'BGM이 설정되지 않았습니다'} />
+        <MarqueeText text={main?.bgmUrl ? (readOnly ? (main.bgmName ?? 'BGM 재생 중') : (currentTrackName ?? 'BGM 재생 중')) : 'BGM이 설정되지 않았습니다'} />
       </div>
       <div className="flex gap-1">
         <button className="retro-btn p-1" onClick={togglePlay} disabled={!main?.bgmUrl || !audio.src}>
           <span className="material-symbols-outlined text-[12px]">{isPlaying ? 'pause' : 'play_arrow'}</span>
         </button>
-        <button className="retro-btn p-1" onClick={openBgmList}>
-          <span className="material-symbols-outlined text-[12px]">queue_music</span>
-        </button>
+        {!readOnly && (
+          <button className="retro-btn p-1" onClick={openBgmList}>
+            <span className="material-symbols-outlined text-[12px]">queue_music</span>
+          </button>
+        )}
         <input
           type="range"
           min={0}
@@ -135,7 +139,7 @@ export default function BgmPlayer({ main, onBgmChanged, onTrackNameChange }: Pro
         />
       </div>
 
-      {showBgmList && (
+      {!readOnly && showBgmList && (
         <div className="absolute top-full right-0 mt-1 w-64 window-frame bg-[#f9f9f9] z-50 max-h-64 overflow-y-auto">
           <div className="bg-[#e2e2e2] px-2 py-1 border-b border-[#8e7164] font-[Geist,monospace] text-[11px] font-bold text-[#1a1c1c]">
             보유 BGM
