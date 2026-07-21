@@ -213,13 +213,14 @@ export default function ShopPage() {
           <div className="retro-title-bar -mx-4 -mt-4 mb-0">
             <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>storefront</span>
             미니룸 상점
-            <div className="flex gap-1 ml-auto">
-              <button className="retro-btn px-2 py-1 text-[11px]" onClick={() => navigate('/home')}>🏠 미니홈피</button>
-              {isAdmin && (
-                <button className="retro-btn px-2 py-1 text-[11px]" onClick={() => navigate('/admin/payments')}>👮 관리자</button>
-              )}
-              <button className="retro-btn px-2 py-1 text-[11px]" onClick={() => void loadShop()}>새로고침</button>
-            </div>
+          </div>
+
+          <div className="flex gap-1 justify-end">
+            <button className="retro-btn px-2 py-1 text-[11px]" onClick={() => navigate('/home')}>🏠 미니홈피</button>
+            {isAdmin && (
+              <button className="retro-btn px-2 py-1 text-[11px]" onClick={() => navigate('/admin/payments')}>👮 관리자</button>
+            )}
+            <button className="retro-btn px-2 py-1 text-[11px]" onClick={() => void loadShop()}>새로고침</button>
           </div>
 
           <div className="flex flex-col md:flex-row gap-4 mt-2">
