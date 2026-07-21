@@ -377,9 +377,9 @@ export default function GuestbookPage() {
           </button>
         </div>
 
-        <nav className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
+        <div className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
           <MinihompyTabs owner={main.owner} ownerId={main.ownerId} />
-        </nav>
+        </div>
       </div>
     </div>
   )
