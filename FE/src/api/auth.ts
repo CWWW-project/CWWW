@@ -15,7 +15,9 @@ export interface SignupBody {
 export interface LoginResult {
   accessToken: string
   userId: number
+  email: string
   nickname: string
+  role: string
 }
 
 export interface SignupResult {

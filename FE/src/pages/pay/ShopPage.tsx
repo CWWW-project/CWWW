@@ -79,14 +79,13 @@ export default function ShopPage() {
         return
       }
 
-      const [cartResponse, inventoryResponse, balanceResponse] = await Promise.all([
+      const [cartResponse, inventoryResponse] = await Promise.all([
         cartApi.getCart(),
         itemApi.getInventory(),
-        getBalance(),
       ])
       setCart(cartResponse.data.data)
       setInventory(inventoryResponse.data.data)
-      setAcorns(balanceResponse.balance)
+      getBalance().then(res => setAcorns(res.balance)).catch(() => {})
     } catch {
       setError('상점 정보를 불러오지 못했습니다.')
     } finally {
@@ -149,7 +148,7 @@ export default function ShopPage() {
     }
   }
 
-  const isAdmin = authStore.user?.role === 'ADMIN' || localStorage.getItem('userRole') === 'ADMIN'
+  const isAdmin = authStore.user?.role === 'ADMIN'
 
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
