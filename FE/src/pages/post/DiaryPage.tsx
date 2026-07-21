@@ -6,6 +6,8 @@ import type { PostResponse, CommentResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
 import UserNameLink from '../../components/UserNameLink'
 import MinihompyTabs from '../../components/MinihompyTabs'
+import { useMinihompyStore } from '../../store/minihompyStore'
+import { minihompyApi } from '../../api/minihompy'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -68,7 +70,20 @@ export default function DiaryPage() {
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState(false)
 
+  const { setMain } = useMinihompyStore()
+
   const isEditMode = editingPostId !== null
+
+
+  // 배경화면/BGM 등 미니홈피 기본 정보 조회 (없으면 새로고침 시 기본 배경으로 보임)
+  useEffect(() => {
+    if (!Number.isFinite(targetUserId)) return
+    let ignore = false
+    minihompyApi.getMinihompyMain(targetUserId)
+      .then(res => { if (!ignore) setMain(res.data.data) })
+      .catch(() => {})
+    return () => { ignore = true }
+  }, [targetUserId])
 
   // ---------------------------------------------------------------------
   // 조회: 내 글 목록 (owner) — /feed에서 내 글만 필터링해서 모음
@@ -592,7 +607,7 @@ export default function DiaryPage() {
         </div>
       )}
 
-      <div className="max-w-[1024px] w-full mx-auto flex gap-0 relative z-10 px-2 md:px-0">
+      <div className="max-w-[1024px] w-full mx-auto mt-12 md:mt-8 flex gap-0 relative z-10 px-2 md:px-0">
         <div className="window-frame p-4 w-full flex flex-col gap-3 border border-[#8e7164] relative">
 
           <div className="flex items-center justify-between">
@@ -625,8 +640,8 @@ export default function DiaryPage() {
                 const liked = likedPostIds.has(post.postId)
                 const bookmarked = bookmarkedPostIds.has(post.postId)
                 return (
-                  <div key={post.postId} className={`p-2 flex flex-col gap-2${idx < posts.length - 1 ? ' border-b border-[#e3bfb1]' : ''}`}>
-                    <div className="flex gap-2 items-start">
+                  <div key={post.postId} className={`p-5 flex flex-col gap-3${idx < posts.length - 1 ? ' border-b border-[#e3bfb1]' : ''}`}>
+                    <div className="flex gap-3 items-start">
                       <div className="w-10 h-10 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
                         {post.profileImageUrl ? (
                           <img src={post.profileImageUrl} alt="" className="w-full h-full object-cover" />
@@ -656,13 +671,13 @@ export default function DiaryPage() {
                           </div>
                         )}
                         {post.mediaUrls.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
+                          <div className="mt-2 flex flex-col items-start gap-1">
                             {post.mediaUrls.map((url, i) => (
                               <img
                                 key={url}
                                 src={url}
                                 alt=""
-                                className="w-20 h-20 object-cover border border-[#8e7164] cursor-pointer hover:opacity-80 transition"
+                                className="w-full max-w-[220px] h-auto shadow-sm cursor-pointer hover:opacity-80 transition"
                                 onClick={() => setLightbox({ urls: post.mediaUrls, index: i })}
                               />
                             ))}
