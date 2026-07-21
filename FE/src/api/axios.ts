@@ -22,12 +22,10 @@ export function refreshAccessToken(): Promise<string | null> {
 }
 
 async function doRefresh(): Promise<string | null> {
-  const refreshToken = localStorage.getItem('refreshToken')
-  if (!refreshToken) return null
   try {
-    const res = await axios.post('/api/auth/refresh', { refreshToken })
-    const { accessToken, refreshToken: newRefreshToken } = res.data.data
-    useAuthStore.getState().setAccessToken(accessToken, newRefreshToken)
+    const res = await axios.post('/api/auth/refresh', {}, { withCredentials: true })
+    const { accessToken } = res.data.data
+    useAuthStore.getState().setAccessToken(accessToken)
     return accessToken
   } catch {
     return null
