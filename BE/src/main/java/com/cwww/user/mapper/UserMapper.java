@@ -17,6 +17,7 @@ public interface UserMapper {
     String findNicknameById(Long userId);
     List<User> findByIds(@Param("userIds") List<Long> userIds);
     User findByProviderAndProviderId(@Param("provider") String provider, @Param("providerId") String providerId);
+    int linkOAuthProvider(@Param("userId") Long userId, @Param("provider") String provider, @Param("providerId") String providerId);
 
     List<User> searchByNickname(@Param("keyword") String keyword, @Param("limit") int limit);
     int activateUser(@Param("email") String email);

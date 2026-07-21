@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
+import { authApi } from '../../api/auth'
 import { minihompyApi } from '../../api/minihompy'
 import type { MinihompyMainResponse, VisitorLogResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
@@ -7,6 +8,7 @@ import { useMinihompyStore } from '../../store/minihompyStore'
 import { parseMoodEmoji } from '../../utils/mood'
 import MinihompyTabs from '../../components/MinihompyTabs'
 import MoodIntroQuickEditModal from '../../components/MoodIntroQuickEditModal'
+import UserNameLink from '../../components/UserNameLink'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -130,7 +132,7 @@ export default function VisitorPage() {
                   <span className="material-symbols-outlined text-base">home</span> 내 홈피 가기
                 </button>
                 <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ba1a1a]"
-                  onClick={() => { clearAuth(); clearMain(); navigate('/auth/login') }}>
+                  onClick={async () => { try { await authApi.logout() } catch { /* 서버 호출 실패해도 로컬 로그아웃은 진행 */ } finally { clearAuth(); clearMain(); navigate('/auth/login') } }}>
                   <span className="material-symbols-outlined text-base">logout</span> 로그아웃
                 </button>
               </div>
@@ -140,7 +142,7 @@ export default function VisitorPage() {
           {/* 메인 콘텐츠 — 방문자 목록 */}
           <main className="flex-1 flex flex-col gap-2 min-w-0">
             <div className="window-frame p-1 bg-[#eeeeee] flex items-center justify-between">
-              <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">{main.nickname}님의 미니홈피</div>
+              <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">{main.nickname}님의 미니홈피 방문자</div>
             </div>
 
             <div className="window-inset border border-[#8e7164] flex-1 flex flex-col bg-white">
@@ -170,17 +172,25 @@ export default function VisitorPage() {
                 {visitors.map((v, idx) => (
                   <div
                     key={idx}
-                    className={`px-3 py-2.5 flex items-center gap-2${idx < visitors.length - 1 ? ' border-b border-[#f0ebe3]' : ''}`}
+                    className={`px-3 py-3 flex items-center gap-3 hover:bg-[#faf7f3] transition-colors${idx < visitors.length - 1 ? ' border-b border-[#f0ebe3]' : ''}`}
                   >
-                    <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] flex items-center justify-center">
-                      <span className="material-symbols-outlined text-[22px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
-                    </div>
-                    <span className="font-[Geist,monospace] text-[13px] font-semibold text-[#4a3728] flex-1 truncate">
-                      {v.nickname}
-                      {idx === 0 && (
-                        <span className="ml-2 bg-[#baeaff] text-[#09657f] text-[10px] px-1.5 py-0.5 rounded font-[Geist,monospace] font-normal align-middle">최근 방문</span>
+                    <div className="w-9 h-9 flex-shrink-0 rounded-full border-2 border-[#e3bfb1] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
+                      {v.profileImageUrl ? (
+                        <img src={v.profileImageUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="material-symbols-outlined text-[16px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
                       )}
-                    </span>
+                    </div>
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                      <UserNameLink
+                        userId={v.visitorId}
+                        nickname={v.nickname}
+                        className="font-[Geist,monospace] text-[13px] font-bold text-[#a33e00] truncate cursor-pointer hover:underline"
+                      />
+                      {idx === 0 && (
+                        <span className="bg-[#baeaff] text-[#09657f] text-[10px] px-1.5 py-0.5 rounded-full font-[Geist,monospace] font-semibold flex-shrink-0">최근 방문</span>
+                      )}
+                    </div>
                     <span className="font-[Geist,monospace] text-[11px] text-[#a8a8a8] flex-shrink-0">{formatTime(v.visitedAt)}</span>
                   </div>
                 ))}

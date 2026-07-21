@@ -17,6 +17,7 @@ public enum ErrorCode {
 
     // Auth
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "A001", "사용자를 찾을 수 없습니다."),
+    EMAIL_NOT_FOUND(HttpStatus.NOT_FOUND, "A014", "존재하지 않는 이메일입니다."),
     INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "A002", "비밀번호가 올바르지 않습니다."),
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "A003", "유효하지 않은 토큰입니다."),
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "A004", "만료된 토큰입니다."),
@@ -29,7 +30,8 @@ public enum ErrorCode {
     OAUTH_CODE_INVALID(HttpStatus.BAD_REQUEST, "A011", "유효하지 않거나 만료된 OAuth 코드입니다."),
     INVALID_RESET_TOKEN(HttpStatus.BAD_REQUEST, "A012", "유효하지 않은 재설정 토큰입니다."),
     EXPIRED_RESET_TOKEN(HttpStatus.BAD_REQUEST, "A013", "만료된 재설정 토큰입니다."),
-
+    SOCIAL_LOGIN_REQUIRED(HttpStatus.CONFLICT, "A015", "소셜 로그인으로 가입된 계정이에요. '구글로 시작하기' 또는 'GitHub으로 시작하기'를 이용해주세요."),
+    TOO_MANY_RESET_ATTEMPTS(HttpStatus.TOO_MANY_REQUESTS, "A016", "비밀번호 재설정 시도 횟수를 초과했습니다. 잠시 후 다시 시도해주세요."),
 
     // Media
     INVALID_FILE_EXTENSION(HttpStatus.BAD_REQUEST, "M001", "허용되지 않는 파일 확장자입니다."),

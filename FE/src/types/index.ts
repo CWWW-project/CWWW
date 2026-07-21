@@ -202,6 +202,7 @@ export interface MinihompyMainResponse {
   mood: string | null
   accessLevel: AccessLevel
   createdAt: string
+  bgmName: string | null
   bgmUrl: string | null
   backgroundColor: string | null
   backgroundImageUrl: string | null
@@ -256,5 +257,7 @@ export interface GuestbookFeedResponse {
 
 export interface VisitorLogResponse {
   nickname: string
+  profileImageUrl: string | null
+  visitorId: number
   visitedAt: string
 }

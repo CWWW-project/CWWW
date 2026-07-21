@@ -6,6 +6,8 @@ import type { GuestbookResponse } from '../../types'
 import { parseMoodEmoji } from '../../utils/mood'
 import { useMinihompyStore } from '../../store/minihompyStore'
 import ProfileImageMenuModal from '../../components/ProfileImageMenuModal'
+import UserNameLink from '../../components/UserNameLink'
+import { deleteProfileImage, uploadProfileImage } from '../../utils/profileImage'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -21,7 +23,7 @@ export default function GuestbookPage() {
   const { userId } = useParams<{ userId: string }>()
   const isMe = userId === 'me'
 
-  const { main, setMain } = useMinihompyStore()
+  const { main, setMain, clearMain, myProfileImageUrl } = useMinihompyStore()
   const [pageLoading, setPageLoading] = useState(true)
   const [pageError, setPageError] = useState('')
 
@@ -65,9 +67,7 @@ export default function GuestbookPage() {
 
   const handleDeleteProfile = async () => {
     try {
-      await minihompyApi.deleteProfileImage()
-      const res = await minihompyApi.getMyMinihompy()
-      setMain(res.data.data)
+      await deleteProfileImage()
     } catch (e) {
       console.error('프로필 사진 삭제 실패', e)
       alert('프로필 사진 삭제에 실패했습니다. 다시 시도해주세요.')
@@ -171,7 +171,7 @@ export default function GuestbookPage() {
         />
       )}
 
-      <div className="max-w-[720px] w-full mx-auto px-2">
+      <div className="max-w-[900px] w-full mx-auto px-2">
         <div className="window-frame p-4 flex flex-col gap-3 border border-[#8e7164]">
 
           {/* 헤더 — 작은 프로필 + 이름 + 기분/소개 한 줄 */}
@@ -196,9 +196,7 @@ export default function GuestbookPage() {
                     const file = e.target.files?.[0]
                     if (!file) return
                     try {
-                      await minihompyApi.uploadProfileImage(file)
-                      const res = await minihompyApi.getMyMinihompy()
-                      setMain(res.data.data)
+                      await uploadProfileImage(file)
                     } catch (err) {
                       console.error('프로필 사진 업로드 실패', err)
                       alert('프로필 사진 업로드에 실패했습니다. 다시 시도해주세요.')
@@ -243,7 +241,13 @@ export default function GuestbookPage() {
           <div className="window-inset border border-[#8e7164] bg-white p-2 flex flex-col gap-2">
             <div className="flex gap-2">
               <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                <span className="material-symbols-outlined text-xl text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
+                  {myProfileImageUrl ? (
+                    <img src={myProfileImageUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="material-symbols-outlined text-xl text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                  )}
+                </div>
               </div>
               <textarea
                 className="window-inset flex-1 text-[13px] p-2 focus:outline-none resize-none"
@@ -287,7 +291,11 @@ export default function GuestbookPage() {
                   {/* 상단 바 — 번호 + 닉네임 + 날짜 */}
                   <div className="bg-[#f3f3f3] px-3 py-1.5 flex items-center gap-2 border-b border-[#e3bfb1]">
                     <span className="font-[Geist,monospace] text-[11px] text-[#8e7164]">NO.{entry.guestbookId}</span>
-                    <span className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00]">{entry.writerNickname}</span>
+                    <UserNameLink
+                      userId={entry.writerId}
+                      nickname={entry.writerNickname}
+                      className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00] cursor-pointer hover:underline"
+                    />
                     {entry.isSecret && (
                       <span
                         className="material-symbols-outlined text-[#5a4136]"

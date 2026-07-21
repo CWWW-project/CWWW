@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { authApi } from '../../api/auth'
 import { postApi } from '../../api/post'
 import { commentApi } from '../../api/comment'
 import { roomApi } from '../../api/room'
@@ -15,6 +16,7 @@ import { useMinihompyStore } from '../../store/minihompyStore'
 import UserNameLink from '../../components/UserNameLink'
 import MinihompyTabs from '../../components/MinihompyTabs'
 import MoodIntroQuickEditModal from '../../components/MoodIntroQuickEditModal'
+import { deleteProfileImage, uploadProfileImage } from '../../utils/profileImage'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -157,6 +159,7 @@ export default function FeedPage() {
   const location = useLocation()
   const { user, clearAuth } = useAuthStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const friendToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchRequestIdRef = useRef(0)
 
   const [posts, setPosts] = useState<PostResponse[]>([])
@@ -183,6 +186,7 @@ export default function FeedPage() {
   const [searchError, setSearchError] = useState(false)
   const [roomPreview, setRoomPreview] = useState<RoomResponse | null>(null)
   const [friends, setFriends] = useState<FriendResponse[]>([])
+  const [pendingFriendCount, setPendingFriendCount] = useState(0)
 const { main, setMain, clearMain } = useMinihompyStore()
 
 // 프로필 사진 메뉴(팝업) 열림/닫힘
@@ -210,6 +214,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
   const [friendRequestAlias, setFriendRequestAlias] = useState('일촌')
   const [friendRequestReceiverAlias, setFriendRequestReceiverAlias] = useState('일촌')
   const [isSendingRequest, setIsSendingRequest] = useState(false)
+  const [friendToast, setFriendToast] = useState<string | null>(null)
 
   // 게시글 수정 모달
   const [editingPost, setEditingPost] = useState<PostResponse | null>(null)
@@ -292,14 +297,40 @@ const profileInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
     if (!user) {
       setFriends([])
+      setPendingFriendCount(0)
       return
     }
     let ignore = false
     friendApi.getFriends()
       .then(res => { if (!ignore) setFriends(res.data.data) })
       .catch(() => { if (!ignore) setFriends([]) })
+    friendApi.getPendingRequests()
+      .then(res => { if (!ignore) setPendingFriendCount(res.data.data.length) })
+      .catch(() => { if (!ignore) setPendingFriendCount(0) })
     return () => { ignore = true }
   }, [user?.id])
+
+  useEffect(() => {
+    let requestId = 0
+    const handler = () => {
+      const id = ++requestId
+      friendApi.getPendingRequests()
+        .then(res => { if (id === requestId) setPendingFriendCount(res.data.data.length) })
+        .catch(() => {})
+    }
+    window.addEventListener('cwww:friend-request-received', handler)
+    return () => window.removeEventListener('cwww:friend-request-received', handler)
+  }, [])
+
+  useEffect(() => {
+    const handler = () => {
+      friendApi.getFriends()
+        .then(res => setFriends(res.data.data))
+        .catch(() => {})
+    }
+    window.addEventListener('cwww:friend-accepted', handler)
+    return () => window.removeEventListener('cwww:friend-accepted', handler)
+  }, [])
 
   const toggleLike = async (postId: number) => {
     if (pendingLikeIds.has(postId)) return
@@ -598,9 +629,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
 
   const handleDeleteProfile = async () => {
     try {
-      await minihompyApi.deleteProfileImage()
-      const res = await minihompyApi.getMyMinihompy()
-      setMain(res.data.data)
+      await deleteProfileImage()
     } catch (e) {
       console.error('프로필 사진 삭제 실패', e)
       alert('프로필 사진 삭제에 실패했습니다. 다시 시도해주세요.')
@@ -608,7 +637,6 @@ const profileInputRef = useRef<HTMLInputElement>(null)
       setShowProfileMenu(false)
     }
   }
-
 
 
   const searchFriendUsers = async () => {
@@ -642,6 +670,9 @@ const profileInputRef = useRef<HTMLInputElement>(null)
       )
       setSentFriendRequestIds(prev => new Set(prev).add(friendRequestTarget.userId))
       setFriendRequestTarget(null)
+      if (friendToastTimerRef.current) clearTimeout(friendToastTimerRef.current)
+      setFriendToast('일촌 신청을 보냈습니다.')
+      friendToastTimerRef.current = setTimeout(() => setFriendToast(null), 3000)
     } catch {
       // 이미 신청했거나 이미 일촌인 경우 조용히 처리
       setFriendRequestTarget(null)
@@ -851,6 +882,14 @@ const profileInputRef = useRef<HTMLInputElement>(null)
         />
 		)}
 		
+      {/* 일촌 신청 토스트 */}
+      {friendToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] window-frame bg-[#fff7f4] text-[#1a1c1c] font-[Geist,monospace] text-[13px] font-semibold px-4 py-2 flex items-center gap-2 border-2 border-[#a33e00]">
+          <span className="material-symbols-outlined text-[#a33e00] text-sm">check_circle</span>
+          {friendToast}
+        </div>
+      )}
+
       {/* 일촌 신청 모달 */}
       {friendRequestTarget && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 px-2">
@@ -1131,9 +1170,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                       if (!file) return
 
                       try {
-                        await minihompyApi.uploadProfileImage(file)
-                        const res = await minihompyApi.getMyMinihompy()
-                        setMain(res.data.data)
+                        await uploadProfileImage(file)
                       } catch (err) {
                         console.error('프로필 사진 업로드 실패', err)
                         alert('프로필 사진 업로드에 실패했습니다. 다시 시도해주세요.')
@@ -1168,7 +1205,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                     <span className="material-symbols-outlined text-base">edit_note</span> 다이어리 쓰기
                   </button>
                   <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ba1a1a]"
-                    onClick={() => { clearAuth(); clearMain(); navigate('/auth/login') }}>
+                    onClick={async () => { try { await authApi.logout() } catch { /* 서버 호출 실패해도 로컬 로그아웃은 진행 */ } finally { clearAuth(); clearMain(); navigate('/auth/login') } }}>
                     <span className="material-symbols-outlined text-base">logout</span> 로그아웃
                   </button>
                 </div>
@@ -1227,10 +1264,13 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                 </div>
 
                 <button
-                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                  onClick={() => navigate('/friends')}
+                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 relative"
+                  onClick={() => { setPendingFriendCount(0); navigate('/friends') }}
                 >
                   <span className="material-symbols-outlined text-base">group</span> 일촌 관리
+                  {pendingFriendCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#ba1a1a] text-white font-[Geist,monospace] text-[10px] min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center">{pendingFriendCount}</span>
+                  )}
                 </button>
               </>
             )}

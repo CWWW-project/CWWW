@@ -6,6 +6,9 @@ interface MinihompyState {
   main: MinihompyMainResponse | null
   setMain: (main: MinihompyMainResponse | null) => void
   clearMain: () => void
+  myProfileImageUrl: string | null
+  myProfileImageVersion: number
+  setMyProfileImageUrl: (url: string | null) => void
 }
 
 function applyBackground(main: MinihompyMainResponse | null) {
@@ -37,7 +40,11 @@ export const useMinihompyStore = create<MinihompyState>((set) => ({
   },
   clearMain: () => {
     applyBackground(null)
-    stopAudio()   // 추가: 배경 초기화와 함께 오디오도 정지
+    stopAudio()
     set({ main: null })
   },
+  myProfileImageUrl: null,
+  myProfileImageVersion: 0,
+  setMyProfileImageUrl: (url) =>
+    set(state => ({ myProfileImageUrl: url, myProfileImageVersion: state.myProfileImageVersion + 1 })),
 }))

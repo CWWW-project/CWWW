@@ -14,7 +14,6 @@ export interface SignupBody {
 
 export interface LoginResult {
   accessToken: string
-  refreshToken: string
   userId: number
   nickname: string
 }
@@ -41,11 +40,17 @@ export const authApi = {
   exchangeOAuthCode: (code: string) =>
     api.post<ApiResponse<OAuthTokenResult>>('/auth/oauth/token', { code }),
 
+  logout: () =>
+    api.post<void>('/auth/logout', undefined, { timeout: 5000 }),
+
   sendEmailCode: (email: string) =>
     api.post<ApiResponse<null>>('/auth/email/send', { email }),
 
   verifyEmailCode: (email: string, code: string) =>
     api.post<ApiResponse<null>>('/auth/email/verify', { email, code }),
+
+  checkNickname: (nickname: string) =>
+    api.get<ApiResponse<boolean>>('/auth/nickname/check', { params: { nickname } }),
 
   forgotPassword: (email: string) =>
     api.post<ApiResponse<null>>('/auth/password/forgot', { email }),
