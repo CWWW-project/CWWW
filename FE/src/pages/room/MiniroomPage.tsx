@@ -1,12 +1,13 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { itemApi } from '../../api/item'
 import { roomApi } from '../../api/room'
-import type { InventoryItemResponse, RoomItemResponse } from '../../types'
+import type { InventoryItemResponse, RoomItemResponse, SaveRoomRequest } from '../../types'
 
 const ASSET_ROOT = '/miniroom-assets'
 
 type Placement = 'floor' | 'wall'
-type PaletteTab = 'owned' | 'furniture' | 'wall' | 'background'
+type PaletteTab = 'basic' | 'owned' | 'avatar' | 'background'
 
 interface BackgroundDef {
   id: string
@@ -14,6 +15,8 @@ interface BackgroundDef {
   src: string
   width: number
   height: number
+  inventoryId?: number
+  assetKey?: string | null
 }
 
 interface CatalogItem {
@@ -43,17 +46,19 @@ interface PlacedItem {
 }
 
 const backgrounds: BackgroundDef[] = [
-  { id: 'pink', name: '핑크룸', src: `${ASSET_ROOT}/rooms/room-pink.svg`, width: 750, height: 606 },
-  { id: 'blue', name: '블루룸', src: `${ASSET_ROOT}/rooms/room-blue.svg`, width: 750, height: 606 },
-  { id: 'green', name: '그린룸', src: `${ASSET_ROOT}/rooms/room-green.svg`, width: 750, height: 606 },
-  { id: 'lab', name: '랩룸', src: `${ASSET_ROOT}/rooms/room-lab.svg`, width: 750, height: 606 },
   { id: 'classic', name: '클래식', src: `${ASSET_ROOT}/backgrounds/bg_room.png`, width: 750, height: 606 },
   { id: 'grass', name: '잔디', src: `${ASSET_ROOT}/backgrounds/bg_grass.png`, width: 750, height: 612 },
   { id: 'space', name: '우주', src: `${ASSET_ROOT}/backgrounds/bg_universe.png`, width: 750, height: 606 },
 ]
 
-const showcaseCatalog: CatalogItem[] = [
-  { key: 'avatar-basic', name: '미니미', src: `${ASSET_ROOT}/avatars-grafxkid/grafxkid_avatar_01.png`, width: 36, height: 56, placement: 'floor', category: 'AVATAR', sample: true },
+const basicAvatarCatalog: CatalogItem[] = [
+  { key: 'avatar-mint', name: '민트 기본 아바타', src: `${ASSET_ROOT}/avatars/avatar_02_mint.png`, width: 48, height: 72, placement: 'floor', category: 'AVATAR', sample: true },
+  { key: 'avatar-rose', name: '로즈 기본 아바타', src: `${ASSET_ROOT}/avatars/avatar_01_rose.png`, width: 48, height: 72, placement: 'floor', category: 'AVATAR', sample: true },
+  { key: 'avatar-sky', name: '스카이 기본 아바타', src: `${ASSET_ROOT}/avatars/avatar_03_sky.png`, width: 48, height: 72, placement: 'floor', category: 'AVATAR', sample: true },
+]
+
+const basicCatalog: CatalogItem[] = [
+  ...basicAvatarCatalog,
   { key: 'sofa-blue', name: '블루 소파', src: `${ASSET_ROOT}/items/sofa_blue.png`, width: 126, height: 126, placement: 'floor', category: 'MINIROOM', sample: true },
   { key: 'wood-desk', name: '원목 책상', src: `${ASSET_ROOT}/kenney/isometric/desk_SE.png`, width: 85, height: 88, placement: 'floor', category: 'MINIROOM', sample: true },
   { key: 'desk-chair', name: '책상 의자', src: `${ASSET_ROOT}/kenney/isometric/chairDesk_SE.png`, width: 57, height: 72, placement: 'floor', category: 'MINIROOM', sample: true },
@@ -71,26 +76,28 @@ const showcaseCatalog: CatalogItem[] = [
   { key: 'wall-clock', name: '벽시계', src: `${ASSET_ROOT}/items/clock_wall_simple.png`, width: 96, height: 96, placement: 'wall', category: 'MINIROOM', sample: true },
 ]
 
-const starterScene: PlacedItem[] = [
-  { id: 'scene-window', catalogKey: 'window', x: 92, y: 96, scale: 1.1, rotation: 0, flipped: false, sortOrder: 5, locked: false, sample: true },
-  { id: 'scene-frame', catalogKey: 'wall-frame', x: 376, y: 42, scale: 0.78, rotation: 0, flipped: false, sortOrder: 6, locked: false, sample: true },
-  { id: 'scene-door', catalogKey: 'door', x: 650, y: 250, scale: 1.05, rotation: 0, flipped: false, sortOrder: 7, locked: false, sample: true },
-  { id: 'scene-desk', catalogKey: 'wood-desk', x: 128, y: 338, scale: 1.25, rotation: 0, flipped: false, sortOrder: 20, locked: false, sample: true },
-  { id: 'scene-computer', catalogKey: 'computer', x: 160, y: 303, scale: 1.12, rotation: 0, flipped: false, sortOrder: 21, locked: false, sample: true },
-  { id: 'scene-keyboard', catalogKey: 'keyboard', x: 175, y: 350, scale: 1, rotation: 0, flipped: false, sortOrder: 22, locked: false, sample: true },
-  { id: 'scene-chair', catalogKey: 'desk-chair', x: 232, y: 378, scale: 1.05, rotation: 0, flipped: false, sortOrder: 24, locked: false, sample: true },
-  { id: 'scene-bookcase', catalogKey: 'bookcase', x: 354, y: 206, scale: 1.2, rotation: 0, flipped: false, sortOrder: 25, locked: false, sample: true },
-  { id: 'scene-rug', catalogKey: 'rug', x: 286, y: 424, scale: 1.28, rotation: 0, flipped: false, sortOrder: 26, locked: false, sample: true },
-  { id: 'scene-bed', catalogKey: 'bed-blue', x: 492, y: 336, scale: 1.28, rotation: 0, flipped: false, sortOrder: 30, locked: false, sample: true },
-  { id: 'scene-bear', catalogKey: 'bear', x: 640, y: 348, scale: 1.22, rotation: 0, flipped: false, sortOrder: 36, locked: false, sample: true },
-  { id: 'scene-lamp', catalogKey: 'floor-lamp', x: 475, y: 255, scale: 0.68, rotation: 0, flipped: false, sortOrder: 37, locked: false, sample: true },
-  { id: 'scene-avatar', catalogKey: 'avatar-basic', x: 318, y: 438, scale: 1.34, rotation: 0, flipped: false, sortOrder: 40, locked: false, sample: true },
-]
+const defaultAvatar: PlacedItem = {
+  id: 'default-avatar',
+  catalogKey: 'avatar-rose',
+  x: 318,
+  y: 438,
+  scale: 1,
+  rotation: 0,
+  flipped: false,
+  sortOrder: 40,
+  locked: false,
+  sample: true,
+}
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
 const nextId = () => `local-${Date.now()}-${Math.round(Math.random() * 100000)}`
 
+const isBackgroundCategory = (category?: string) => category === 'BACKGROUND' || category === 'MINIROOM_BACKGROUND'
+
+const isAvatarCategory = (category?: string) => category === 'AVATAR'
+
+// 배경의 원근선에 맞춰 가운데는 높게, 양 끝은 낮게 바닥 시작점을 계산한다.
 const floorLineAt = (x: number, bg: BackgroundDef) => {
   const center = bg.width / 2
   const edgeY = bg.height * 0.73
@@ -118,6 +125,7 @@ const visualForInventory = (item: InventoryItemResponse): CatalogItem => {
     }
   }
 
+  // 이전 상품 데이터에 assetUrl이 없을 때도 꾸미기 화면이 깨지지 않도록 대표 이미지를 연결한다.
   const name = item.name.toLowerCase()
   if (item.category === 'AVATAR' || name.includes('minime')) {
     return { key: `owned-${item.inventoryId}`, name: item.name, src: `${ASSET_ROOT}/avatars-grafxkid/grafxkid_avatar_01.png`, width: 36, height: 56, placement: 'floor', inventoryId: item.inventoryId, category: item.category }
@@ -134,25 +142,41 @@ const visualForInventory = (item: InventoryItemResponse): CatalogItem => {
   return { key: `owned-${item.inventoryId}`, name: item.name, src: `${ASSET_ROOT}/kenney/isometric/cardboardBoxClosed_SE.png`, width: 32, height: 39, placement: 'floor', inventoryId: item.inventoryId, category: item.category }
 }
 
+const backgroundForCatalogItem = (item: CatalogItem): BackgroundDef => ({
+  id: item.key,
+  name: item.name,
+  src: item.src,
+  width: item.width,
+  height: item.height,
+  inventoryId: item.inventoryId,
+  assetKey: item.key,
+})
+
 const normalizePosition = (item: RoomItemResponse) => {
   return { x: item.posX, y: item.posY }
 }
 
 export default function MiniroomPage() {
+  const navigate = useNavigate()
   const canvasRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null)
-  const [backgroundId, setBackgroundId] = useState('pink')
+  const [backgroundId, setBackgroundId] = useState('classic')
   const [ownedCatalog, setOwnedCatalog] = useState<CatalogItem[]>([])
-  const [items, setItems] = useState<PlacedItem[]>(starterScene)
+  const [items, setItems] = useState<PlacedItem[]>([defaultAvatar])
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<PaletteTab>('furniture')
+  const [activeTab, setActiveTab] = useState<PaletteTab>('basic')
   const [savedAt, setSavedAt] = useState('아직 저장 전')
   const [notice, setNotice] = useState<string | null>(null)
 
-  const background = backgrounds.find(bg => bg.id === backgroundId) ?? backgrounds[0]
+  const ownedBackgrounds = useMemo(
+    () => ownedCatalog.filter(item => isBackgroundCategory(item.category)).map(backgroundForCatalogItem),
+    [ownedCatalog],
+  )
+  const backgroundCatalog = useMemo(() => [...backgrounds, ...ownedBackgrounds], [ownedBackgrounds])
+  const background = backgroundCatalog.find(bg => bg.id === backgroundId) ?? backgroundCatalog[0]
   const catalog = useMemo(() => {
     const map = new Map<string, CatalogItem>()
-    showcaseCatalog.forEach(item => map.set(item.key, item))
+    basicCatalog.forEach(item => map.set(item.key, item))
     ownedCatalog.forEach(item => map.set(item.key, item))
     return [...map.values()]
   }, [ownedCatalog])
@@ -160,10 +184,11 @@ export default function MiniroomPage() {
   const selected = items.find(item => item.id === selectedId) ?? null
   const selectedDef = selected ? itemMap.get(selected.catalogKey) : null
 
-  const ownedItems = ownedCatalog.filter(item => item.category !== 'BACKGROUND' && item.category !== 'MINIROOM_BACKGROUND')
-  const furnitureItems = showcaseCatalog.filter(item => item.placement === 'floor' && item.category !== 'AVATAR')
-  const wallItems = showcaseCatalog.filter(item => item.placement === 'wall')
+  const ownedItems = ownedCatalog.filter(item => !isBackgroundCategory(item.category) && !isAvatarCategory(item.category))
+  const ownedAvatarItems = ownedCatalog.filter(item => isAvatarCategory(item.category))
+  const basicItems = basicCatalog.filter(item => !isAvatarCategory(item.category))
 
+  // 벽 장식과 바닥 가구가 각자 배치 가능한 영역을 벗어나지 않도록 좌표를 제한한다.
   const constrainPosition = useCallback((rawX: number, rawY: number, placed: PlacedItem, def: CatalogItem) => {
     const scaledW = def.width * placed.scale
     const scaledH = def.height * placed.scale
@@ -189,31 +214,33 @@ export default function MiniroomPage() {
       try {
         const inventoryResponse = await itemApi.getInventory()
         const nextOwned = inventoryResponse.data.data.map(visualForInventory)
-        setOwnedCatalog(nextOwned)
+        const nextBackgrounds = nextOwned.filter(item => isBackgroundCategory(item.category)).map(backgroundForCatalogItem)
 
         try {
           const roomResponse = await roomApi.getMyRoom()
           const ownedByInventory = new Map(nextOwned.map(item => [item.inventoryId, item]))
+          const snapshotDefs: CatalogItem[] = []
           const serverItems = roomResponse.data.data.items.map(roomItem => {
-            const def = ownedByInventory.get(roomItem.userInventoryId) ?? visualForInventory({
-              inventoryId: roomItem.userInventoryId,
-              itemId: roomItem.itemId,
-              category: roomItem.category,
+            // 보유함에서 찾지 못한 기본 장식은 서버가 내려준 스냅샷으로 카탈로그를 복원한다.
+            const def = roomItem.userInventoryId
+              ? ownedByInventory.get(roomItem.userInventoryId)
+              : null
+            const catalogDef = def ?? {
+              key: roomItem.assetKey ? `snapshot-${roomItem.roomItemId}-${roomItem.assetKey}` : `snapshot-${roomItem.roomItemId}`,
               name: roomItem.name,
-              description: roomItem.description,
-              price: 0,
-              assetKey: roomItem.assetKey,
-              assetUrl: roomItem.assetUrl,
-              assetWidth: roomItem.assetWidth,
-              assetHeight: roomItem.assetHeight,
-              placementType: roomItem.placementType,
-              acquiredAt: '',
-            })
+              src: roomItem.assetUrl ?? '',
+              width: roomItem.assetWidth ?? 80,
+              height: roomItem.assetHeight ?? 80,
+              placement: roomItem.placementType === 'WALL' ? 'wall' as const : 'floor' as const,
+              category: roomItem.category,
+              sample: true,
+            }
+            if (!def) snapshotDefs.push(catalogDef)
             const position = normalizePosition(roomItem)
             return {
               id: `room-${roomItem.roomItemId}`,
-              catalogKey: def.key,
-              userInventoryId: roomItem.userInventoryId,
+              catalogKey: catalogDef.key,
+              userInventoryId: roomItem.userInventoryId ?? undefined,
               x: position.x,
               y: position.y,
               scale: Number(roomItem.scale ?? 1),
@@ -224,19 +251,55 @@ export default function MiniroomPage() {
             }
           })
 
-          const roomBackground = backgrounds.find(bg => bg.src === roomResponse.data.data.backgroundAssetUrl || bg.id === roomResponse.data.data.backgroundAssetKey)
+          const roomBackground = [...backgrounds, ...nextBackgrounds].find(bg =>
+            bg.inventoryId === roomResponse.data.data.backgroundInventoryId
+            || bg.src === roomResponse.data.data.backgroundAssetUrl
+            || bg.id === roomResponse.data.data.backgroundAssetKey
+            || bg.assetKey === roomResponse.data.data.backgroundAssetKey
+          )
           if (roomBackground) setBackgroundId(roomBackground.id)
 
-          if (serverItems.length > 0) {
-            setItems([...starterScene.filter(item => item.sample), ...serverItems])
+          const avatar = roomResponse.data.data.avatar
+          const avatarDef = avatar?.avatarInventoryId
+            ? ownedByInventory.get(avatar.avatarInventoryId)
+            : avatar?.assetUrl
+              ? {
+                key: avatar.assetKey ?? 'snapshot-avatar',
+                name: '저장된 기본 아바타',
+                src: avatar.assetUrl,
+                width: avatar.assetWidth ?? 48,
+                height: avatar.assetHeight ?? 72,
+                placement: 'floor' as const,
+                category: 'AVATAR',
+                sample: true,
+              }
+              : null
+          if (avatarDef && !avatar?.avatarInventoryId) {
+            snapshotDefs.push(avatarDef)
           }
+          const serverAvatar = avatar && avatarDef ? {
+            id: avatar.avatarId ? `avatar-${avatar.avatarId}` : 'avatar-snapshot',
+            catalogKey: avatarDef.key,
+            userInventoryId: avatar.avatarInventoryId ?? undefined,
+            x: avatar?.posX ?? 318,
+            y: avatar?.posY ?? 438,
+            scale: Number(avatar?.scale ?? 1),
+            rotation: 0,
+            flipped: avatar?.flipped ?? false,
+            sortOrder: 40,
+            locked: false,
+          } : null
+
+          setOwnedCatalog([...nextOwned, ...snapshotDefs])
+          setItems([...(serverAvatar ? [serverAvatar] : [defaultAvatar]), ...serverItems])
         } catch {
-          setItems(starterScene)
+          setOwnedCatalog(nextOwned)
+          setItems([defaultAvatar])
         }
       } catch {
         setOwnedCatalog([])
-        setItems(starterScene)
-        setNotice('로그인 토큰이 없어 쇼케이스 방으로 표시 중입니다.')
+        setItems([defaultAvatar])
+        setNotice('로그인 후 상점에서 구매한 아이템으로 미니룸을 꾸밀 수 있습니다.')
       }
     }
 
@@ -257,6 +320,26 @@ export default function MiniroomPage() {
   }
 
   const addItem = (def: CatalogItem) => {
+    if (isAvatarCategory(def.category)) {
+      // 아바타는 한 명만 배치할 수 있으므로 새 선택으로 기존 아바타를 교체한다.
+      const avatarItem: PlacedItem = {
+        id: nextId(),
+        catalogKey: def.key,
+        userInventoryId: def.inventoryId,
+        x: 318,
+        y: 438,
+        scale: 1,
+        rotation: 0,
+        flipped: false,
+        sortOrder: 40,
+        locked: false,
+        sample: !def.inventoryId,
+      }
+      setItems(prev => [...prev.filter(item => !isAvatarCategory(itemMap.get(item.catalogKey)?.category)), avatarItem])
+      setSelectedId(avatarItem.id)
+      return
+    }
+
     const nextOrder = items.reduce((max, item) => Math.max(max, item.sortOrder), 0) + 1
     const draft: PlacedItem = {
       id: nextId(),
@@ -281,6 +364,7 @@ export default function MiniroomPage() {
     const def = itemMap.get(placed.catalogKey)
     if (!def || placed.locked) return
     const rect = canvasRef.current.getBoundingClientRect()
+    // 반응형으로 줄어든 화면 좌표를 원본 배경 좌표계로 바꿔 저장 위치가 해상도에 따라 달라지지 않게 한다.
     const scaleX = background.width / rect.width
     const scaleY = background.height / rect.height
     focusItem(placed.id)
@@ -319,31 +403,64 @@ export default function MiniroomPage() {
   }
 
   const resetScene = () => {
-    setItems(starterScene)
+    setItems(prev => prev.filter(item => {
+      const def = itemMap.get(item.catalogKey)
+      return isAvatarCategory(def?.category)
+    }))
     setSelectedId(null)
-    setNotice('기본 미니룸 배치로 되돌렸습니다.')
+    setNotice('배치한 가구와 벽장식을 비웠습니다.')
   }
 
   const saveRoom = async () => {
-    const persistentItems = items.filter(item => item.userInventoryId && !item.sample)
+    const persistentItems = items.filter(item => {
+      const def = itemMap.get(item.catalogKey)
+      return def && !isAvatarCategory(def.category)
+    })
+    const avatarItem = items.find(item => {
+      const def = itemMap.get(item.catalogKey)
+      return isAvatarCategory(def?.category)
+    })
+    const avatarDef = avatarItem ? itemMap.get(avatarItem.catalogKey) : null
+    // 기본 에셋은 보유함 ID가 없으므로 서버가 다시 그릴 수 있도록 에셋 정보도 함께 보낸다.
+    const request: SaveRoomRequest = {
+      backgroundInventoryId: background.inventoryId ?? null,
+      backgroundAssetKey: background.assetKey ?? background.id,
+      backgroundAssetUrl: background.src,
+      avatar: avatarItem && avatarDef ? {
+        avatarInventoryId: avatarItem.userInventoryId ?? null,
+        assetKey: avatarDef.key,
+        assetUrl: avatarDef.src,
+        assetWidth: avatarDef.width,
+        assetHeight: avatarDef.height,
+        posX: Math.round(avatarItem.x),
+        posY: Math.round(avatarItem.y),
+        scale: Number(avatarItem.scale.toFixed(2)),
+        flipped: avatarItem.flipped,
+      } : null,
+      items: persistentItems.map(item => ({
+        userInventoryId: item.userInventoryId ?? null,
+        category: itemMap.get(item.catalogKey)?.category ?? null,
+        name: itemMap.get(item.catalogKey)?.name ?? null,
+        assetKey: itemMap.get(item.catalogKey)?.key ?? null,
+        assetUrl: itemMap.get(item.catalogKey)?.src ?? null,
+        assetWidth: itemMap.get(item.catalogKey)?.width ?? null,
+        assetHeight: itemMap.get(item.catalogKey)?.height ?? null,
+        placementType: itemMap.get(item.catalogKey)?.placement === 'wall' ? 'WALL' : 'FLOOR',
+        posX: Math.round(item.x),
+        posY: Math.round(item.y),
+        rotation: item.rotation,
+        flipped: item.flipped,
+        scale: Number(item.scale.toFixed(2)),
+        sortOrder: item.sortOrder,
+        locked: item.locked,
+      })),
+    }
+
     try {
-      await roomApi.saveMyRoom({
-        backgroundInventoryId: null,
-        backgroundAssetKey: background.id,
-        backgroundAssetUrl: background.src,
-        items: persistentItems.map(item => ({
-          userInventoryId: item.userInventoryId as number,
-          posX: Math.round(item.x),
-          posY: Math.round(item.y),
-          rotation: item.rotation,
-          flipped: item.flipped,
-          scale: Number(item.scale.toFixed(2)),
-          sortOrder: item.sortOrder,
-          locked: item.locked,
-        })),
-      })
+      await roomApi.saveMyRoom(request)
       setSavedAt(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }))
       setNotice('보유 아이템 배치를 저장했습니다. 쇼케이스 장식은 화면 연출용입니다.')
+      navigate('/')
     } catch {
       setNotice('저장에 실패했습니다. 로그인 토큰과 백엔드 실행 상태를 확인해주세요.')
     }
@@ -355,7 +472,7 @@ export default function MiniroomPage() {
         <button key={item.key} onClick={() => addItem(item)} title={item.name}>
           <span className="cy-palette-thumb"><img src={item.src} alt="" /></span>
           <strong>{item.name}</strong>
-          <em>{item.inventoryId ? '보유' : '연출'}</em>
+          <em>{item.inventoryId ? '보유' : '기본'}</em>
         </button>
       ))}
     </div>
@@ -463,28 +580,36 @@ export default function MiniroomPage() {
 
         <section className="cy-bottom-palette">
           <div className="cy-editor-tabs">
+            <button className={activeTab === 'basic' ? 'active' : ''} onClick={() => setActiveTab('basic')}>기본 아이템</button>
             <button className={activeTab === 'owned' ? 'active' : ''} onClick={() => setActiveTab('owned')}>보유 아이템</button>
-            <button className={activeTab === 'furniture' ? 'active' : ''} onClick={() => setActiveTab('furniture')}>가구 연출</button>
-            <button className={activeTab === 'wall' ? 'active' : ''} onClick={() => setActiveTab('wall')}>벽 장식</button>
+            <button className={activeTab === 'avatar' ? 'active' : ''} onClick={() => setActiveTab('avatar')}>아바타</button>
             <button className={activeTab === 'background' ? 'active' : ''} onClick={() => setActiveTab('background')}>배경</button>
           </div>
 
+          {activeTab === 'basic' && renderPalette([...basicAvatarCatalog, ...basicItems])}
           {activeTab === 'owned' && (
             ownedItems.length > 0 ? renderPalette(ownedItems) : (
-              <div className="cy-empty-palette">보유 아이템이 없습니다. 상점에서 아이템을 구매해주세요.</div>
+              <div className="cy-empty-palette">보유 아이템이 없습니다. 상점에서 미니룸 아이템을 구매해주세요.</div>
             )
           )}
-          {activeTab === 'furniture' && renderPalette(furnitureItems)}
-          {activeTab === 'wall' && renderPalette(wallItems)}
+          {activeTab === 'avatar' && (
+            ownedAvatarItems.length > 0 ? renderPalette(ownedAvatarItems) : (
+              <div className="cy-empty-palette">보유 아바타가 없습니다. 상점에서 아바타를 구매해주세요.</div>
+            )
+          )}
           {activeTab === 'background' && (
-            <div className="cy-background-grid cy-bottom-backgrounds">
-              {backgrounds.map(bg => (
-                <button className={backgroundId === bg.id ? 'active' : ''} key={bg.id} onClick={() => setBackgroundId(bg.id)}>
-                  <img src={bg.src} alt="" />
-                  <span>{bg.name}</span>
-                </button>
-              ))}
-            </div>
+            ownedBackgrounds.length > 0 ? (
+              <div className="cy-background-grid cy-bottom-backgrounds">
+                {ownedBackgrounds.map(bg => (
+                  <button className={backgroundId === bg.id ? 'active' : ''} key={bg.id} onClick={() => setBackgroundId(bg.id)}>
+                    <img src={bg.src} alt="" />
+                    <span>{bg.name}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="cy-empty-palette">보유 배경이 없습니다. 상점에서 미니룸 배경을 구매해주세요.</div>
+            )
           )}
         </section>
       </section>

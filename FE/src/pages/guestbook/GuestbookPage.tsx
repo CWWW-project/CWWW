@@ -24,7 +24,7 @@ export default function GuestbookPage() {
   const { userId } = useParams<{ userId: string }>()
   const isMe = userId === 'me'
 
-  const { main, setMain, clearMain, myProfileImageUrl } = useMinihompyStore()
+  const { main, setMain, myProfileImageUrl } = useMinihompyStore()
   const [pageLoading, setPageLoading] = useState(true)
   const [pageError, setPageError] = useState('')
 
