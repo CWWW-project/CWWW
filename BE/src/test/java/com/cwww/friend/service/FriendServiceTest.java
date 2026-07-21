@@ -48,7 +48,7 @@ class FriendServiceTest {
         given(userMapper.findNicknameById(requesterId)).willReturn("신청자");
 
         // Act
-        friendService.sendRequest(requesterId, receiverId);
+        friendService.sendRequest(requesterId, receiverId, null, null);
 
         // Assert
         verify(friendMapper).insert(any(Friend.class));
@@ -68,7 +68,7 @@ class FriendServiceTest {
     @DisplayName("일촌 신청 실패 - 자기 자신에게 신청")
     void sendRequest_selfRequest() {
         // Arrange & Act & Assert
-        assertThatThrownBy(() -> friendService.sendRequest(1L, 1L))
+        assertThatThrownBy(() -> friendService.sendRequest(1L, 1L, null, null))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.INVALID_INPUT);
     }
@@ -81,7 +81,7 @@ class FriendServiceTest {
         given(friendMapper.findActiveByUsers(1L, 2L)).willReturn(Optional.of(existing));
 
         // Act & Assert
-        assertThatThrownBy(() -> friendService.sendRequest(1L, 2L))
+        assertThatThrownBy(() -> friendService.sendRequest(1L, 2L, null, null))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.ALREADY_FRIEND);
     }
@@ -94,7 +94,7 @@ class FriendServiceTest {
         given(friendMapper.insert(any(Friend.class))).willReturn(0); // ON CONFLICT DO NOTHING
 
         // Act & Assert
-        assertThatThrownBy(() -> friendService.sendRequest(1L, 2L))
+        assertThatThrownBy(() -> friendService.sendRequest(1L, 2L, null, null))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.ALREADY_FRIEND);
     }

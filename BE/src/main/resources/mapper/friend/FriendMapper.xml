@@ -14,8 +14,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="friendId">
-        INSERT INTO friend (requester_id, receiver_id, status, created_at)
-        VALUES (#{requesterId}, #{receiverId}, #{status}, NOW())
+        INSERT INTO friend (requester_id, receiver_id, status, requester_alias, receiver_alias, created_at)
+        VALUES (#{requesterId}, #{receiverId}, #{status}, #{requesterAlias}, #{receiverAlias}, NOW())
         ON CONFLICT DO NOTHING
     </insert>
 
