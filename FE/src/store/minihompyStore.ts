@@ -7,6 +7,7 @@ interface MinihompyState {
   setMain: (main: MinihompyMainResponse | null) => void
   clearMain: () => void
   myProfileImageUrl: string | null
+  myProfileImageVersion: number
   setMyProfileImageUrl: (url: string | null) => void
 }
 
@@ -39,9 +40,11 @@ export const useMinihompyStore = create<MinihompyState>((set) => ({
   },
   clearMain: () => {
     applyBackground(null)
-    stopAudio()   // 추가: 배경 초기화와 함께 오디오도 정지
+    stopAudio()
     set({ main: null })
   },
   myProfileImageUrl: null,
-  setMyProfileImageUrl: (url) => set({ myProfileImageUrl: url }),
+  myProfileImageVersion: 0,
+  setMyProfileImageUrl: (url) =>
+    set(state => ({ myProfileImageUrl: url, myProfileImageVersion: state.myProfileImageVersion + 1 })),
 }))

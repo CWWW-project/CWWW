@@ -99,8 +99,15 @@ function useMyProfileImage() {
     }
 
     let ignore = false
+    const versionAtStart = useMinihompyStore.getState().myProfileImageVersion
+
     minihompyApi.getMyMinihompy()
-      .then(res => { if (!ignore) setMyProfileImageUrl(res.data.data.profileImageUrl) })
+      .then(res => {
+        if (ignore) return
+        // 이 요청을 시작한 이후 다른 곳(업로드/삭제)에서 이미 값이 갱신됐으면 무시
+        if (useMinihompyStore.getState().myProfileImageVersion !== versionAtStart) return
+        setMyProfileImageUrl(res.data.data.profileImageUrl)
+      })
       .catch(() => { if (!ignore) setMyProfileImageUrl(null) })
 
     return () => { ignore = true }
