@@ -142,7 +142,9 @@ export default function FriendsPage() {
                   <div key={f.friendId} className={`p-2 flex items-center gap-2${idx < friends.length - 1 ? ' border-b border-[#e3bfb1]' : ''}`}>
                     <span className="material-symbols-outlined text-[#a33e00] text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
                     <div className="flex-1 min-w-0">
-                      <p className="font-[Geist,monospace] text-[13px] font-bold text-[#a33e00]">{f.opponentNickname}</p>
+                      <p className="font-[Geist,monospace] text-[13px] font-bold text-[#a33e00]">
+                        {getMyAlias(f) ? `${getMyAlias(f)} ` : ''}<span className="font-normal text-[#5a4136]">{f.opponentNickname}</span>
+                      </p>
                       {editingFriendId === f.friendId ? (
                         <div className="flex gap-1 mt-0.5">
                           <input
@@ -158,7 +160,7 @@ export default function FriendsPage() {
                         </div>
                       ) : (
                         <p className="font-[Geist,monospace] text-[11px] text-[#5a4136]">
-                          별칭: {getMyAlias(f) ?? '없음'}
+                          일촌명: {getMyAlias(f) ?? '없음'}
                           <button className="ml-1 text-[#0c6780] hover:underline" onClick={() => startEditAlias(f)}>수정</button>
                         </p>
                       )}
