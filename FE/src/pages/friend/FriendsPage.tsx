@@ -43,15 +43,33 @@ export default function FriendsPage() {
     }
   }, [])
 
+  const refreshPendingBadge = useCallback(async () => {
+    try {
+      const res = await friendApi.getPendingRequests()
+      setPending(res.data.data)
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    refreshPendingBadge()
+  }, [refreshPendingBadge])
+
   useEffect(() => {
     if (tab === '일촌 목록') loadFriends()
     else loadPending()
   }, [tab, loadFriends, loadPending])
 
+  useEffect(() => {
+    window.addEventListener('cwww:friend-request-received', refreshPendingBadge)
+    return () => window.removeEventListener('cwww:friend-request-received', refreshPendingBadge)
+  }, [refreshPendingBadge])
+
   const acceptRequest = async (friendId: number) => {
     try {
       await friendApi.acceptRequest(friendId)
       setPending(prev => prev.filter(f => f.friendId !== friendId))
+      await loadFriends()
+      window.dispatchEvent(new CustomEvent('cwww:friend-accepted'))
     } catch (e) {
       console.error('수락 실패', e)
     }

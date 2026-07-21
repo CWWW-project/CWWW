@@ -108,6 +108,7 @@ function useGlobalBgm() {
 
 function App() {
   useGlobalBgm()
+  const { user } = useAuthStore()
   return (
     <BrowserRouter>
       <IdleSessionGuard />
@@ -123,7 +124,7 @@ function App() {
         <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
 
         {/* POST - 송경용 */}
-        <Route path="/" element={<FeedPage />} />
+        <Route path="/" element={user ? <FeedPage /> : <Navigate to="/auth/login" replace />} />
         <Route path="/friends" element={<FriendsPage />} />
         <Route path="/diary/:userId" element={<DiaryPage />} />
 

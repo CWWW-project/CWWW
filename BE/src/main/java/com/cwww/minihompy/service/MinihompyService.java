@@ -96,18 +96,10 @@ public class MinihompyService {
 			}
 		}
 
-		// 방문자 수(Today/Total)는 DB 컬럼이 아니라 별도 조회 결과를 조립한 값
-		MinihompyMainResponse.VisitorCount visitorCount = MinihompyMainResponse.VisitorCount.builder()
-				.today(visitLogMapper.countToday(ownerId))
-				.total(visitLogMapper.countTotal(ownerId))
-				.build();
-
-		// 계산된 owner 여부를 응답에 채워서 리턴 (프론트가 편집 UI 노출 여부 판단에 사용)
-		return response.toBuilder()
-				.owner(isOwner)
-				.visitorCount(visitorCount)
-				.build();
+		// 방문자 수, BGM 곡명 등 부가 정보를 조립해서 최종 응답을 완성
+		return buildFullResponse(response, ownerId, isOwner);
 	}
+
 
 	/*
 	 * 접근 권한 체크(PRIVATE는 무조건 차단, FRIEND는 일촌 여부 확인, ALL은 통과)
@@ -142,6 +134,29 @@ public class MinihompyService {
 			}
 		}
 	}
+
+
+	// 방문자 수, BGM 곡명 등 부가 정보를 조립해서 최종 응답을 완성
+	private MinihompyMainResponse buildFullResponse(MinihompyMainResponse response, Long ownerId, boolean isOwner) {
+
+		// 방문자 수(Today/Total)는 DB 컬럼이 아니라 별도 조회 결과를 조립한 값
+		MinihompyMainResponse.VisitorCount visitorCount = MinihompyMainResponse.VisitorCount.builder()
+				.today(visitLogMapper.countToday(ownerId))
+				.total(visitLogMapper.countTotal(ownerId))
+				.build();
+
+		String bgmName = response.getBgmUrl() != null
+				? minihompyMapper.selectBgmNameByOwnerId(ownerId)
+				: null;
+
+		// 계산된 owner 여부를 응답에 채워서 리턴 (프론트가 편집 UI 노출 여부 판단에 사용)
+		return response.toBuilder()
+				.owner(isOwner)
+				.visitorCount(visitorCount)
+				.bgmName(bgmName)
+				.build();
+	}
+
 
 	// 회원 탈퇴 시 미니홈피 소프트 삭제 (auth 도메인 탈퇴 처리 흐름에서 호출)
 	@Transactional

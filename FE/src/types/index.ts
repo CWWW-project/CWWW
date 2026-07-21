@@ -202,6 +202,7 @@ export interface MinihompyMainResponse {
   mood: string | null
   accessLevel: AccessLevel
   createdAt: string
+  bgmName: string | null
   bgmUrl: string | null
   backgroundColor: string | null
   backgroundImageUrl: string | null

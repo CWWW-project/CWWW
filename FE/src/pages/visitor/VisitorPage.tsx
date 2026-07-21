@@ -141,7 +141,7 @@ export default function VisitorPage() {
           {/* 메인 콘텐츠 — 방문자 목록 */}
           <main className="flex-1 flex flex-col gap-2 min-w-0">
             <div className="window-frame p-1 bg-[#eeeeee] flex items-center justify-between">
-              <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">{main.nickname}님의 미니홈피</div>
+              <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">{main.nickname}님의 미니홈피 방문자</div>
             </div>
 
             <div className="window-inset border border-[#8e7164] flex-1 flex flex-col bg-white">
