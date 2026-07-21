@@ -81,6 +81,9 @@ export default function MinihompyPage() {
   const [friendStatus, setFriendStatus] = useState<'NONE' | 'FRIEND' | 'PENDING_SENT' | 'PENDING_RECEIVED'>('NONE')
   const [friendStatusLoading, setFriendStatusLoading] = useState(false)
   const [sendingRequest, setSendingRequest] = useState(false)
+  const [showFriendModal, setShowFriendModal] = useState(false)
+  const [requesterAlias, setRequesterAlias] = useState('일촌')
+  const [receiverAlias, setReceiverAlias] = useState('일촌')
 
   // 미니홈피 프로필 조회 — 이 페이지는 항상 남의 미니홈피 조회용
   useEffect(() => {
@@ -211,8 +214,9 @@ export default function MinihompyPage() {
     if (!main || sendingRequest) return
     setSendingRequest(true)
     try {
-      await friendApi.sendRequest(main.ownerId)
+      await friendApi.sendRequest(main.ownerId, requesterAlias.trim() || '일촌', receiverAlias.trim() || '일촌')
       setFriendStatus('PENDING_SENT')
+      setShowFriendModal(false)
     } catch (e: any) {
       console.error('일촌 신청 실패', e)
       alert(e.response?.data?.message ?? '일촌 신청에 실패했습니다. 다시 시도해주세요.')
@@ -238,6 +242,64 @@ export default function MinihompyPage() {
 
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
+
+      {/* 일촌 신청 모달 */}
+      {showFriendModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 px-2">
+          <div className="window-frame bg-[#fff7f4] w-full max-w-sm flex flex-col">
+            <div className="bg-[#e2e2e2] px-3 py-2 border-b-2 border-[#8e7164] flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm text-[#a33e00]">group_add</span>
+              <span className="font-[Geist,monospace] text-[13px] font-bold text-[#1a1c1c]">일촌 신청</span>
+              <button className="ml-auto retro-btn p-1" onClick={() => setShowFriendModal(false)} disabled={sendingRequest}>✕</button>
+            </div>
+            <div className="p-4 flex flex-col gap-3">
+              <p className="font-[Geist,monospace] text-[13px] text-[#1a1c1c] text-center">
+                <span className="font-bold text-[#a33e00]">{main.nickname}</span>님께 일촌을 신청합니다.
+              </p>
+              <div className="window-inset p-3 flex flex-col gap-3 bg-white">
+                <div className="flex flex-col gap-1">
+                  <label className="font-[Geist,monospace] text-[12px] text-[#5a4136]">
+                    내가 <span className="font-bold text-[#a33e00]">{main.nickname}</span>님을 부를 이름
+                  </label>
+                  <input
+                    className="window-inset p-2 font-[Geist,monospace] text-[13px] w-full"
+                    placeholder="일촌"
+                    value={requesterAlias}
+                    onChange={e => setRequesterAlias(e.target.value)}
+                    maxLength={20}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-[Geist,monospace] text-[12px] text-[#5a4136]">
+                    <span className="font-bold text-[#a33e00]">{main.nickname}</span>님이 나를 부를 이름
+                  </label>
+                  <input
+                    className="window-inset p-2 font-[Geist,monospace] text-[13px] w-full"
+                    placeholder="일촌"
+                    value={receiverAlias}
+                    onChange={e => setReceiverAlias(e.target.value)}
+                    maxLength={20}
+                  />
+                </div>
+              </div>
+              <p className="font-[Geist,monospace] text-[10px] text-[#8e7164] text-center">기본값은 '일촌'이며, 수락 후 언제든 변경할 수 있어요.</p>
+              <div className="flex gap-2 mt-1">
+                <button
+                  className="retro-btn flex-1 font-[Geist,monospace] text-[13px] font-semibold py-2"
+                  onClick={() => setShowFriendModal(false)}
+                  disabled={sendingRequest}
+                >취소</button>
+                <button
+                  className="retro-btn retro-btn-primary flex-1 font-[Geist,monospace] text-[13px] font-semibold py-2"
+                  onClick={sendFriendRequest}
+                  disabled={sendingRequest}
+                >{sendingRequest ? '신청 중...' : '보내기'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-[1024px] w-full mx-auto flex gap-0 relative z-10 px-2 md:px-0">
         <div className="window-frame p-4 w-full flex flex-col md:flex-row gap-4 border border-[#8e7164] relative">
 
@@ -292,10 +354,9 @@ export default function MinihompyPage() {
                 ) : (
                   <button
                     className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
-                    onClick={sendFriendRequest}
-                    disabled={sendingRequest}
+                    onClick={() => { setRequesterAlias('일촌'); setReceiverAlias('일촌'); setShowFriendModal(true) }}
                   >
-                    <span className="material-symbols-outlined text-base">person_add</span> {sendingRequest ? '신청 중...' : '일촌 신청'}
+                    <span className="material-symbols-outlined text-base">person_add</span> 일촌 신청
                   </button>
                 )}
 
