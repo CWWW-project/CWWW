@@ -19,6 +19,7 @@ function formatTime(iso: string): string {
 
 const MINIROOM_ASSET_ROOT = '/miniroom-assets'
 
+
 // TODO: roomApi에 남의 방 조회 함수(예: getRoomByUserId)가 추가되면 여기서 불러와서
 // 프리뷰에 실제 방 데이터를 보여준다. 정용혁님 확인 필요.
 function MiniroomFeedPreview({ nickname }: { nickname?: string }) {
