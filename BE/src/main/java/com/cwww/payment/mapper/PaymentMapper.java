@@ -3,6 +3,7 @@ package com.cwww.payment.mapper;
 import com.cwww.payment.domain.AcornWallet;
 import com.cwww.payment.domain.Order;
 import com.cwww.payment.dto.AcornHistoryResponse;
+import com.cwww.payment.dto.OrderHistoryResponse;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -82,4 +83,8 @@ public interface PaymentMapper {
     List<AcornHistoryResponse> findAcornHistory(@Param("userId") Long userId,
                                                 @Param("size") int size,
                                                 @Param("offset") long offset);
+
+    List<OrderHistoryResponse> findOrdersByUserId(@Param("userId") Long userId,
+                                                  @Param("size") int size,
+                                                  @Param("offset") long offset);
 }

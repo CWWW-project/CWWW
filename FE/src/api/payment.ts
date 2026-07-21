@@ -75,6 +75,24 @@ export async function cancelPayment(orderUid: string, reason: string): Promise<P
 
 export interface AcornBalanceResponse {
   balance: number
+  availableBalance: number
+}
+
+export interface OrderHistoryResponse {
+  orderUid: string
+  acornAmount: number
+  price: number
+  status: string
+  createdAt: string
+}
+
+export async function getOrderHistory(page = 1, size = 10): Promise<OrderHistoryResponse[]> {
+  try {
+    const res = await api.get<ApiResponse<OrderHistoryResponse[]>>('/payments/orders', { params: { page, size } })
+    return unwrap(res.data)
+  } catch (e) {
+    throw toError(e)
+  }
 }
 
 export async function getBalance(): Promise<AcornBalanceResponse> {
