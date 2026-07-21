@@ -1,8 +1,16 @@
+export interface User {
+  id: number
+  email: string
+  nickname: string
+  role: string
+}
+
 export interface ApiResponse<T> {
   code: string
   message: string
   data: T
 }
+
 
 export interface PostResponse {
   postId: number
