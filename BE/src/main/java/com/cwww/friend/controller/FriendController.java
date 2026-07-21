@@ -26,7 +26,7 @@ public class FriendController {
     public ResponseEntity<ApiResponse<FriendSendResponse>> sendRequest(
             @AuthenticationPrincipal Long userId,
             @Valid @RequestBody FriendRequest request) {
-        FriendSendResponse response = friendService.sendRequest(userId, request.getReceiverId());
+        FriendSendResponse response = friendService.sendRequest(userId, request.getReceiverId(), request.getRequesterAlias(), request.getReceiverAlias());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
