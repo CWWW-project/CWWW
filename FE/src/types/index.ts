@@ -258,5 +258,6 @@ export interface GuestbookFeedResponse {
 export interface VisitorLogResponse {
   nickname: string
   profileImageUrl: string | null
+  visitorId: number
   visitedAt: string
 }

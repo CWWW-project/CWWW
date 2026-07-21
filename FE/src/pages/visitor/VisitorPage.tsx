@@ -7,6 +7,7 @@ import { useMinihompyStore } from '../../store/minihompyStore'
 import { parseMoodEmoji } from '../../utils/mood'
 import MinihompyTabs from '../../components/MinihompyTabs'
 import MoodIntroQuickEditModal from '../../components/MoodIntroQuickEditModal'
+import UserNameLink from '../../components/UserNameLink'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -180,9 +181,11 @@ export default function VisitorPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0 flex items-center gap-2">
-                      <span className="font-[Geist,monospace] text-[13px] font-bold text-[#a33e00] truncate">
-                        {v.nickname}
-                      </span>
+                      <UserNameLink
+                        userId={v.visitorId}
+                        nickname={v.nickname}
+                        className="font-[Geist,monospace] text-[13px] font-bold text-[#a33e00] truncate cursor-pointer hover:underline"
+                      />
                       {idx === 0 && (
                         <span className="bg-[#baeaff] text-[#09657f] text-[10px] px-1.5 py-0.5 rounded-full font-[Geist,monospace] font-semibold flex-shrink-0">최근 방문</span>
                       )}

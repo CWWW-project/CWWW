@@ -6,6 +6,7 @@ import type { GuestbookResponse } from '../../types'
 import { parseMoodEmoji } from '../../utils/mood'
 import { useMinihompyStore } from '../../store/minihompyStore'
 import ProfileImageMenuModal from '../../components/ProfileImageMenuModal'
+import UserNameLink from '../../components/UserNameLink'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -287,7 +288,11 @@ export default function GuestbookPage() {
                   {/* 상단 바 — 번호 + 닉네임 + 날짜 */}
                   <div className="bg-[#f3f3f3] px-3 py-1.5 flex items-center gap-2 border-b border-[#e3bfb1]">
                     <span className="font-[Geist,monospace] text-[11px] text-[#8e7164]">NO.{entry.guestbookId}</span>
-                    <span className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00]">{entry.writerNickname}</span>
+                    <UserNameLink
+                      userId={entry.writerId}
+                      nickname={entry.writerNickname}
+                      className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00] cursor-pointer hover:underline"
+                    />
                     {entry.isSecret && (
                       <span
                         className="material-symbols-outlined text-[#5a4136]"

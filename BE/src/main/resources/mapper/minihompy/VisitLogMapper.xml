@@ -8,6 +8,7 @@
     <resultMap id="visitorLogMap" type="com.cwww.minihompy.dto.response.VisitorLogResponse">
         <result property="nickname" column="nickname"/>
         <result property="profileImageUrl" column="profile_image_url"/>
+        <result property="visitorId" column="visitor_id"/>
         <result property="visitedAt" column="visited_at"/>
     </resultMap>
 
@@ -73,12 +74,13 @@
         SELECT
             u.nickname,
             visitor_profile.media_url AS profile_image_url,
+            v.visitor_id,
             v.visited_at
         FROM visit_log v
         JOIN minihompy m ON m.minihompy_id = v.minihompy_id
         JOIN users u ON u.user_id = v.visitor_id
         LEFT JOIN media visitor_profile
-            ON visitor_profile.target_type = 'PROFILE'
+        ON visitor_profile.target_type = 'PROFILE'
         AND visitor_profile.target_id = v.visitor_id
         AND visitor_profile.deleted_at IS NULL
         WHERE m.user_id = #{ownerId}
