@@ -15,6 +15,8 @@ import com.cwww.chat.dto.response.CreateChatRoomResponse;
 import com.cwww.chat.mapper.ChatMessageMapper;
 import com.cwww.chat.mapper.ChatParticipantMapper;
 import com.cwww.chat.mapper.ChatRoomMapper;
+import com.cwww.friend.domain.Friend;
+import com.cwww.friend.mapper.FriendMapper;
 import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
 import com.cwww.user.mapper.UserMapper;
@@ -27,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -36,6 +39,7 @@ public class ChatRoomService {
     private final ChatParticipantMapper chatParticipantMapper;
     private final ChatMessageMapper chatMessageMapper;
     private final UserMapper userMapper;
+    private final FriendMapper friendMapper;
 
     @Transactional
     public CreateChatRoomResponse createChatRoom(Long userId, CreateChatRoomRequest request) {
@@ -441,7 +445,7 @@ public class ChatRoomService {
         }
 
         Long opponentUserId = findOpponentUserIdFromRequest(userId, request.getParticipantUserIds());
-        return findNickname(opponentUserId);
+        return resolveDisplayName(userId, opponentUserId);
     }
 
     private String resolveRoomDisplayName(Long userId, ChatRoom chatRoom) {
@@ -456,7 +460,23 @@ public class ChatRoomService {
             return "알 수 없음";
         }
 
-        return findNickname(opponentUserId);
+        return resolveDisplayName(userId, opponentUserId);
+    }
+
+    private String resolveDisplayName(Long viewerId, Long opponentId) {
+        Optional<Friend> friendOpt = friendMapper.findActiveByUsers(viewerId, opponentId);
+        if (friendOpt.isPresent()) {
+            Friend friend = friendOpt.get();
+            if ("ACCEPTED".equals(friend.getStatus())) {
+                String alias = friend.getRequesterId().equals(viewerId)
+                        ? friend.getRequesterAlias()
+                        : friend.getReceiverAlias();
+                if (alias != null && !alias.isBlank()) {
+                    return alias;
+                }
+            }
+        }
+        return findNickname(opponentId);
     }
 
     private Long findOpponentUserIdFromRequest(Long userId, List<Long> participantUserIds) {

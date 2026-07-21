@@ -8,6 +8,8 @@ import com.cwww.chat.dto.response.ChatRoomResponse;
 import com.cwww.chat.dto.response.CreateChatRoomResponse;
 import com.cwww.chat.mapper.ChatParticipantMapper;
 import com.cwww.chat.mapper.ChatRoomMapper;
+import com.cwww.friend.domain.Friend;
+import com.cwww.friend.mapper.FriendMapper;
 import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
 import com.cwww.user.mapper.UserMapper;
@@ -35,6 +37,7 @@ class ChatRoomServiceTest {
     @Mock private ChatRoomMapper chatRoomMapper;
     @Mock private ChatParticipantMapper chatParticipantMapper;
     @Mock private UserMapper userMapper;
+    @Mock private FriendMapper friendMapper;
 
     @InjectMocks
     private ChatRoomService chatRoomService;
@@ -121,6 +124,38 @@ class ChatRoomServiceTest {
 
         verify(chatRoomMapper).insert(any(ChatRoom.class));
         verify(chatParticipantMapper, times(2)).insert(any(ChatParticipant.class));
+    }
+
+    @Test
+    @DisplayName("채팅방 생성 성공 - 개인 채팅방 표시 이름은 일촌 별칭을 우선 사용")
+    void createChatRoom_privateWithFriendAlias_success() {
+        // Arrange
+        CreateChatRoomRequest request = CreateChatRoomRequest.builder()
+                .type(ChatRoomType.PRIVATE)
+                .name(null)
+                .participantUserIds(List.of(1L, 2L))
+                .build();
+        Friend friend = Friend.builder()
+                .requesterId(1L)
+                .receiverId(2L)
+                .status("ACCEPTED")
+                .requesterAlias("내 일촌명")
+                .receiverAlias("상대 일촌명")
+                .build();
+
+        doAnswer(invocation -> {
+            ChatRoom chatRoom = invocation.getArgument(0);
+            chatRoom.setChatId(21L);
+            return null;
+        }).when(chatRoomMapper).insert(any(ChatRoom.class));
+        org.mockito.BDDMockito.given(friendMapper.findActiveByUsers(1L, 2L))
+                .willReturn(java.util.Optional.of(friend));
+
+        // Act
+        CreateChatRoomResponse response = chatRoomService.createChatRoom(1L, request);
+
+        // Assert
+        assertThat(response.getDisplayName()).isEqualTo("내 일촌명");
     }
 
     @Test

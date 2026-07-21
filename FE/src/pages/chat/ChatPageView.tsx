@@ -174,6 +174,10 @@ export function ChatPageView({
     navigate(`/home/${userId}`)
   }
 
+  const handleGoHome = () => {
+    navigate('/')
+  }
+
   if (!isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -587,6 +591,16 @@ export function ChatPageView({
         <section className="retro-window chat-room-panel">
           <div className="retro-title-bar chat-room-title-bar" style={{ justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                type="button"
+                className="retro-btn-gray"
+                onClick={handleGoHome}
+                style={{ width: 28, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                title="홈으로 돌아가기"
+                aria-label="홈으로 돌아가기"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_back</span>
+              </button>
               <div style={{ position: 'relative' }}>
                 <div className="retro-inner-box" style={{ width: 36, height: 36, background: '#eeeeee', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#5a4136', fontVariationSettings: "'FILL' 1" }}>person</span>
