@@ -123,21 +123,19 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void resetPassword(String resetToken, String newPassword,String clientIp) {
-
+    public void resetPassword(String resetToken, String newPassword, String clientIp) {
         String failKey = RESET_FAIL_PREFIX + clientIp;
-        String countStr = redisTemplate.opsForValue().get(failKey);
-        if (countStr != null && Long.parseLong(countStr) >= MAX_RESET_ATTEMPTS) {
+        Long attempts = redisTemplate.opsForValue().increment(failKey);
+        if (attempts != null && attempts == 1L) {
+            redisTemplate.expire(failKey, RESET_FAIL_WINDOW_MINUTES, TimeUnit.MINUTES);
+        }
+        if (attempts != null && attempts > MAX_RESET_ATTEMPTS) {
             throw new BusinessException(ErrorCode.TOO_MANY_RESET_ATTEMPTS);
         }
 
         User user = userMapper.findByResetToken(resetToken);
         if (user == null || user.getResetTokenExpiresAt() == null
                 || user.getResetTokenExpiresAt().isBefore(LocalDateTime.now())) {
-            Long fails = redisTemplate.opsForValue().increment(failKey);
-            if (fails != null && fails == 1L) {
-                redisTemplate.expire(failKey, RESET_FAIL_WINDOW_MINUTES, TimeUnit.MINUTES);
-            }
             throw new BusinessException(
                     user == null ? ErrorCode.INVALID_RESET_TOKEN : ErrorCode.EXPIRED_RESET_TOKEN);
         }
