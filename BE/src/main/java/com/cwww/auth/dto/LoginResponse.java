@@ -1,6 +1,7 @@
 package com.cwww.auth.dto;
 
 import com.cwww.user.domain.User;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -9,6 +10,7 @@ import lombok.Getter;
 public class LoginResponse {
 
     private String accessToken;
+    @JsonIgnore
     private String refreshToken;
     private Long userId;
     private String nickname;

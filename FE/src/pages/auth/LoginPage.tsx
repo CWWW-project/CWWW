@@ -65,8 +65,8 @@ export default function LoginPage() {
     setIsSubmitting(true)
     try {
       const res = await authApi.login({ email: loginForm.email, password: loginForm.password })
-      const { accessToken, refreshToken, userId, nickname } = res.data.data
-      setAuth({ id: userId, email: loginForm.email, nickname }, accessToken, refreshToken)
+      const { accessToken, userId, nickname } = res.data.data
+      setAuth({ id: userId, email: loginForm.email, nickname }, accessToken)
       navigate('/')
     } catch (e: any) {
       const code = e.response?.data?.code
