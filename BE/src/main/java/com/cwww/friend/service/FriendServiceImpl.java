@@ -32,7 +32,7 @@ public class FriendServiceImpl implements FriendService {
 
     @Override
     @Transactional
-    public FriendSendResponse sendRequest(Long requesterId, Long receiverId) {
+    public FriendSendResponse sendRequest(Long requesterId, Long receiverId, String requesterAlias, String receiverAlias) {
         if (requesterId.equals(receiverId)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
@@ -44,10 +44,15 @@ public class FriendServiceImpl implements FriendService {
             throw new BusinessException(ErrorCode.ALREADY_FRIEND);
         });
 
+        String resolvedRequesterAlias = (requesterAlias != null && !requesterAlias.isBlank()) ? requesterAlias.trim() : "일촌";
+        String resolvedReceiverAlias = (receiverAlias != null && !receiverAlias.isBlank()) ? receiverAlias.trim() : "일촌";
+
         Friend friend = Friend.builder()
                 .requesterId(requesterId)
                 .receiverId(receiverId)
                 .status("PENDING")
+                .requesterAlias(resolvedRequesterAlias)
+                .receiverAlias(resolvedReceiverAlias)
                 .build();
 
         int inserted = friendMapper.insert(friend);

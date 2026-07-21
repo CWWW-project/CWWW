@@ -56,4 +56,9 @@ export const postApi = {
     files.forEach(f => form.append('files', f))
     return api.post<ApiResponse<string[]>>('/media/upload', form)
   },
+
+  getUserPosts: (userId: number, cursor?: number, size = 10) =>
+  api.get<ApiResponse<FeedResponse>>(`/posts/user/${userId}`, {
+    params: { cursor, size },
+  }),
 }

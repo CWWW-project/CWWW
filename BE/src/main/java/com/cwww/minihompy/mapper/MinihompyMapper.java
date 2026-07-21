@@ -12,6 +12,9 @@ public interface MinihompyMapper {
 
 	// 미니홈피 메인 조회
 	MinihompyMainResponse selectMinihompyMain(@Param("ownerId") Long ownerId);
+
+	// 접근 권한 확인
+	String selectAccessLevelByOwnerId(@Param("ownerId") Long ownerId);
 	
 	// 미니홈피 기본 생성
 	void insertDefaultMinihompy(Minihompy minihompy);

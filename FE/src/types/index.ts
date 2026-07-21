@@ -8,6 +8,7 @@ export interface PostResponse {
   postId: number
   userId: number
   nickname: string
+  profileImageUrl: string | null
   minihompyId: number | null
   title: string | null
   content: string | null

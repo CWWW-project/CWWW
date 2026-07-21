@@ -101,4 +101,14 @@ public class PostController {
         FeedResponse response = postService.searchByHashtag(userId, tag, cursor, size);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse<FeedResponse>> getUserPosts(
+            @AuthenticationPrincipal Long viewerId,
+            @PathVariable Long userId,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size) {
+        FeedResponse response = postService.getUserPosts(viewerId, userId, cursor, size);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 }

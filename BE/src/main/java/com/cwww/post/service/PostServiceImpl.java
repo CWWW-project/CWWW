@@ -5,6 +5,7 @@ import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
 import com.cwww.global.notification.dto.NotificationEvent;
 import com.cwww.global.notification.redis.RedisNotificationPublisher;
+import com.cwww.minihompy.service.MinihompyService;
 import com.cwww.post.domain.Hashtag;
 import com.cwww.post.domain.Media;
 import com.cwww.post.domain.Post;
@@ -45,6 +46,7 @@ public class PostServiceImpl implements PostService {
     private final BookmarkMapper bookmarkMapper;
     private final UserMapper userMapper;
     private final RedisNotificationPublisher notificationPublisher;
+    private final MinihompyService minihompyService;
 
     @Override
     @Transactional
@@ -58,12 +60,18 @@ public class PostServiceImpl implements PostService {
                 .build();
 
         postMapper.insert(post);
-        saveHashtags(post.getPostId(), request.getHashtags());
-        saveMediaUrls(post.getPostId(), request.getMediaUrls());
+
+        // insert 직후 재조회 — DB가 NOW()로 채운 created_at/updated_at을 정확히 반영하기 위함
+        Post savedPost = postMapper.findById(post.getPostId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR));
+
+        saveHashtags(savedPost.getPostId(), request.getHashtags());
+        saveMediaUrls(savedPost.getPostId(), request.getMediaUrls());
 
         String nickname = userMapper.findNicknameById(userId);
-        publishPostCreatedNotifications(post, nickname);
-        return PostResponse.from(post, nickname, false, false, request.getHashtags(), request.getMediaUrls());
+        String profileImageUrl = mediaMapper.findUrlsByTarget("PROFILE", userId).stream().findFirst().orElse(null);
+        publishPostCreatedNotifications(savedPost, nickname);
+        return PostResponse.from(savedPost, nickname, profileImageUrl, false, false, request.getHashtags(), request.getMediaUrls());
     }
 
     @Override
@@ -75,12 +83,13 @@ public class PostServiceImpl implements PostService {
         checkVisibility(viewerId, post);
 
         String nickname = userMapper.findNicknameById(post.getUserId());
+        String profileImageUrl = mediaMapper.findUrlsByTarget("PROFILE", post.getUserId()).stream().findFirst().orElse(null);
         boolean isLiked = postLikeMapper.exists(postId, viewerId);
         boolean isBookmarked = bookmarkMapper.findBookmarkedPostIds(viewerId, List.of(postId)).contains(postId);
         List<String> hashtags = hashtagMapper.findNamesByPostId(postId);
         List<String> mediaUrls = mediaMapper.findUrlsByTarget("POST", postId);
 
-        return PostResponse.from(post, nickname, isLiked, isBookmarked, hashtags, mediaUrls);
+        return PostResponse.from(post, nickname, profileImageUrl, isLiked, isBookmarked, hashtags, mediaUrls);
     }
 
     @Override
@@ -222,6 +231,31 @@ public class PostServiceImpl implements PostService {
                 .build();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public FeedResponse getUserPosts(Long viewerId, Long targetUserId, Long cursor, int size) {
+
+        // 미니홈피 자체의 공개범위(access_level)를 먼저 체크 — 개별 글의 visibility보다 우선
+        minihompyService.checkAccessPermission(targetUserId, viewerId);
+
+        List<Post> posts = postMapper.findByUserId(targetUserId, viewerId, cursor, size + 1);
+
+        boolean hasNext = posts.size() > size;
+        if (hasNext) {
+            posts = posts.subList(0, size);
+        }
+
+        Long nextCursor = hasNext ? posts.get(posts.size() - 1).getPostId() : null;
+
+        List<PostResponse> responses = toPostResponses(posts, viewerId);
+
+        return FeedResponse.builder()
+                .posts(responses)
+                .nextCursor(nextCursor)
+                .hasNext(hasNext)
+                .build();
+    }
+
     private List<PostResponse> toPostResponses(List<Post> posts, Long viewerId) {
         if (posts.isEmpty()) {
             return List.of();
@@ -239,6 +273,10 @@ public class PostServiceImpl implements PostService {
                 .collect(Collectors.groupingBy(Media::getTargetId,
                         Collectors.mapping(Media::getMediaUrl, Collectors.toList())));
 
+        // 작성자별 프로필 사진 맵
+        Map<Long, String> profileImageMap = mediaMapper.findAllByTargets("PROFILE", userIds).stream()
+                .collect(Collectors.toMap(Media::getTargetId, Media::getMediaUrl, (a, b) -> a));
+
         java.util.Set<Long> likedPostIds = (viewerId != null)
                 ? postLikeMapper.findLikedPostIds(viewerId, postIds)
                 : java.util.Set.of();
@@ -249,6 +287,7 @@ public class PostServiceImpl implements PostService {
         return posts.stream()
                 .map(post -> PostResponse.from(post,
                         nicknameMap.getOrDefault(post.getUserId(), ""),
+                        profileImageMap.get(post.getUserId()),
                         likedPostIds.contains(post.getPostId()),
                         bookmarkedPostIds.contains(post.getPostId()),
                         hashtagMap.getOrDefault(post.getPostId(), List.of()),

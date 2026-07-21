@@ -24,4 +24,6 @@ public interface PostService {
     void unlikePost(Long userId, Long postId);
 
     FeedResponse searchByHashtag(Long viewerId, String tag, Long cursor, int size);
+
+    FeedResponse getUserPosts(Long viewerId, Long targetUserId, Long cursor, int size);
 }

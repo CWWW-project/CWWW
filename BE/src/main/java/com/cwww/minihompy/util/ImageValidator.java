@@ -24,8 +24,8 @@ public class ImageValidator {
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
     private static final List<String> ALLOWED_EXTENSIONS = List.of("jpg", "jpeg", "png");
 
-    // 압축 폭탄 방지 - 작은 파일이 디코딩 시 거대한 래스터로 부풀려지는 것을 막기 위한 최대 픽셀 수 (약 4000x4000)
-    private static final long MAX_PIXELS = 16_000_000L;
+    // 압축 폭탄 방지 - 작은 파일이 디코딩 시 거대한 래스터로 부풀려지는 것을 막기 위한 최대 픽셀 수 (약 6000x5000)
+    private static final long MAX_PIXELS = 30_000_000L;
 
     public void validateImageFile(MultipartFile file) {
 
@@ -110,7 +110,7 @@ public class ImageValidator {
                 // 가로 X 세로 = 총 픽셀 수. int끼리 곱하면 숫자가 넘칠 수 있어서 long으로 계산
                 long pixels = (long) width * (long) height;
 
-                // 정해둔 한도(약 4000x4000 = 1600만 픽셀)보다 크면, 더 이상 진행하지 않고 바로 거부
+                // 정해둔 한도(약 6000x5000)보다 크면, 더 이상 진행하지 않고 바로 거부
                 if(pixels > MAX_PIXELS) {
                     throw new BusinessException(ErrorCode.IMAGE_DIMENSION_EXCEEDED);
                 }
