@@ -795,7 +795,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
                     placeholder="#태그 입력 후 Enter"
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); addTag() } }}
                   />
                   <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1" onClick={addTag}>추가</button>
                 </div>
