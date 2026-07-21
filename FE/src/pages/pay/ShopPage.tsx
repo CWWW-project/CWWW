@@ -85,7 +85,13 @@ export default function ShopPage() {
       ])
       setCart(cartResponse.data.data)
       setInventory(inventoryResponse.data.data)
-      getBalance().then(res => setAcorns(res.balance)).catch(() => {})
+      setAcorns(null)
+      try {
+        const balanceResponse = await getBalance()
+        setAcorns(balanceResponse.balance)
+      } catch {
+        setAcorns(null)
+      }
     } catch {
       setError('상점 정보를 불러오지 못했습니다.')
     } finally {
