@@ -44,6 +44,10 @@ export default function FriendsPage() {
   }, [])
 
   useEffect(() => {
+    loadPending()
+  }, [loadPending])
+
+  useEffect(() => {
     if (tab === '일촌 목록') loadFriends()
     else loadPending()
   }, [tab, loadFriends, loadPending])
@@ -60,6 +64,8 @@ export default function FriendsPage() {
     try {
       await friendApi.acceptRequest(friendId)
       setPending(prev => prev.filter(f => f.friendId !== friendId))
+      await loadFriends()
+      window.dispatchEvent(new CustomEvent('cwww:friend-accepted'))
     } catch (e) {
       console.error('수락 실패', e)
     }
