@@ -43,9 +43,16 @@ export default function FriendsPage() {
     }
   }, [])
 
+  const refreshPendingBadge = useCallback(async () => {
+    try {
+      const res = await friendApi.getPendingRequests()
+      setPending(res.data.data)
+    } catch {}
+  }, [])
+
   useEffect(() => {
-    loadPending()
-  }, [loadPending])
+    refreshPendingBadge()
+  }, [refreshPendingBadge])
 
   useEffect(() => {
     if (tab === '일촌 목록') loadFriends()
@@ -53,12 +60,9 @@ export default function FriendsPage() {
   }, [tab, loadFriends, loadPending])
 
   useEffect(() => {
-    const handler = () => {
-      if (tab === '받은 신청') loadPending()
-    }
-    window.addEventListener('cwww:friend-request-received', handler)
-    return () => window.removeEventListener('cwww:friend-request-received', handler)
-  }, [tab, loadPending])
+    window.addEventListener('cwww:friend-request-received', refreshPendingBadge)
+    return () => window.removeEventListener('cwww:friend-request-received', refreshPendingBadge)
+  }, [refreshPendingBadge])
 
   const acceptRequest = async (friendId: number) => {
     try {

@@ -157,6 +157,7 @@ export default function FeedPage() {
   const location = useLocation()
   const { user, clearAuth } = useAuthStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const friendToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchRequestIdRef = useRef(0)
 
   const [posts, setPosts] = useState<PostResponse[]>([])
@@ -308,7 +309,13 @@ const profileInputRef = useRef<HTMLInputElement>(null)
   }, [user?.id])
 
   useEffect(() => {
-    const handler = () => setPendingFriendCount(prev => prev + 1)
+    let requestId = 0
+    const handler = () => {
+      const id = ++requestId
+      friendApi.getPendingRequests()
+        .then(res => { if (id === requestId) setPendingFriendCount(res.data.data.length) })
+        .catch(() => {})
+    }
     window.addEventListener('cwww:friend-request-received', handler)
     return () => window.removeEventListener('cwww:friend-request-received', handler)
   }, [])
@@ -664,8 +671,9 @@ const profileInputRef = useRef<HTMLInputElement>(null)
       )
       setSentFriendRequestIds(prev => new Set(prev).add(friendRequestTarget.userId))
       setFriendRequestTarget(null)
+      if (friendToastTimerRef.current) clearTimeout(friendToastTimerRef.current)
       setFriendToast('일촌 신청을 보냈습니다.')
-      setTimeout(() => setFriendToast(null), 3000)
+      friendToastTimerRef.current = setTimeout(() => setFriendToast(null), 3000)
     } catch {
       // 이미 신청했거나 이미 일촌인 경우 조용히 처리
       setFriendRequestTarget(null)
