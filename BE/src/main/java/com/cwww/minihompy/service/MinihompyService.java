@@ -161,7 +161,9 @@ public class MinihompyService {
 	// 회원 탈퇴 시 미니홈피 소프트 삭제 (auth 도메인 탈퇴 처리 흐름에서 호출)
 	@Transactional
 	public void softDeleteMinihompy(Long userId) {
+
 		minihompyMapper.softDeleteByUserId(userId);
+
 	}
 
 
