@@ -19,7 +19,7 @@ function getStoredUser(): User | null {
   const email = localStorage.getItem('userEmail')
   const nickname = localStorage.getItem('userNickname')
 
-  if (!id || !email || !nickname) {
+  if (id === null || email === null || nickname === null) {
     return null
   }
 
