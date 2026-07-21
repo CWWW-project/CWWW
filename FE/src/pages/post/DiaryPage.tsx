@@ -55,6 +55,8 @@ export default function DiaryPage() {
   const [commentSubmitting, setCommentSubmitting] = useState<Set<number>>(new Set())
   const [commentInputs, setCommentInputs] = useState<Record<number, string>>({})
 
+  const [lightbox, setLightbox] = useState<{ urls: string[]; index: number } | null>(null)
+
   // 작성/수정 공용 모달
   const [showModal, setShowModal] = useState(false)
   const [editingPostId, setEditingPostId] = useState<number | null>(null)
@@ -405,6 +407,48 @@ export default function DiaryPage() {
   return (
     <div className="min-h-screen text-[#1a1c1c] py-6 flex justify-center items-start">
 
+      {/* 이미지 라이트박스 */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80"
+          onClick={() => setLightbox(null)}
+        >
+          <img
+            src={lightbox.urls[lightbox.index]}
+            alt=""
+            className="max-w-[90vw] max-h-[90vh] object-contain border-2 border-[#8e7164]"
+            onClick={e => e.stopPropagation()}
+          />
+          <button
+            className="absolute top-4 right-4 text-white bg-black/50 rounded-full w-8 h-8 flex items-center justify-center"
+            onClick={() => setLightbox(null)}
+          >
+            <span className="material-symbols-outlined text-[18px]">close</span>
+          </button>
+          {lightbox.urls.length > 1 && (
+            <>
+              <button
+                className="absolute left-4 text-white bg-black/50 rounded-full w-10 h-10 flex items-center justify-center disabled:opacity-30"
+                onClick={e => { e.stopPropagation(); setLightbox(prev => prev && prev.index > 0 ? { ...prev, index: prev.index - 1 } : prev) }}
+                disabled={lightbox.index === 0}
+              >
+                <span className="material-symbols-outlined">chevron_left</span>
+              </button>
+              <button
+                className="absolute right-4 text-white bg-black/50 rounded-full w-10 h-10 flex items-center justify-center disabled:opacity-30"
+                onClick={e => { e.stopPropagation(); setLightbox(prev => prev && prev.index < prev.urls.length - 1 ? { ...prev, index: prev.index + 1 } : prev) }}
+                disabled={lightbox.index === lightbox.urls.length - 1}
+              >
+                <span className="material-symbols-outlined">chevron_right</span>
+              </button>
+              <div className="absolute bottom-4 text-white font-[Geist,monospace] text-[12px] bg-black/50 px-3 py-1 rounded-full">
+                {lightbox.index + 1} / {lightbox.urls.length}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* 작성/수정 모달 */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-2">
@@ -469,7 +513,7 @@ export default function DiaryPage() {
                     placeholder="#태그 입력 후 Enter"
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); addTag() } }}
                   />
                   <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-2 py-1" onClick={addTag}>추가</button>
                 </div>
@@ -612,14 +656,14 @@ export default function DiaryPage() {
                           </div>
                         )}
                         {post.mediaUrls.length > 0 && (
-                          <div className="mt-2 flex flex-col items-start gap-1">
-                            {post.mediaUrls.map(url => (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {post.mediaUrls.map((url, i) => (
                               <img
                                 key={url}
                                 src={url}
                                 alt=""
-                                className="shadow-sm"
-                                style={{ width: 220, height: 'auto' }}
+                                className="w-20 h-20 object-cover border border-[#8e7164] cursor-pointer hover:opacity-80 transition"
+                                onClick={() => setLightbox({ urls: post.mediaUrls, index: i })}
                               />
                             ))}
                           </div>
