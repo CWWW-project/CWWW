@@ -169,8 +169,10 @@ export default function MinihompyPage() {
   useEffect(() => {
     if (!main || main.owner) return
     setFriendStatusLoading(true)
+    let ignore = false
     Promise.all([friendApi.getFriends(), friendApi.getPendingRequests()])
       .then(([friendsRes, pendingRes]) => {
+        if (ignore) return
         const friends = friendsRes.data.data
         const pending = pendingRes.data.data
 
@@ -196,8 +198,10 @@ export default function MinihompyPage() {
 
         setFriendStatus('NONE')
       })
-      .catch(() => setFriendStatus('NONE'))
-      .finally(() => setFriendStatusLoading(false))
+      .catch(() => { if (!ignore) setFriendStatus('NONE') })
+      .finally(() => { if (!ignore) setFriendStatusLoading(false) })
+
+    return () => { ignore = true }
   }, [main?.ownerId, main?.owner])
 
   // 일촌 신청 함수
