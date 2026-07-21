@@ -49,6 +49,14 @@ public class PaymentController {
         return ResponseEntity.ok(ApiResponse.success(paymentService.getBalance(userId)));
     }
 
+    @GetMapping("/orders")
+    public ResponseEntity<ApiResponse<List<OrderHistoryResponse>>> getOrderHistory(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.success(paymentService.getOrderHistory(userId, page, size)));
+    }
+
     @PostMapping("/cancel")
     public ResponseEntity<ApiResponse<PaymentCancelResponse>> cancelPayment(
             @AuthenticationPrincipal Long userId,

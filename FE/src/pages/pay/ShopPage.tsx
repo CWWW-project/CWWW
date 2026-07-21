@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { cartApi } from '../../api/cart'
 import { itemApi } from '../../api/item'
-import { getBalance } from '../../api/payment'
+import { cancelPayment, getBalance, getOrderHistory, type OrderHistoryResponse } from '../../api/payment'
 import { useAuthStore } from '../../store/authStore'
 import type { CartItemResponse, InventoryItemResponse, ItemResponse } from '../../types'
 import AcornChargeModal from '../../components/AcornChargeModal'
@@ -53,7 +53,12 @@ export default function ShopPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [acorns, setAcorns] = useState<number | null>(null)
+  const [availableBalance, setAvailableBalance] = useState<number | null>(null)
   const [chargeOpen, setChargeOpen] = useState(false)
+  const [orders, setOrders] = useState<OrderHistoryResponse[]>([])
+  const [cancelingUid, setCancelingUid] = useState<string | null>(null)
+  const [confirmCancelUid, setConfirmCancelUid] = useState<string | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   const inventoryItemIds = useMemo(() => new Set(inventory.map(item => item.itemId)), [inventory])
   const cartItemIds = useMemo(() => new Set(cart.map(item => item.itemId)), [cart])
@@ -86,11 +91,20 @@ export default function ShopPage() {
       setCart(cartResponse.data.data)
       setInventory(inventoryResponse.data.data)
       setAcorns(null)
+      setAvailableBalance(null)
       try {
         const balanceResponse = await getBalance()
         setAcorns(balanceResponse.balance)
+        setAvailableBalance(balanceResponse.availableBalance)
       } catch {
         setAcorns(null)
+        setAvailableBalance(null)
+      }
+      try {
+        const orderHistory = await getOrderHistory()
+        setOrders(orderHistory)
+      } catch {
+        setOrders([])
       }
     } catch {
       setError('상점 정보를 불러오지 못했습니다.')
@@ -145,12 +159,48 @@ export default function ShopPage() {
       setInventory(inventoryResponse.data.data)
       setCart([])
       setAcorns(response.data.data.remainingAcorns)
+      setAvailableBalance(response.data.data.remainingAcorns)
       setShowPayment(false)
       setToast('구매가 완료되었습니다.')
       setTimeout(() => setToast(null), 2500)
     } catch {
       setShowPayment(false)
       setError('구매에 실패했습니다. 도토리 잔액과 장바구니를 확인해주세요.')
+    }
+  }
+
+  const withinRefundPeriod = (createdAt: string) => {
+    const diff = Date.now() - new Date(createdAt).getTime()
+    return diff <= 3 * 24 * 60 * 60 * 1000
+  }
+
+  const canCancelOrder = (order: OrderHistoryResponse) =>
+    order.status === 'PAID'
+    && availableBalance !== null
+    && availableBalance >= order.acornAmount
+    && withinRefundPeriod(order.createdAt)
+
+  const cancelBlockReason = (order: OrderHistoryResponse): string | null => {
+    if (order.status !== 'PAID') return null
+    if (!withinRefundPeriod(order.createdAt)) return '환불 기간(3일) 초과'
+    if (availableBalance !== null && availableBalance < order.acornAmount) return '도토리 사용으로 환불 불가'
+    return null
+  }
+
+  const handleCancelOrder = async (orderUid: string) => {
+    setCancelingUid(orderUid)
+    try {
+      const res = await cancelPayment(orderUid, '사용자 요청 취소')
+      setAcorns(res.balance)
+      setAvailableBalance(res.balance)
+      setOrders(prev => prev.map(o => o.orderUid === orderUid ? { ...o, status: 'CANCELED' } : o))
+      setToast('환불이 완료되었습니다.')
+      setTimeout(() => setToast(null), 2500)
+    } catch {
+      setError('환불에 실패했습니다. 다시 시도해주세요.')
+    } finally {
+      setCancelingUid(null)
+      setConfirmCancelUid(null)
     }
   }
 
@@ -187,6 +237,12 @@ export default function ShopPage() {
                     onClick={() => setChargeOpen(true)}
                   >
                     🌰 충전
+                  </button>
+                  <button
+                    className="retro-btn px-2 py-1 text-[11px]"
+                    onClick={() => setHistoryOpen(true)}
+                  >
+                    충전 내역
                   </button>
                 </div>
               </div>
@@ -297,6 +353,7 @@ export default function ShopPage() {
                   )}
                 </div>
               </div>
+
             </div>
           </div>
         </div>
@@ -347,6 +404,86 @@ export default function ShopPage() {
       )}
 
       <AcornChargeModal open={chargeOpen} onClose={() => setChargeOpen(false)} />
+
+      {historyOpen && (
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: 'rgba(0,0,0,0.4)' }}>
+          <div className="window-frame p-0 w-80">
+            <div className="retro-title-bar">
+              <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>receipt_long</span>
+              충전 내역
+              <button className="title-btn ml-auto" onClick={() => setHistoryOpen(false)}>X</button>
+            </div>
+            <div className="p-2 flex flex-col gap-1 max-h-[60vh] overflow-y-auto">
+              {orders.map(order => {
+                const statusLabel: Record<string, string> = { PAID: '완료', CANCELING: '환불 중', CANCELED: '환불됨' }
+                const blockReason = cancelBlockReason(order)
+                const canCancel = canCancelOrder(order)
+                return (
+                  <div key={order.orderUid} className="flex flex-col gap-1 py-2 border-b border-[#e3bfb1] last:border-0">
+                    <div className="flex items-center justify-between">
+                      <span className="font-[Geist,monospace] text-[13px] font-bold text-[#1a1c1c]">
+                        🌰 {order.acornAmount.toLocaleString()}개
+                      </span>
+                      {order.status === 'PAID' && blockReason ? (
+                        <span className="font-[Geist,monospace] text-[10px] text-[#5a4136]">{blockReason}</span>
+                      ) : (
+                        <span className={`font-[Geist,monospace] text-[11px] font-semibold ${order.status === 'CANCELED' ? 'text-[#5a4136]' : order.status === 'CANCELING' ? 'text-[#a33e00]' : 'text-[#0c6780]'}`}>
+                          {statusLabel[order.status] ?? order.status}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-[Geist,monospace] text-[10px] text-[#5a4136]">
+                        {order.price.toLocaleString()}원 · {new Date(order.createdAt).toLocaleDateString('ko-KR')}
+                      </span>
+                      {canCancel && (
+                        <button
+                          className="retro-btn px-2 py-0 text-[10px]"
+                          onClick={() => setConfirmCancelUid(order.orderUid)}
+                          disabled={cancelingUid === order.orderUid}
+                        >
+                          환불
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+              {orders.length === 0 && (
+                <p className="text-[12px] text-[#5a4136] text-center py-4 font-[Geist,monospace]">충전 내역이 없습니다.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmCancelUid && (
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: 'rgba(0,0,0,0.4)' }}>
+          <div className="window-frame p-0 w-72">
+            <div className="retro-title-bar">
+              <span className="material-symbols-outlined text-sm">undo</span>
+              환불 확인
+              <button className="title-btn ml-auto" onClick={() => setConfirmCancelUid(null)}>X</button>
+            </div>
+            <div className="p-4 flex flex-col gap-3">
+              <p className="font-[Geist,monospace] text-[13px] text-[#1a1c1c] text-center">
+                이 충전 건을 환불할까요?<br />
+                <span className="text-[#ba1a1a] font-semibold">도토리가 차감되며 되돌릴 수 없습니다.</span>
+              </p>
+              <div className="flex gap-2">
+                <button className="retro-btn flex-1 font-[Geist,monospace] text-[12px] py-2" onClick={() => setConfirmCancelUid(null)}>취소</button>
+                <button
+                  className="retro-btn retro-btn-primary flex-1 font-[Geist,monospace] text-[12px] py-2"
+                  onClick={() => void handleCancelOrder(confirmCancelUid)}
+                  disabled={cancelingUid === confirmCancelUid}
+                >
+                  {cancelingUid === confirmCancelUid ? '처리 중...' : '환불'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
