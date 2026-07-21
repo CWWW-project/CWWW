@@ -90,16 +90,21 @@ function TopRightSettingsButton() {
 
 function useMyProfileImage() {
   const setMyProfileImageUrl = useMinihompyStore(state => state.setMyProfileImageUrl)
+  const accessToken = useAuthStore(state => state.accessToken)
 
   useEffect(() => {
-    if (!localStorage.getItem('accessToken')) {
+    if (!accessToken) {
       setMyProfileImageUrl(null)
       return
     }
+
+    let ignore = false
     minihompyApi.getMyMinihompy()
-      .then(res => setMyProfileImageUrl(res.data.data.profileImageUrl))
-      .catch(() => setMyProfileImageUrl(null))
-  }, [])
+      .then(res => { if (!ignore) setMyProfileImageUrl(res.data.data.profileImageUrl) })
+      .catch(() => { if (!ignore) setMyProfileImageUrl(null) })
+
+    return () => { ignore = true }
+  }, [accessToken])
 }
 
 function useGlobalBgm() {

@@ -7,6 +7,7 @@ import { parseMoodEmoji } from '../../utils/mood'
 import { useMinihompyStore } from '../../store/minihompyStore'
 import ProfileImageMenuModal from '../../components/ProfileImageMenuModal'
 import UserNameLink from '../../components/UserNameLink'
+import { deleteProfileImage, uploadProfileImage } from '../../utils/profileImage'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -66,9 +67,7 @@ export default function GuestbookPage() {
 
   const handleDeleteProfile = async () => {
     try {
-      await minihompyApi.deleteProfileImage()
-      const res = await minihompyApi.getMyMinihompy()
-      setMain(res.data.data)
+      await deleteProfileImage()
     } catch (e) {
       console.error('프로필 사진 삭제 실패', e)
       alert('프로필 사진 삭제에 실패했습니다. 다시 시도해주세요.')
@@ -197,9 +196,7 @@ export default function GuestbookPage() {
                     const file = e.target.files?.[0]
                     if (!file) return
                     try {
-                      await minihompyApi.uploadProfileImage(file)
-                      const res = await minihompyApi.getMyMinihompy()
-                      setMain(res.data.data)
+                      await uploadProfileImage(file)
                     } catch (err) {
                       console.error('프로필 사진 업로드 실패', err)
                       alert('프로필 사진 업로드에 실패했습니다. 다시 시도해주세요.')

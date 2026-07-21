@@ -20,12 +20,13 @@ export default function UserNameLink({ userId, nickname, className }: Props) {
 
   return (
     <>
-      <span
+      <button
+        type="button"
         className={className ?? 'cursor-pointer hover:underline'}
         onClick={() => setShowConfirm(true)}
       >
         {nickname}
-      </span>
+      </button>
 
       {showConfirm && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 px-2" onClick={() => setShowConfirm(false)}>
