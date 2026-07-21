@@ -11,22 +11,25 @@ import com.cwww.global.exception.BusinessException;
 import com.cwww.global.exception.ErrorCode;
 import com.cwww.user.domain.User;
 import com.cwww.user.mapper.UserMapper;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.mail.MailException;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.UnsupportedEncodingException;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -36,6 +39,7 @@ public class AuthServiceImpl implements AuthService {
 
     private static final String OAUTH_CODE_PREFIX = "oauth:code:";
     private static final ZoneId ZONE = ZoneId.systemDefault();
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final JavaMailSender mailSender;
     private final UserMapper userMapper;
@@ -44,8 +48,15 @@ public class AuthServiceImpl implements AuthService {
     private final EmailVerificationService emailVerificationService;
     private final RedisTemplate<String, String> redisTemplate;
 
+    private static final String RESET_FAIL_PREFIX = "reset:fail:";
+    private static final int MAX_RESET_ATTEMPTS = 5;
+    private static final long RESET_FAIL_WINDOW_MINUTES = 60;
+
     @Value("${spring.mail.username}")
     private String mailUsername;
+
+    @Value("${app.reset-password-url}")
+    private String resetPasswordUrl;
 
     // 비밀번호
     @Override
@@ -55,31 +66,82 @@ public class AuthServiceImpl implements AuthService {
             // 계정 존재 여부를 응답으로 노출하지 않기 위해 존재하지 않아도 동일하게 성공 처리
             return;
         }
-        String resetToken = UUID.randomUUID().toString();
+        String resetToken = generateResetToken();
         userMapper.updateResetToken(email, resetToken, LocalDateTime.now().plusMinutes(30));
 
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(email);
-        message.setFrom(mailUsername);
-        message.setSubject("[CWWW] 비밀번호 재설정");
-        message.setText("아래 토큰으로 30분 이내에 비밀번호를 재설정해주세요:\n" + resetToken);
+        String resetLink = resetPasswordUrl + "?token=" + resetToken;
+
+        MimeMessage mimeMessage = mailSender.createMimeMessage();
         try {
-            mailSender.send(message);
-        } catch (MailException e) {
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
+            helper.setTo(email);
+            helper.setFrom(mailUsername, "CWWW");
+            helper.setSubject("[CWWW] 비밀번호 재설정");
+            helper.setText("""
+                <div style="background:#f0ebe6;padding:40px 0;font-family:Arial,sans-serif;">
+                  <div style="max-width:480px;margin:0 auto;background:#fff;border:2px solid #8e7164;border-radius:4px;">
+                    <div style="background:linear-gradient(to right,#a33e00,#7c2e00);padding:8px 14px;">
+                      <span style="color:#fff;font-size:12px;font-weight:bold;">CWWW — 비밀번호 재설정</span>
+                    </div>
+                    <div style="padding:32px 28px;">
+                      <h2 style="margin:0 0 8px;font-size:22px;color:#7c2e00;">비밀번호를 잊으셨나요?</h2>
+                      <p style="margin:0 0 20px;font-size:14px;color:#5a4136;line-height:1.6;">
+                        비밀번호 재설정 요청이 접수되었습니다.<br>
+                        아래 인증번호를 재설정 화면에 입력하거나, 버튼을 눌러 바로 이동해주세요.
+                      </p>
+                      <div style="text-align:center;margin-bottom:20px;">
+                        <span style="display:inline-block;background:#f0ebe6;color:#7c2e00;
+                                     padding:14px 28px;border-radius:4px;font-size:26px;font-weight:bold;
+                                     letter-spacing:4px;border:2px solid #7c2e00;">
+                          %s
+                        </span>
+                      </div>
+                      <div style="text-align:center;margin-bottom:24px;">
+                        <a href="%s"
+                           style="display:inline-block;background:#a33e00;color:#fff;text-decoration:none;
+                                  padding:12px 32px;border-radius:4px;font-size:14px;font-weight:bold;
+                                  border:2px solid #7c2e00;">
+                          비밀번호 재설정하기
+                        </a>
+                      </div>
+                      <p style="margin:0;font-size:12px;color:#8a6a5e;text-align:center;">
+                        인증번호와 링크는 <strong>30분</strong> 동안 유효합니다.<br>
+                        본인이 요청하지 않았다면 이 메일을 무시해주세요.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                """.formatted(resetToken, resetLink), true);
+            mailSender.send(mimeMessage);
+        } catch (MessagingException | UnsupportedEncodingException | MailException e) {
             throw new BusinessException(ErrorCode.MAIL_SEND_FAILED);
         }
     }
 
+    private String generateResetToken() {
+        return String.format("%08d", SECURE_RANDOM.nextInt(100_000_000));
+    }
+
     @Override
-    public void resetPassword(String resetToken, String newPassword) {
+    public void resetPassword(String resetToken, String newPassword, String clientIp) {
+        String failKey = RESET_FAIL_PREFIX + clientIp;
+        Long attempts = redisTemplate.opsForValue().increment(failKey);
+        if (attempts != null && attempts == 1L) {
+            redisTemplate.expire(failKey, RESET_FAIL_WINDOW_MINUTES, TimeUnit.MINUTES);
+        }
+        if (attempts != null && attempts > MAX_RESET_ATTEMPTS) {
+            throw new BusinessException(ErrorCode.TOO_MANY_RESET_ATTEMPTS);
+        }
+
         User user = userMapper.findByResetToken(resetToken);
-        if (user == null) {
-            throw new BusinessException(ErrorCode.INVALID_RESET_TOKEN);
+        if (user == null || user.getResetTokenExpiresAt() == null
+                || user.getResetTokenExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new BusinessException(
+                    user == null ? ErrorCode.INVALID_RESET_TOKEN : ErrorCode.EXPIRED_RESET_TOKEN);
         }
-        if (user.getResetTokenExpiresAt() == null || user.getResetTokenExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new BusinessException(ErrorCode.EXPIRED_RESET_TOKEN);
-        }
+
         userMapper.resetPassword(user.getUserId(), passwordEncoder.encode(newPassword));
+        redisTemplate.delete(failKey);
     }
 
     @Override
@@ -95,6 +157,11 @@ public class AuthServiceImpl implements AuthService {
         if (updated != 1) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
+    }
+
+    @Override
+    public boolean isNicknameAvailable(String nickname) {
+        return userMapper.findByNickname(nickname) == null;
     }
 
 
@@ -143,7 +210,10 @@ public class AuthServiceImpl implements AuthService {
     public LoginResponse login(LoginRequest request) {
         User user = userMapper.findByEmail(request.getEmail());
         if (user == null) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+            throw new BusinessException(ErrorCode.EMAIL_NOT_FOUND);
+        }
+        if (user.getPassword() == null) {
+            throw new BusinessException(ErrorCode.SOCIAL_LOGIN_REQUIRED);
         }
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { GlobalNotificationLayer } from './app/GlobalNotificationLayer'
+import { IdleSessionGuard } from './app/IdleSessionGuard'
 import LoginPage from './pages/auth/LoginPage'
 import SignupPage from './pages/auth/SignupPage'
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage'
@@ -109,6 +110,7 @@ function App() {
   useGlobalBgm()
   return (
     <BrowserRouter>
+      <IdleSessionGuard />
       <GlobalNotificationLayer />
       <GlobalMobileNav />
       <TopRightSettingsButton />

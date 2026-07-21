@@ -47,6 +47,9 @@ export const authApi = {
   verifyEmailCode: (email: string, code: string) =>
     api.post<ApiResponse<null>>('/auth/email/verify', { email, code }),
 
+  checkNickname: (nickname: string) =>
+    api.get<ApiResponse<boolean>>('/auth/nickname/check', { params: { nickname } }),
+
   forgotPassword: (email: string) =>
     api.post<ApiResponse<null>>('/auth/password/forgot', { email }),
 
