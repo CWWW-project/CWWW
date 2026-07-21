@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useAuthStore } from '../store/authStore'
 
 const api = axios.create({
   baseURL: '/api',
@@ -15,10 +16,7 @@ api.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('accessToken')
-      localStorage.removeItem('userId')
-      localStorage.removeItem('userEmail')
-      localStorage.removeItem('userNickname')
+      useAuthStore.getState().clearAuth()
       window.location.href = '/auth/login'
     }
     return Promise.reject(error)
