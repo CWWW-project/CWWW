@@ -5,6 +5,7 @@ import { stopAudio } from './audioPlayer'
 interface MinihompyState {
   main: MinihompyMainResponse | null
   setMain: (main: MinihompyMainResponse | null) => void
+  setDefaultBackgroundIfUnset: (main: MinihompyMainResponse | null) => void
   clearMain: () => void
   myProfileImageUrl: string | null
   myProfileImageVersion: number
@@ -38,6 +39,12 @@ export const useMinihompyStore = create<MinihompyState>((set) => ({
     applyBackground(main)
     set({ main })
   },
+  setDefaultBackgroundIfUnset: (main) =>
+    set(state => {
+      if (state.main) return {}   // 이미 누군가(특정 페이지)가 채워놨으면 그대로 두기
+      applyBackground(main)
+      return { main }
+    }),
   clearMain: () => {
     applyBackground(null)
     stopAudio()

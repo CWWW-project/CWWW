@@ -95,7 +95,7 @@ export default function VisitorPage() {
           onSaved={(updated) => { setMain(updated); setShowMoodIntroEdit(false) }}
         />
         )}
-      <div className="max-w-[1024px] w-full mx-auto mt-12 flex gap-0 relative z-10 px-2 md:px-0">
+      <div className="max-w-[1024px] w-full mx-auto mt-12 md:mt-8 flex gap-0 relative z-10 px-2 md:px-0">
         <div className="window-frame p-4 w-full flex flex-col md:flex-row gap-4 border border-[#8e7164] relative">
 
           {/* 왼쪽 사이드바 — 다른 페이지와 동일 구조 */}
@@ -157,7 +157,7 @@ export default function VisitorPage() {
                 </div>
               )}
 
-              <div className="flex flex-col overflow-y-auto" style={{ maxHeight: 520 }}>
+              <div className="flex flex-col overflow-y-auto" style={{ height: 600 }}>
                 {visitorsLoading && (
                   <div className="p-8 text-center font-[Geist,monospace] text-[12px] text-[#5a4136]">불러오는 중...</div>
                 )}
@@ -200,12 +200,12 @@ export default function VisitorPage() {
         </div>
 
         {/* 우측 탭 */}
-        <nav className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
+        <div className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
           <MinihompyTabs
             owner={main?.owner ?? false}
             ownerId={main?.ownerId ?? 0}
           />
-        </nav>
+        </div>
       </div>
     </div>
   )

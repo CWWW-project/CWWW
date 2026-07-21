@@ -1171,7 +1171,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
         </div>
       </header>
 
-      <div className="max-w-[1024px] w-full mx-auto mt-16 md:mt-12 flex gap-0 relative z-10 px-2 md:px-0">
+      <div className="max-w-[1024px] w-full mx-auto mt-12 md:mt-8 flex gap-0 relative z-10 px-2 md:px-0">
         <div className="window-frame p-4 w-full flex flex-col md:flex-row gap-4 border border-[#8e7164] relative">
 
           {/* 왼쪽 사이드바 */}
@@ -1558,7 +1558,6 @@ const profileInputRef = useRef<HTMLInputElement>(null)
             owner={main?.owner ?? false}
             ownerId={main?.ownerId ?? 0}
           />
-
           {main?.owner && (
             <button
               onClick={() => setShowSettings(true)}
