@@ -9,6 +9,7 @@ import AcornChargeModal from '../../components/AcornChargeModal'
 
 type CategoryFilter = 'ALL' | 'MINIROOM_ITEM' | 'MINIROOM_BACKGROUND' | 'AVATAR' | 'BGM'
 
+// 이전 카테고리명과 현재 카테고리명을 같은 탭에서 보여준다.
 const CATEGORIES: Array<{ value: CategoryFilter; label: string; aliases: string[] }> = [
   { value: 'ALL', label: '전체', aliases: [] },
   { value: 'MINIROOM_ITEM', label: '미니룸 아이템', aliases: ['MINIROOM_ITEM', 'MINIROOM'] },
@@ -16,6 +17,8 @@ const CATEGORIES: Array<{ value: CategoryFilter; label: string; aliases: string[
   { value: 'AVATAR', label: '미니미', aliases: ['AVATAR'] },
   { value: 'BGM', label: 'BGM', aliases: ['BGM'] },
 ]
+
+const ITEMS_PER_PAGE = 24
 
 const categoryLabel = (category: string) => {
   const labels: Record<string, string> = {
@@ -41,10 +44,30 @@ const visualForCategory = (category: string) => {
   return map[category] ?? { icon: 'inventory_2', color: '#5a4136', bg: '#f3f3f3' }
 }
 
+const fetchShopItems = async () => {
+  const categories = ['MINIROOM', 'BACKGROUND', 'AVATAR', 'BGM']
+  const pageSize = 100
+  // 서버 페이지를 끝까지 모은 뒤 화면에서 카테고리 필터와 24개 단위 페이징을 적용한다.
+  const responses = await Promise.all(categories.map(async category => {
+    const collected: ItemResponse[] = []
+    for (let page = 1; ; page += 1) {
+      const response = await itemApi.getItems(category, page, pageSize)
+      collected.push(...response.data.data)
+      if (response.data.data.length < pageSize) break
+    }
+    return collected
+  }))
+
+  return responses
+    .flat()
+    .sort((a, b) => b.itemId - a.itemId)
+}
+
 export default function ShopPage() {
   const navigate = useNavigate()
   const authStore = useAuthStore()
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('ALL')
+  const [currentPage, setCurrentPage] = useState(1)
   const [items, setItems] = useState<ItemResponse[]>([])
   const [cart, setCart] = useState<CartItemResponse[]>([])
   const [inventory, setInventory] = useState<InventoryItemResponse[]>([])
@@ -70,13 +93,23 @@ export default function ShopPage() {
     return items.filter(item => category?.aliases.includes(item.category))
   }, [activeCategory, items])
 
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / ITEMS_PER_PAGE))
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE
+    return filteredItems.slice(start, start + ITEMS_PER_PAGE)
+  }, [currentPage, filteredItems])
+
+  useEffect(() => {
+    setCurrentPage(page => Math.min(page, totalPages))
+  }, [totalPages])
+
   const loadShop = async () => {
     setLoading(true)
     setError(null)
     try {
-      const itemsResponse = await itemApi.getItems(undefined, 1, 100)
-      setItems(itemsResponse.data.data)
+      setItems(await fetchShopItems())
 
+      // 상품 목록은 공개지만 장바구니와 보유함은 로그인한 사용자에게만 요청한다.
       if (!localStorage.getItem('accessToken')) {
         setCart([])
         setInventory([])
@@ -174,6 +207,7 @@ export default function ShopPage() {
     return diff <= 3 * 24 * 60 * 60 * 1000
   }
 
+  // 충전 후 3일 이내이고 충전한 도토리를 아직 사용하지 않은 주문만 바로 환불할 수 있다.
   const canCancelOrder = (order: OrderHistoryResponse) =>
     order.status === 'PAID'
     && availableBalance !== null
@@ -216,7 +250,7 @@ export default function ShopPage() {
           </div>
 
           <div className="flex gap-1 justify-end">
-            <button className="retro-btn px-2 py-1 text-[11px]" onClick={() => navigate('/home')}>🏠 미니홈피</button>
+            <button className="retro-btn px-2 py-1 text-[11px]" onClick={() => navigate('/')}>🏠 미니홈피</button>
             {isAdmin && (
               <button className="retro-btn px-2 py-1 text-[11px]" onClick={() => navigate('/admin/payments')}>👮 관리자</button>
             )}
@@ -252,7 +286,10 @@ export default function ShopPage() {
                 {CATEGORIES.map(category => (
                   <button
                     key={category.value}
-                    onClick={() => setActiveCategory(category.value)}
+                    onClick={() => {
+                      setActiveCategory(category.value)
+                      setCurrentPage(1)
+                    }}
                     className={`category-tab${activeCategory === category.value ? ' active' : ''}`}
                   >
                     {category.label}
@@ -262,7 +299,7 @@ export default function ShopPage() {
 
               <div className="window-inset p-2">
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                  {filteredItems.map(item => {
+                  {paginatedItems.map(item => {
                     const visual = visualForCategory(item.category)
                     const disabled = inventoryItemIds.has(item.itemId) || cartItemIds.has(item.itemId)
                     return (
@@ -295,6 +332,42 @@ export default function ShopPage() {
                     )
                   })}
                 </div>
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-1 mt-3" aria-label="상품 페이지 이동">
+                    <button
+                      type="button"
+                      className="retro-btn w-8 h-8 flex items-center justify-center"
+                      onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                      disabled={currentPage === 1}
+                      aria-label="이전 페이지"
+                      title="이전 페이지"
+                    >
+                      <span className="material-symbols-outlined text-base">chevron_left</span>
+                    </button>
+                    {Array.from({ length: totalPages }, (_, index) => index + 1).map(page => (
+                      <button
+                        key={page}
+                        type="button"
+                        className={`retro-btn w-8 h-8 text-[11px] font-semibold${currentPage === page ? ' retro-btn-primary' : ''}`}
+                        onClick={() => setCurrentPage(page)}
+                        aria-label={`${page}페이지`}
+                        aria-current={currentPage === page ? 'page' : undefined}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="retro-btn w-8 h-8 flex items-center justify-center"
+                      onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                      disabled={currentPage === totalPages}
+                      aria-label="다음 페이지"
+                      title="다음 페이지"
+                    >
+                      <span className="material-symbols-outlined text-base">chevron_right</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { postApi } from '../../api/post'
 import { commentApi } from '../../api/comment'
 import { roomApi } from '../../api/room'
 import { friendApi } from '../../api/friend'
-import type { PostResponse, CommentResponse, RoomResponse, MinihompyMainResponse, BgmOptionResponse, FriendResponse, UserSearchResponse } from '../../types'
+import type { PostResponse, CommentResponse, RoomResponse, FriendResponse, UserSearchResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
 import { minihompyApi } from '../../api/minihompy'
 import MinihompySettingsModal from '../../components/MinihompySettingsModal'
@@ -43,26 +43,28 @@ const EMPTY_FORM: WriteForm = { title: '', content: '', visibility: 'ALL', hasht
 const MINIROOM_ASSET_ROOT = '/miniroom-assets'
 const MINIROOM_WIDTH = 750
 const MINIROOM_HEIGHT = 606
+const DEFAULT_AVATAR_URL = `${MINIROOM_ASSET_ROOT}/avatars/avatar_01_rose.png`
 
 function MiniroomFeedPreview({ room, nickname, today, total, bgmName }: { room: RoomResponse | null; nickname?: string; today?: number; total?: number; bgmName?: string | null }) {
-  const backgroundUrl = room?.backgroundAssetUrl ?? `${MINIROOM_ASSET_ROOT}/rooms/room-pink.svg`
+  const backgroundUrl = room?.backgroundAssetUrl ?? `${MINIROOM_ASSET_ROOT}/backgrounds/bg_room.png`
   const savedItems = [...(room?.items ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)
   const hasSavedItems = savedItems.length > 0
   const avatar = room?.avatar
-  const hasRoomContent = hasSavedItems || Boolean(avatar?.avatarInventoryId)
-  const shouldShowFallbackItems = room == null
+  const hasRoomContent = hasSavedItems || Boolean(avatar)
+  const shouldShowFallbackItems = !hasRoomContent
 
   return (
-    <div className="relative w-full bg-[#dff6f4]" style={{ height: 280, overflow: 'hidden' }}>
+    <div className="relative w-full bg-[#dff6f4]" style={{ aspectRatio: `${MINIROOM_WIDTH} / ${MINIROOM_HEIGHT}`, overflow: 'hidden' }}>
       <img
         src={backgroundUrl}
         alt=""
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 w-full h-full"
         style={{ imageRendering: 'auto' }}
       />
 
       {hasRoomContent ? (
         <>
+          {/* 저장 좌표는 750x606 기준이므로 피드 미리보기 크기에 맞춰 비율로 환산한다. */}
           {savedItems.map(item => (
             <div
               key={item.roomItemId}
@@ -95,7 +97,7 @@ function MiniroomFeedPreview({ room, nickname, today, total, bgmName }: { room: 
               )}
             </div>
           ))}
-          {avatar?.avatarInventoryId ? (
+          {avatar ? (
             <div
               className="absolute flex flex-col items-center"
               style={{
@@ -107,10 +109,10 @@ function MiniroomFeedPreview({ room, nickname, today, total, bgmName }: { room: 
               }}
             >
               <img
-                src={`${MINIROOM_ASSET_ROOT}/avatars-grafxkid/grafxkid_avatar_01.png`}
+                src={avatar.assetUrl ?? DEFAULT_AVATAR_URL}
                 alt=""
                 style={{
-                  width: 36,
+                  width: avatar.assetWidth ?? 48,
                   imageRendering: 'pixelated',
                   transform: `scaleX(${avatar.flipped ? -1 : 1})`,
                 }}
@@ -129,9 +131,9 @@ function MiniroomFeedPreview({ room, nickname, today, total, bgmName }: { room: 
           </div>
           <div className="absolute flex flex-col items-center" style={{ left: '43%', top: '48%' }}>
             <img
-              src={`${MINIROOM_ASSET_ROOT}/avatars-grafxkid/grafxkid_avatar_01.png`}
+              src={DEFAULT_AVATAR_URL}
               alt=""
-              style={{ width: 36, imageRendering: 'pixelated' }}
+              style={{ width: 30, imageRendering: 'pixelated' }}
             />
             <div style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid #ccc', padding: '1px 6px', fontSize: 9, fontFamily: 'Geist, monospace', marginTop: 2, whiteSpace: 'nowrap' }}>
               {nickname ?? '미니미'}
@@ -155,7 +157,6 @@ function MiniroomFeedPreview({ room, nickname, today, total, bgmName }: { room: 
 
 export default function FeedPage() {
   const navigate = useNavigate()
-  const location = useLocation()
   const { user } = useAuthStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const friendToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)

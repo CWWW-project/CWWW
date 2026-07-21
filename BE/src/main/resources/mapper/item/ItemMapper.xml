@@ -26,6 +26,8 @@
         SELECT
         <include refid="itemColumns"/>
         FROM item
+        <!-- 판매 중지 상품은 상점 목록과 단건 구매 대상에서 모두 제외한다. -->
+        WHERE status = 'ACTIVE'
         ORDER BY created_at DESC, item_id DESC
     </select>
 
@@ -34,8 +36,9 @@
         <include refid="itemColumns"/>
         FROM item
         <where>
+            status = 'ACTIVE'
             <if test="category != null">
-                category = #{category}
+                AND category = #{category}
             </if>
         </where>
         ORDER BY created_at DESC, item_id DESC
@@ -51,6 +54,7 @@
         <include refid="itemColumns"/>
         FROM item
         WHERE item_id = #{itemId}
+          AND status = 'ACTIVE'
     </select>
 
     <select id="selectInventoryByUserId" resultType="com.cwww.item.dto.InventoryItemResponse">

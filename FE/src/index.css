@@ -300,6 +300,7 @@ body {
   background:
     radial-gradient(circle at 16% 12%, rgba(255, 255, 255, 0.22) 0 58px, transparent 60px),
     linear-gradient(135deg, #f46fa8 0%, #e84d91 48%, #f890bd 100%);
+  background-attachment: fixed, fixed;
   color: #31445a;
   font-family: "Trebuchet MS", "Malgun Gothic", Arial, sans-serif;
 }
@@ -432,7 +433,7 @@ body {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: fill;
   pointer-events: none;
   user-select: none;
 }

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { authApi } from '../../api/auth'
 import { minihompyApi } from '../../api/minihompy'
 import { guestbookApi } from '../../api/guestbook'
-import type { FriendResponse, GuestbookResponse } from '../../types'
+import { roomApi } from '../../api/room'
+import type { FriendResponse, GuestbookResponse, RoomResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
 import { useMinihompyStore } from '../../store/minihompyStore'
 import { parseMoodEmoji } from '../../utils/mood'
@@ -22,28 +22,98 @@ function formatTime(iso: string): string {
 }
 
 const MINIROOM_ASSET_ROOT = '/miniroom-assets'
+const MINIROOM_WIDTH = 750
+const MINIROOM_HEIGHT = 606
+const DEFAULT_AVATAR_URL = `${MINIROOM_ASSET_ROOT}/avatars/avatar_01_rose.png`
 
+function MiniroomFeedPreview({ room, nickname, bgmName, today, total }: {
+  room: RoomResponse | null
+  nickname?: string
+  bgmName?: string | null
+  today?: number
+  total?: number
+}) {
+  const backgroundUrl = room?.backgroundAssetUrl ?? `${MINIROOM_ASSET_ROOT}/backgrounds/bg_room.png`
+  const savedItems = [...(room?.items ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)
+  const avatar = room?.avatar
+  const hasRoomContent = savedItems.length > 0 || Boolean(avatar)
 
-// TODO: roomApi에 남의 방 조회 함수(예: getRoomByUserId)가 추가되면 여기서 불러와서
-// 프리뷰에 실제 방 데이터를 보여준다. 정용혁님 확인 필요.
-function MiniroomFeedPreview({ nickname, bgmName, today, total }: { nickname?: string; bgmName?: string | null; today?: number; total?: number }) {
   return (
-    <div className="relative w-full bg-[#dff6f4]" style={{ height: 240, overflow: 'hidden' }}>
+    <div className="relative w-full bg-[#dff6f4]" style={{ aspectRatio: `${MINIROOM_WIDTH} / ${MINIROOM_HEIGHT}`, overflow: 'hidden' }}>
       <img
-        src={`${MINIROOM_ASSET_ROOT}/rooms/room-pink.svg`}
+        src={backgroundUrl}
         alt=""
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 w-full h-full"
         style={{ imageRendering: 'auto' }}
       />
-      <div className="absolute" style={{ left: '50%', top: '52%', transform: 'translate(-50%, -50%)' }}>
-        <img src={`${MINIROOM_ASSET_ROOT}/items/sofa_blue.png`} alt="" style={{ width: 100, imageRendering: 'pixelated' }} />
-      </div>
-      <div className="absolute flex flex-col items-center" style={{ left: '43%', top: '48%' }}>
-        <img src={`${MINIROOM_ASSET_ROOT}/avatars-grafxkid/grafxkid_avatar_01.png`} alt="" style={{ width: 30, imageRendering: 'pixelated' }} />
-        <div style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid #ccc', padding: '1px 6px', fontSize: 9, fontFamily: 'Geist, monospace', marginTop: 2, whiteSpace: 'nowrap' }}>
-          {nickname ?? '미니미'}
-        </div>
-      </div>
+      {hasRoomContent ? (
+        <>
+          {/* 저장 좌표는 750x606 기준이므로 미리보기 크기에 맞춰 비율로 환산한다. */}
+          {savedItems.map(item => (
+            <div
+              key={item.roomItemId}
+              className="absolute"
+              title={item.name}
+              style={{
+                left: `${(item.posX / MINIROOM_WIDTH) * 100}%`,
+                top: `${(item.posY / MINIROOM_HEIGHT) * 100}%`,
+                width: `${((item.assetWidth ?? 80) / MINIROOM_WIDTH) * 100}%`,
+                zIndex: item.sortOrder,
+                transform: `scale(${item.scale ?? 1}) rotate(${item.rotation ?? 0}deg)`,
+                transformOrigin: 'center bottom',
+                filter: 'drop-shadow(2px 5px 2px rgba(44, 58, 65, 0.16))',
+              }}
+            >
+              {item.assetUrl ? (
+                <img
+                  src={item.assetUrl}
+                  alt=""
+                  className="block w-full"
+                  style={{ imageRendering: 'pixelated', transform: `scaleX(${item.flipped ? -1 : 1})` }}
+                />
+              ) : (
+                <span className="material-symbols-outlined text-[#a33e00]" style={{ fontSize: 42, fontVariationSettings: "'FILL' 1" }}>
+                  inventory_2
+                </span>
+              )}
+            </div>
+          ))}
+          {avatar && (
+            <div
+              className="absolute flex flex-col items-center"
+              style={{
+                left: `${((avatar.posX ?? 318) / MINIROOM_WIDTH) * 100}%`,
+                top: `${((avatar.posY ?? 438) / MINIROOM_HEIGHT) * 100}%`,
+                zIndex: 10000,
+                transform: `scale(${avatar.scale ?? 1})`,
+                transformOrigin: 'center bottom',
+              }}
+            >
+              <img
+                src={avatar.assetUrl ?? DEFAULT_AVATAR_URL}
+                alt=""
+                style={{
+                  width: avatar.assetWidth ?? 48,
+                  imageRendering: 'pixelated',
+                  transform: `scaleX(${avatar.flipped ? -1 : 1})`,
+                }}
+              />
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="absolute" style={{ left: '50%', top: '52%', transform: 'translate(-50%, -50%)' }}>
+            <img src={`${MINIROOM_ASSET_ROOT}/items/sofa_blue.png`} alt="" style={{ width: 100, imageRendering: 'pixelated' }} />
+          </div>
+          <div className="absolute flex flex-col items-center" style={{ left: '43%', top: '48%' }}>
+            <img src={DEFAULT_AVATAR_URL} alt="" style={{ width: 30, imageRendering: 'pixelated' }} />
+            <div style={{ background: 'rgba(255,255,255,0.9)', border: '1px solid #ccc', padding: '1px 6px', fontSize: 9, fontFamily: 'Geist, monospace', marginTop: 2, whiteSpace: 'nowrap' }}>
+              {nickname ?? '미니미'}
+            </div>
+          </div>
+        </>
+      )}
       <div className="absolute flex items-center gap-1" style={{ top: 6, left: 8, background: 'rgba(255,255,255,0.85)', border: '1px solid #ccc', padding: '2px 7px' }}>
         <span style={{ fontSize: 10, fontFamily: 'Geist, monospace', color: '#5a4136' }}>TODAY <span style={{ color: '#ba1a1a', fontWeight: 700 }}>{today ?? 0}</span> | TOTAL {(total ?? 0).toLocaleString()}</span>
       </div>
@@ -60,12 +130,12 @@ function MiniroomFeedPreview({ nickname, bgmName, today, total }: { nickname?: s
 export default function MinihompyPage() {
   const navigate = useNavigate()
   const { userId } = useParams<{ userId: string }>()
-  const { clearAuth } = useAuthStore()
   const user = useAuthStore((state) => state.user)
-  const { main, setMain, clearMain, myProfileImageUrl } = useMinihompyStore()
+  const { main, setMain, myProfileImageUrl } = useMinihompyStore()
 
   const [pageLoading, setPageLoading] = useState(true)
   const [pageError, setPageError] = useState('')
+  const [roomPreview, setRoomPreview] = useState<RoomResponse | null>(null)
 
   // 방명록
   const [entries, setEntries] = useState<GuestbookResponse[]>([])
@@ -93,6 +163,25 @@ export default function MinihompyPage() {
       .then(res => { if (!ignore) setMain(res.data.data) })
       .catch(e => { if (!ignore) setPageError(e.response?.data?.message ?? '미니홈피를 불러올 수 없습니다.') })
       .finally(() => { if (!ignore) setPageLoading(false) })
+
+    return () => { ignore = true }
+  }, [userId])
+
+  useEffect(() => {
+    const ownerId = Number(userId)
+    if (!Number.isFinite(ownerId)) {
+      setRoomPreview(null)
+      return
+    }
+
+    let ignore = false
+    roomApi.getRoom(ownerId)
+      .then(res => {
+        if (!ignore) setRoomPreview(res.data.data)
+      })
+      .catch(() => {
+        if (!ignore) setRoomPreview(null)
+      })
 
     return () => { ignore = true }
   }, [userId])
@@ -288,6 +377,7 @@ export default function MinihompyPage() {
                   >
                     <span className="material-symbols-outlined text-base">admin_panel_settings</span> 관리자 페이지
                   </button>
+                )}
                 {!main.owner && user && (
                   friendStatusLoading ? (
                     <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed" disabled>
@@ -342,6 +432,7 @@ export default function MinihompyPage() {
                 </span>
               </div>
               <MiniroomFeedPreview
+                room={roomPreview}
                 nickname={main.nickname}
                 bgmName={main.bgmName}
                 today={main.visitorCount.today}

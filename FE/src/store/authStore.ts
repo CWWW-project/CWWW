@@ -4,7 +4,7 @@ export interface User {
   id: number
   email: string
   nickname: string
-  role: string
+  role?: string
 }
 
 interface AuthState {
@@ -41,7 +41,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.setItem('userId', String(user.id))
     localStorage.setItem('userEmail', user.email)
     localStorage.setItem('userNickname', user.nickname)
-    localStorage.setItem('userRole', user.role)
+    localStorage.setItem('userRole', user.role ?? 'USER')
     set({ user, accessToken })
   },
   setAccessToken: (accessToken) => {
