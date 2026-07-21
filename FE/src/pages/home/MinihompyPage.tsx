@@ -3,11 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { authApi } from '../../api/auth'
 import { minihompyApi } from '../../api/minihompy'
 import { guestbookApi } from '../../api/guestbook'
-import type { GuestbookResponse } from '../../types'
+import type { FriendResponse, GuestbookResponse } from '../../types'
 import { useAuthStore } from '../../store/authStore'
 import { useMinihompyStore } from '../../store/minihompyStore'
 import { parseMoodEmoji } from '../../utils/mood'
 import MinihompyTabs from '../../components/MinihompyTabs'
+import UserNameLink from '../../components/UserNameLink'
+import BgmPlayer from '../../components/BgmPlayer'
+import { friendApi } from '../../api/friend'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -23,7 +26,7 @@ const MINIROOM_ASSET_ROOT = '/miniroom-assets'
 
 // TODO: roomApi에 남의 방 조회 함수(예: getRoomByUserId)가 추가되면 여기서 불러와서
 // 프리뷰에 실제 방 데이터를 보여준다. 정용혁님 확인 필요.
-function MiniroomFeedPreview({ nickname }: { nickname?: string }) {
+function MiniroomFeedPreview({ nickname, bgmName, today, total }: { nickname?: string; bgmName?: string | null; today?: number; total?: number }) {
   return (
     <div className="relative w-full bg-[#dff6f4]" style={{ height: 240, overflow: 'hidden' }}>
       <img
@@ -41,6 +44,15 @@ function MiniroomFeedPreview({ nickname }: { nickname?: string }) {
           {nickname ?? '미니미'}
         </div>
       </div>
+      <div className="absolute flex items-center gap-1" style={{ top: 6, left: 8, background: 'rgba(255,255,255,0.85)', border: '1px solid #ccc', padding: '2px 7px' }}>
+        <span style={{ fontSize: 10, fontFamily: 'Geist, monospace', color: '#5a4136' }}>TODAY <span style={{ color: '#ba1a1a', fontWeight: 700 }}>{today ?? 0}</span> | TOTAL {(total ?? 0).toLocaleString()}</span>
+      </div>
+      {bgmName && (
+        <div className="absolute flex items-center gap-1" style={{ top: 6, right: 8, background: 'rgba(255,255,255,0.85)', border: '1px solid #ccc', padding: '2px 7px' }}>
+          <span className="material-symbols-outlined text-[#a33e00]" style={{ fontSize: 11 }}>music_note</span>
+          <span style={{ fontSize: 10, fontFamily: 'Geist, monospace', color: '#5a4136' }}>{bgmName}</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -50,7 +62,7 @@ export default function MinihompyPage() {
   const { userId } = useParams<{ userId: string }>()
   const { clearAuth } = useAuthStore()
   const user = useAuthStore((state) => state.user)
-  const { main, setMain, clearMain } = useMinihompyStore()
+  const { main, setMain, clearMain, myProfileImageUrl } = useMinihompyStore()
 
   const [pageLoading, setPageLoading] = useState(true)
   const [pageError, setPageError] = useState('')
@@ -66,6 +78,10 @@ export default function MinihompyPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editContent, setEditContent] = useState('')
   const [editSecret, setEditSecret] = useState(false)
+
+  const [friendStatus, setFriendStatus] = useState<'NONE' | 'FRIEND' | 'PENDING_SENT' | 'PENDING_RECEIVED'>('NONE')
+  const [friendStatusLoading, setFriendStatusLoading] = useState(false)
+  const [sendingRequest, setSendingRequest] = useState(false)
 
   // 미니홈피 프로필 조회 — 이 페이지는 항상 남의 미니홈피 조회용
   useEffect(() => {
@@ -152,6 +168,60 @@ export default function MinihompyPage() {
     }
   }
 
+  // 일촌 관계 확인 — 이미 일촌인지, 신청 대기중인지 판단
+  useEffect(() => {
+    if (!main || main.owner) return
+    setFriendStatusLoading(true)
+    let ignore = false
+    Promise.all([friendApi.getFriends(), friendApi.getPendingRequests()])
+      .then(([friendsRes, pendingRes]) => {
+        if (ignore) return
+        const friends = friendsRes.data.data
+        const pending = pendingRes.data.data
+
+        const isFriend = friends.some((f: FriendResponse) =>
+          f.requesterId === main.ownerId || f.receiverId === main.ownerId
+        )
+        if (isFriend) {
+          setFriendStatus('FRIEND')
+          return
+        }
+
+        const sentByMe = pending.find((f: FriendResponse) => f.receiverId === main.ownerId)
+        if (sentByMe) {
+          setFriendStatus('PENDING_SENT')
+          return
+        }
+
+        const sentByThem = pending.find((f: FriendResponse) => f.requesterId === main.ownerId)
+        if (sentByThem) {
+          setFriendStatus('PENDING_RECEIVED')
+          return
+        }
+
+        setFriendStatus('NONE')
+      })
+      .catch(() => { if (!ignore) setFriendStatus('NONE') })
+      .finally(() => { if (!ignore) setFriendStatusLoading(false) })
+
+    return () => { ignore = true }
+  }, [main?.ownerId, main?.owner])
+
+  // 일촌 신청 함수
+  const sendFriendRequest = async () => {
+    if (!main || sendingRequest) return
+    setSendingRequest(true)
+    try {
+      await friendApi.sendRequest(main.ownerId)
+      setFriendStatus('PENDING_SENT')
+    } catch (e: any) {
+      console.error('일촌 신청 실패', e)
+      alert(e.response?.data?.message ?? '일촌 신청에 실패했습니다. 다시 시도해주세요.')
+    } finally {
+      setSendingRequest(false)
+    }
+  }
+
   const moodEmoji = parseMoodEmoji(main?.mood)
 
   if (pageLoading) {
@@ -204,12 +274,31 @@ export default function MinihompyPage() {
                   <span className="material-symbols-outlined text-base">home</span> 내 홈피 가기
                 </button>
 
-                <button
-                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed"
-                  disabled
-                >
-                  <span className="material-symbols-outlined text-base">person_add</span> 일촌 신청
-                </button>
+                {friendStatusLoading ? (
+                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed" disabled>
+                    확인 중...
+                  </button>
+                ) : friendStatus === 'FRIEND' ? (
+                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed text-[#0c6780]" disabled>
+                    <span className="material-symbols-outlined text-base">how_to_reg</span> 이미 일촌입니다
+                  </button>
+                ) : friendStatus === 'PENDING_SENT' ? (
+                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed" disabled>
+                    <span className="material-symbols-outlined text-base">hourglass_empty</span> 신청 완료
+                  </button>
+                ) : friendStatus === 'PENDING_RECEIVED' ? (
+                  <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed" disabled>
+                    <span className="material-symbols-outlined text-base">mail</span> 일촌 신청이 도착했어요
+                  </button>
+                ) : (
+                  <button
+                    className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1"
+                    onClick={sendFriendRequest}
+                    disabled={sendingRequest}
+                  >
+                    <span className="material-symbols-outlined text-base">person_add</span> {sendingRequest ? '신청 중...' : '일촌 신청'}
+                  </button>
+                )}
 
                 {user?.role === 'ADMIN' && (
                   <button
@@ -219,13 +308,6 @@ export default function MinihompyPage() {
                     <span className="material-symbols-outlined text-base">admin_panel_settings</span> 관리자 페이지
                   </button>
                 )}
-
-                <button
-                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ba1a1a]"
-                  onClick={async () => { try { await authApi.logout() } catch { } finally { clearAuth(); clearMain(); navigate('/auth/login') } }}
-                >
-                  <span className="material-symbols-outlined text-base">logout</span> 로그아웃
-                </button>
               </div>
             </div>
           </aside>
@@ -234,23 +316,40 @@ export default function MinihompyPage() {
           <main className="flex-1 flex flex-col gap-2 min-w-0">
 
             <div className="window-frame p-1 bg-[#eeeeee] flex items-center justify-between">
-              <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">{main.nickname}님의 미니홈피</div>
-            </div>
+            <div className="font-[Geist,monospace] text-[12px] font-bold text-[#1a1c1c]">{main.nickname}님의 미니홈피</div>
+            <BgmPlayer
+              main={main}
+              onBgmChanged={() => {}}
+              readOnly
+            />
+          </div>
 
             {/* 미니룸 프리뷰 — 조회 전용, 꾸미기 버튼 없음 */}
             <div className="window-inset border border-[#8e7164] overflow-hidden bg-white flex flex-col">
               <div className="bg-[#baeaff] px-2 py-1 border-b border-[#8e7164] font-[Geist,monospace] text-[12px] font-semibold text-[#09657f] flex items-center gap-1">
                 <span className="material-symbols-outlined text-sm">house</span>
                 미니룸
+                <span className="text-[#5a4136] font-normal ml-1">
+                  {main.bgmName ? `· ${main.bgmName}` : ''}
+                </span>
               </div>
-              <MiniroomFeedPreview nickname={main.nickname} />
+              <MiniroomFeedPreview
+                nickname={main.nickname}
+                bgmName={main.bgmName}
+                today={main.visitorCount.today}
+                total={main.visitorCount.total}
+              />
             </div>
 
             {/* 방명록 작성 — 방문자로서 남기기 */}
             <div className="window-inset border border-[#8e7164] bg-white p-2 flex flex-col gap-2">
               <div className="flex gap-2">
                 <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                  <span className="material-symbols-outlined text-xl text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                  {myProfileImageUrl ? (
+                    <img src={myProfileImageUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="material-symbols-outlined text-xl text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                  )}
                 </div>
                 <textarea
                   className="window-inset flex-1 text-[13px] p-2 focus:outline-none resize-none"
@@ -290,56 +389,70 @@ export default function MinihompyPage() {
                 )}
 
                 {entries.map((entry, idx) => (
-                  <div key={entry.guestbookId} className={`p-2 flex gap-2${idx < entries.length - 1 ? ' border-b border-[#e3bfb1]' : ''}`}>
-                    <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] flex items-center justify-center">
-                      <span className="material-symbols-outlined text-[22px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                  <div key={entry.guestbookId} className={`flex flex-col${idx < entries.length - 1 ? ' border-b border-[#e3bfb1]' : ''}`}>
+                    {/* 상단 바 — 번호 + 닉네임 + 날짜 */}
+                    <div className="bg-[#f3f3f3] px-5 py-2 flex items-center gap-2 border-b border-[#e3bfb1]">
+                      <span className="font-[Geist,monospace] text-[11px] text-[#8e7164]">NO.{entry.guestbookId}</span>
+                      <UserNameLink
+                        userId={entry.writerId}
+                        nickname={entry.writerNickname}
+                        className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00] cursor-pointer hover:underline"
+                      />
+                      {entry.isSecret && (
+                        <span className="material-symbols-outlined text-[#5a4136]" style={{ fontSize: '14px' }} title="비밀글">lock</span>
+                      )}
+                      <span className="font-[Geist,monospace] text-[10px] text-[#5a4136] ml-auto">{formatTime(entry.createdAt)}</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00]">{entry.writerNickname}</span>
-                        {entry.isSecret && (
-                          <span className="material-symbols-outlined text-[13px] text-[#5a4136]" title="비밀글">lock</span>
+
+                    {/* 본문 — 프로필 사진 + 내용 */}
+                    <div className="p-5 flex gap-5">
+                      <div className="w-28 h-32 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
+                        {entry.writerProfileImageUrl ? (
+                          <img src={entry.writerProfileImageUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="material-symbols-outlined text-[40px] text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
                         )}
-                        <span className="font-[Geist,monospace] text-[10px] text-[#5a4136]">{formatTime(entry.createdAt)}</span>
                       </div>
 
-                      {editingId === entry.guestbookId ? (
-                        <div className="flex flex-col gap-1">
-                          <textarea
-                            className="window-inset w-full text-[13px] p-1 focus:outline-none resize-none"
-                            rows={2}
-                            value={editContent}
-                            onChange={(e) => setEditContent(e.target.value)}
-                            maxLength={500}
-                          />
-                          <div className="flex items-center justify-between">
-                            <label className="flex items-center gap-1 font-[Geist,monospace] text-[11px] text-[#5a4136] cursor-pointer">
-                              <input type="checkbox" checked={editSecret} onChange={(e) => setEditSecret(e.target.checked)} />
-                              비밀글
-                            </label>
-                            <div className="flex gap-1">
-                              <button className="retro-btn font-[Geist,monospace] text-[11px] px-2 py-1" onClick={cancelEdit}>취소</button>
-                              <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[11px] px-2 py-1" onClick={() => submitEdit(entry.guestbookId)}>저장</button>
+                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                        {editingId === entry.guestbookId ? (
+                          <div className="flex flex-col gap-1">
+                            <textarea
+                              className="window-inset w-full text-[13px] p-1 focus:outline-none resize-none"
+                              rows={2}
+                              value={editContent}
+                              onChange={(e) => setEditContent(e.target.value)}
+                              maxLength={500}
+                            />
+                            <div className="flex items-center justify-between">
+                              <label className="flex items-center gap-1 font-[Geist,monospace] text-[11px] text-[#5a4136] cursor-pointer">
+                                <input type="checkbox" checked={editSecret} onChange={(e) => setEditSecret(e.target.checked)} />
+                                비밀글
+                              </label>
+                              <div className="flex gap-1">
+                                <button className="retro-btn font-[Geist,monospace] text-[11px] px-2 py-1" onClick={cancelEdit}>취소</button>
+                                <button className="retro-btn retro-btn-primary font-[Geist,monospace] text-[11px] px-2 py-1" onClick={() => submitEdit(entry.guestbookId)}>저장</button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ) : (
-                        <>
-                          <p className="text-[13px] text-[#1a1c1c]">
-                            {entry.visible ? entry.content : <span className="text-[#5a4136] italic">비밀글입니다</span>}
-                          </p>
-                          {(entry.canEdit || entry.canDelete) && (
-                            <div className="flex gap-2 mt-1">
-                              {entry.canEdit && (
-                                <button className="font-[Geist,monospace] text-[10px] text-[#5a4136] hover:underline" onClick={() => startEdit(entry)}>수정</button>
-                              )}
-                              {entry.canDelete && (
-                                <button className="font-[Geist,monospace] text-[10px] text-[#ba1a1a] hover:underline" onClick={() => removeGuestbook(entry.guestbookId)}>삭제</button>
-                              )}
-                            </div>
-                          )}
-                        </>
-                      )}
+                        ) : (
+                          <>
+                            <p className="text-[14px] text-[#1a1c1c] whitespace-pre-wrap leading-relaxed">
+                              {entry.visible ? entry.content : <span className="text-[#5a4136] italic">비밀글입니다</span>}
+                            </p>
+                            {(entry.canEdit || entry.canDelete) && (
+                              <div className="flex justify-end gap-2 mt-1">
+                                {entry.canEdit && (
+                                  <button className="font-[Geist,monospace] text-[11px] text-[#5a4136] hover:underline" onClick={() => startEdit(entry)}>수정</button>
+                                )}
+                                {entry.canDelete && (
+                                  <button className="font-[Geist,monospace] text-[11px] text-[#ba1a1a] hover:underline" onClick={() => removeGuestbook(entry.guestbookId)}>삭제</button>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -359,9 +472,9 @@ export default function MinihompyPage() {
         </div>
 
         {/* 우측 탭 */}
-        <nav className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
+        <div className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
           <MinihompyTabs owner={false} ownerId={main.ownerId} />
-        </nav>
+        </div>
       </div>
     </div>
   )

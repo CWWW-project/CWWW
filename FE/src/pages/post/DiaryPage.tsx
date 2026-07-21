@@ -625,8 +625,8 @@ export default function DiaryPage() {
                 const liked = likedPostIds.has(post.postId)
                 const bookmarked = bookmarkedPostIds.has(post.postId)
                 return (
-                  <div key={post.postId} className={`p-2 flex flex-col gap-2${idx < posts.length - 1 ? ' border-b border-[#e3bfb1]' : ''}`}>
-                    <div className="flex gap-2 items-start">
+                  <div key={post.postId} className={`p-5 flex flex-col gap-3${idx < posts.length - 1 ? ' border-b border-[#e3bfb1]' : ''}`}>
+                    <div className="flex gap-3 items-start">
                       <div className="w-10 h-10 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
                         {post.profileImageUrl ? (
                           <img src={post.profileImageUrl} alt="" className="w-full h-full object-cover" />
@@ -656,13 +656,14 @@ export default function DiaryPage() {
                           </div>
                         )}
                         {post.mediaUrls.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
+                          <div className="mt-2 flex flex-col items-start gap-1">
                             {post.mediaUrls.map((url, i) => (
                               <img
                                 key={url}
                                 src={url}
                                 alt=""
-                                className="w-20 h-20 object-cover border border-[#8e7164] cursor-pointer hover:opacity-80 transition"
+                                className="shadow-sm cursor-pointer hover:opacity-80 transition"
+                                style={{ width: 220, height: 'auto' }}
                                 onClick={() => setLightbox({ urls: post.mediaUrls, index: i })}
                               />
                             ))}

@@ -1557,7 +1557,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
           <MinihompyTabs
             owner={main?.owner ?? false}
             ownerId={main?.ownerId ?? 0}
-        />
+          />
           {main?.owner && (
             <button
               onClick={() => setShowSettings(true)}
