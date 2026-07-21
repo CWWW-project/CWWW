@@ -7,6 +7,8 @@
 
     <resultMap id="visitorLogMap" type="com.cwww.minihompy.dto.response.VisitorLogResponse">
         <result property="nickname" column="nickname"/>
+        <result property="profileImageUrl" column="profile_image_url"/>
+        <result property="visitorId" column="visitor_id"/>
         <result property="visitedAt" column="visited_at"/>
     </resultMap>
 
@@ -64,13 +66,23 @@
     <!--
         최근 방문자 목록 조회 (홈피 주인 전용)
         users 테이블 조인으로 닉네임 조회
+        media 테이블(target_type='PROFILE', target_id=visitor_id) LEFT JOIN으로 프로필 사진 조회
+        (프로필 사진이 없는 유저도 있을 수 있어 LEFT JOIN, 소프트 삭제된 사진은 제외)
         방문 시각(visited_at)으로 최신순 정렬 후 상위 limit개만 조회
     -->
     <select id="selectRecentVisitors" resultMap="visitorLogMap">
-        SELECT u.nickname, v.visited_at
+        SELECT
+            u.nickname,
+            visitor_profile.media_url AS profile_image_url,
+            v.visitor_id,
+            v.visited_at
         FROM visit_log v
         JOIN minihompy m ON m.minihompy_id = v.minihompy_id
         JOIN users u ON u.user_id = v.visitor_id
+        LEFT JOIN media visitor_profile
+        ON visitor_profile.target_type = 'PROFILE'
+        AND visitor_profile.target_id = v.visitor_id
+        AND visitor_profile.deleted_at IS NULL
         WHERE m.user_id = #{ownerId}
         AND m.deleted_at IS NULL
         ORDER BY v.visited_at DESC

@@ -21,6 +21,7 @@ import VisitorPage from './pages/visitor/VisitorPage'
 import DiaryPage from './pages/post/DiaryPage'
 import PaymentSuccessPage from './pages/pay/PaymentSuccessPage'
 import PaymentFailPage from './pages/pay/PaymentFailPage'
+import { minihompyApi } from './api/minihompy'
 const MOBILE_TABS = [
   { icon: 'home', label: '홈', path: '/' },
   { icon: 'edit_note', label: '다이어리', pathFn: (userId?: number) => `/home/${userId ?? 'me'}` },
@@ -87,6 +88,32 @@ function TopRightSettingsButton() {
   )
 }
 
+function useMyProfileImage() {
+  const setMyProfileImageUrl = useMinihompyStore(state => state.setMyProfileImageUrl)
+  const accessToken = useAuthStore(state => state.accessToken)
+
+  useEffect(() => {
+    if (!accessToken) {
+      setMyProfileImageUrl(null)
+      return
+    }
+
+    let ignore = false
+    const versionAtStart = useMinihompyStore.getState().myProfileImageVersion
+
+    minihompyApi.getMyMinihompy()
+      .then(res => {
+        if (ignore) return
+        // 이 요청을 시작한 이후 다른 곳(업로드/삭제)에서 이미 값이 갱신됐으면 무시
+        if (useMinihompyStore.getState().myProfileImageVersion !== versionAtStart) return
+        setMyProfileImageUrl(res.data.data.profileImageUrl)
+      })
+      .catch(() => { if (!ignore) setMyProfileImageUrl(null) })
+
+    return () => { ignore = true }
+  }, [accessToken])
+}
+
 function useGlobalBgm() {
   const main = useMinihompyStore(state => state.main)
 
@@ -108,6 +135,7 @@ function useGlobalBgm() {
 
 function App() {
   useGlobalBgm()
+  useMyProfileImage()
   const { user } = useAuthStore()
   return (
     <BrowserRouter>

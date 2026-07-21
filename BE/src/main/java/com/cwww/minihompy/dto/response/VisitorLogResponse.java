@@ -15,6 +15,8 @@ import java.time.LocalDateTime;
 public class VisitorLogResponse {
 
     private String nickname;
+    private String profileImageUrl;
+    private Long visitorId;
     private LocalDateTime visitedAt;
 
 }

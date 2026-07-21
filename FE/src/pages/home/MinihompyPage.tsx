@@ -10,6 +10,7 @@ import { parseMoodEmoji } from '../../utils/mood'
 import MinihompyTabs from '../../components/MinihompyTabs'
 import BgmPlayer from '../../components/BgmPlayer'
 import { friendApi } from '../../api/friend'
+import UserNameLink from '../../components/UserNameLink'
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -59,7 +60,7 @@ export default function MinihompyPage() {
   const navigate = useNavigate()
   const { userId } = useParams<{ userId: string }>()
   const { clearAuth } = useAuthStore()
-  const { main, setMain, clearMain } = useMinihompyStore()
+  const { main, setMain, clearMain, myProfileImageUrl } = useMinihompyStore()
 
   const [pageLoading, setPageLoading] = useState(true)
   const [pageError, setPageError] = useState('')
@@ -340,7 +341,11 @@ export default function MinihompyPage() {
             <div className="window-inset border border-[#8e7164] bg-white p-2 flex flex-col gap-2">
               <div className="flex gap-2">
                 <div className="w-8 h-8 flex-shrink-0 border border-[#8e7164] bg-[#eeeeee] overflow-hidden flex items-center justify-center">
-                  <span className="material-symbols-outlined text-xl text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                  {myProfileImageUrl ? (
+                    <img src={myProfileImageUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="material-symbols-outlined text-xl text-[#a33e00]" style={{ fontVariationSettings: "'FILL' 1" }}>face</span>
+                  )}
                 </div>
                 <textarea
                   className="window-inset flex-1 text-[13px] p-2 focus:outline-none resize-none"
@@ -384,7 +389,11 @@ export default function MinihompyPage() {
                     {/* 상단 바 — 번호 + 닉네임 + 날짜 */}
                     <div className="bg-[#f3f3f3] px-3 py-1.5 flex items-center gap-2 border-b border-[#e3bfb1]">
                       <span className="font-[Geist,monospace] text-[11px] text-[#8e7164]">NO.{entry.guestbookId}</span>
-                      <span className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00]">{entry.writerNickname}</span>
+                      <UserNameLink
+                        userId={entry.writerId}
+                        nickname={entry.writerNickname}
+                        className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00] cursor-pointer hover:underline"
+                      />
                       {entry.isSecret && (
                         <span
                           className="material-symbols-outlined text-[#5a4136]"

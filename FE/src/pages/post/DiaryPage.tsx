@@ -108,8 +108,6 @@ export default function DiaryPage() {
 
   // ---------------------------------------------------------------------
   // 조회: 남의 글 목록 (guest)
-  // TODO: 백엔드에 GET /api/posts/user/{userId} 추가되면 postApi.getUserPosts로 교체
-  // 스펙 제안: 뷰어가 글쓴이 본인 → 전체, 일촌 → ALL+FRIEND, 그 외 → ALL만
   // ---------------------------------------------------------------------
   const requestIdRef = useRef(0)
 
@@ -549,7 +547,7 @@ export default function DiaryPage() {
         </div>
       )}
 
-      <div className="max-w-[720px] w-full mx-auto px-2">
+      <div className="max-w-[900px] w-full mx-auto px-2">
         <div className="window-frame p-4 flex flex-col gap-3 border border-[#8e7164]">
 
           <div className="flex items-center justify-between">
