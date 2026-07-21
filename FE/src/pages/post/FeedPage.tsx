@@ -1553,7 +1553,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
         </div>
 
         {/* 우측 탭 */}
-        <nav className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
+        <div className="hidden md:flex flex-col gap-1 w-16 pt-12 relative -ml-[2px] z-0">
           <MinihompyTabs
             owner={main?.owner ?? false}
             ownerId={main?.ownerId ?? 0}
@@ -1570,7 +1570,7 @@ const profileInputRef = useRef<HTMLInputElement>(null)
               설정
             </button>
           )}
-        </nav>
+        </div>
       </div>
 
     </div>
