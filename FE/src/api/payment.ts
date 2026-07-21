@@ -71,7 +71,21 @@ export async function cancelPayment(orderUid: string, reason: string): Promise<P
   } catch (e) {
     throw toError(e)
   }
+}   // ← cancelPayment는 여기서 끝. 이 중괄호 "밖"이 추가 위치예요
+
+export interface AcornBalanceResponse {
+  balance: number
 }
+
+export async function getBalance(): Promise<AcornBalanceResponse> {
+  try {
+    const res = await api.get<ApiResponse<AcornBalanceResponse>>('/payments/balance')
+    return unwrap(res.data)
+  } catch (e) {
+    throw toError(e)
+  }
+}
+
 
 // ── 토스 SDK (v1) 동적 로드 ─────────────────────────────
 declare global {
@@ -82,19 +96,37 @@ declare global {
   }
 }
 
- export function loadTossSdk(): Promise<void> {
-  if (window.TossPayments) return Promise.resolve()
-  if (loadTossSdk._promise) return loadTossSdk._promise
-  loadTossSdk._promise = new Promise((resolve, reject) => {
+ let tossSdkPromise: Promise<void> | null = null
+
+export function loadTossSdk(): Promise<void> {
+  // 이미 SDK가 로드되어 있다면 바로 완료 처리
+  if (window.TossPayments) {
+    return Promise.resolve()
+  }
+
+  // 이미 SDK 로딩 중이라면 기존 Promise 반환
+  if (tossSdkPromise) {
+    return tossSdkPromise
+  }
+
+  // 최초 한 번만 SDK 스크립트 생성
+  tossSdkPromise = new Promise<void>((resolve, reject) => {
     const script = document.createElement('script')
+
     script.src = 'https://js.tosspayments.com/v1/payment'
+
     script.onload = () => resolve()
-    script.onerror = () => reject(new Error('토스 SDK 로드 실패'))
+
+    script.onerror = () => {
+      tossSdkPromise = null
+      reject(new Error('토스 SDK 로드 실패'))
+    }
+
     document.head.appendChild(script)
   })
-  return loadTossSdk._promise
- }
 
+  return tossSdkPromise
+}
 /** 주문 생성 → 토스 결제창 열기 (완료되면 /payment/success 로 돌아옴) */
 export async function startCharge(acornAmount: number) {
   const order = await createOrder(acornAmount)
