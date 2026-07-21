@@ -188,6 +188,15 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
+    public List<OrderHistoryResponse> getOrderHistory(Long userId, int page, int size) {
+        if (page < 1 || size < 1 || size > MAX_PAGE_SIZE) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+        long offset = (long) (page - 1) * size;
+        return paymentMapper.findOrdersByUserId(userId, size, offset);
+    }
+
+    @Override
     public AcornBalanceResponse getBalance(Long userId) {
         AcornWallet wallet = paymentMapper.findWalletByUserId(userId);
         int balance          = (wallet == null) ? 0 : wallet.getBalance();
