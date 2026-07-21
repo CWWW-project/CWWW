@@ -95,9 +95,11 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
+
     @PostMapping("/password/reset")
-    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody PasswordResetRequest request) {
-        authService.resetPassword(request.getResetToken(), request.getNewPassword());
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody PasswordResetRequest request,
+                                                           HttpServletRequest httpRequest) {
+        authService.resetPassword(request.getResetToken(), request.getNewPassword(), httpRequest.getRemoteAddr());
         return ResponseEntity.ok(ApiResponse.success());
     }
 

@@ -31,7 +31,7 @@ public enum ErrorCode {
     INVALID_RESET_TOKEN(HttpStatus.BAD_REQUEST, "A012", "유효하지 않은 재설정 토큰입니다."),
     EXPIRED_RESET_TOKEN(HttpStatus.BAD_REQUEST, "A013", "만료된 재설정 토큰입니다."),
     SOCIAL_LOGIN_REQUIRED(HttpStatus.CONFLICT, "A015", "소셜 로그인으로 가입된 계정이에요. '구글로 시작하기' 또는 'GitHub으로 시작하기'를 이용해주세요."),
-
+    TOO_MANY_RESET_ATTEMPTS(HttpStatus.TOO_MANY_REQUESTS, "A016", "비밀번호 재설정 시도 횟수를 초과했습니다. 잠시 후 다시 시도해주세요."),
 
     // Media
     INVALID_FILE_EXTENSION(HttpStatus.BAD_REQUEST, "M001", "허용되지 않는 파일 확장자입니다."),

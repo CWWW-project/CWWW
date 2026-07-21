@@ -14,7 +14,7 @@ public interface AuthService {
     void logout(Long userId, String accessToken);
 
     void forgotPassword(String email);
-    void resetPassword(String resetToken, String newPassword);
+    void resetPassword(String resetToken, String newPassword, String clientIp);
     void changePassword(Long userId, String currentPassword, String newPassword);
 
     boolean isNicknameAvailable(String nickname);
