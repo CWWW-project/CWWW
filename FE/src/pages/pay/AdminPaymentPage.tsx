@@ -2,12 +2,18 @@
 // 결제 도메인 관리자 대시보드
 import { useEffect, useState } from 'react'
 import { adminPaymentApi, type AdminOrderResponse, type PaymentStatsResponse } from '../../api/adminPayment'
+import { adminBgmApi } from '../../api/adminBgm'
 
 export default function AdminPaymentPage() {
   const [stats, setStats] = useState<PaymentStatsResponse | null>(null)
   const [orders, setOrders] = useState<AdminOrderResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const [bgmLimit, setBgmLimit] = useState('10')
+  const [bgmSyncing, setBgmSyncing] = useState(false)
+  const [bgmResult, setBgmResult] = useState<number | null>(null)
+  const [bgmError, setBgmError] = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -28,6 +34,22 @@ export default function AdminPaymentPage() {
     }
     void load()
   }, [])
+
+  const handleSyncBgm = async () => {
+    const limit = parseInt(bgmLimit, 10)
+    if (bgmSyncing || !limit || limit < 1) return
+    setBgmSyncing(true)
+    setBgmError(null)
+    setBgmResult(null)
+    try {
+      const res = await adminBgmApi.syncBgm(limit)
+      setBgmResult(res.data.data)
+    } catch (e) {
+      setBgmError(e instanceof Error ? e.message : 'BGM 불러오기 실패')
+    } finally {
+      setBgmSyncing(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -68,6 +90,38 @@ export default function AdminPaymentPage() {
               value={String(stats.cancelingCount)}
               highlight={stats.cancelingCount > 0}
             />
+          </div>
+
+          {/* BGM 동기화 */}
+          <div className="window-inset p-3 mb-4">
+            <div className="font-[Geist,monospace] text-[12px] font-bold text-[#a33e00] mb-2">Jamendo BGM 불러오기</div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="number"
+                min={1}
+                max={200}
+                value={bgmLimit}
+                onChange={e => setBgmLimit(e.target.value)}
+                placeholder="10"
+                className="window-frame px-2 py-1 w-20 font-[Geist,monospace] text-[12px]"
+              />
+              <span className="font-[Geist,monospace] text-[12px] text-[#5a4136]">곡 불러오기</span>
+              <button
+                className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-3 py-1 disabled:opacity-50"
+                onClick={handleSyncBgm}
+                disabled={bgmSyncing || !bgmLimit || parseInt(bgmLimit, 10) < 1}
+              >
+                {bgmSyncing ? '불러오는 중...' : '불러오기'}
+              </button>
+              {bgmResult !== null && (
+                <span className="font-[Geist,monospace] text-[12px] font-bold" style={{ color: '#0c6780' }}>
+                  {bgmResult}곡 신규 등록됨 ({parseInt(bgmLimit, 10) - bgmResult}곡은 중복/제외)
+                </span>
+              )}
+              {bgmError && (
+                <span className="font-[Geist,monospace] text-[12px] font-bold text-[#ba1a1a]">{bgmError}</span>
+              )}
+            </div>
           </div>
 
           {/* 주문 목록 */}

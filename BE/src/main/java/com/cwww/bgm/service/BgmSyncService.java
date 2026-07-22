@@ -35,7 +35,7 @@ public class BgmSyncService {
     @Value("${jamendo.api-url}")
     private String jamendoApiUrl;
 
-    private static final int DEFAULT_PRICE = 200; // 도토리 가격, 실제 정책 확인 필요
+    private static final int DEFAULT_PRICE = 300; // 도토리 가격, 실제 정책 확인 필요
 
     private final RestClient restClient = RestClient.create();
 
@@ -88,11 +88,15 @@ public class BgmSyncService {
      */
     private List<JamendoTrack> searchJamendoTracks(int limit) {
 
+        // 매번 다른 지점부터 가져오기 위해 offset을 무작위로 설정
+        // (Jamendo API는 order=random을 지원하지 않아, offset으로 유사한 효과를 냄)
+        int randomOffset = (int) (Math.random() * 500);
+
         // get 방식으로 웹 요청 보낼 준비
         JamendoResponse response = restClient.get() 
                 // 실제 주소
-                .uri(jamendoApiUrl + "?client_id={clientId}&format=json&limit={limit}&ccnc=false&include=licenses+musicinfo&audioformat=mp32",
-                        jamendoClientId, limit)// client_id + 몇 곡 가져올지
+                .uri(jamendoApiUrl + "?client_id={clientId}&format=json&limit={limit}&offset={offset}&ccnc=false&include=licenses+musicinfo&audioformat=mp32",
+                        jamendoClientId, limit, randomOffset)// client_id + 몇 곡 가져올지
                 .retrieve() // 진짜 요청 보내기
                 .body(JamendoResponse.class);
 
