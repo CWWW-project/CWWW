@@ -127,9 +127,18 @@ export interface CartPurchaseResponse {
   purchasedItems: PurchaseResponse[]
 }
 
+export interface AcornBalanceResponse {
+  balance: number
+  availableBalance: number
+}
+
 export interface AvatarResponse {
-  avatarId: number
+  avatarId: number | null
   avatarInventoryId: number | null
+  assetKey: string | null
+  assetUrl: string | null
+  assetWidth: number | null
+  assetHeight: number | null
   posX: number | null
   posY: number | null
   scale: number | null
@@ -138,8 +147,8 @@ export interface AvatarResponse {
 
 export interface RoomItemResponse {
   roomItemId: number
-  userInventoryId: number
-  itemId: number
+  userInventoryId: number | null
+  itemId: number | null
   category: string
   name: string
   description: string | null
@@ -170,7 +179,14 @@ export interface RoomResponse {
 }
 
 export interface SaveRoomItemRequest {
-  userInventoryId: number
+  userInventoryId?: number | null
+  category?: string | null
+  name?: string | null
+  assetKey?: string | null
+  assetUrl?: string | null
+  assetWidth?: number | null
+  assetHeight?: number | null
+  placementType?: string | null
   posX: number
   posY: number
   rotation?: number
@@ -186,6 +202,10 @@ export interface SaveRoomRequest {
   backgroundAssetUrl?: string | null
   avatar?: {
     avatarInventoryId?: number | null
+    assetKey?: string | null
+    assetUrl?: string | null
+    assetWidth?: number | null
+    assetHeight?: number | null
     posX?: number | null
     posY?: number | null
     scale?: number | null

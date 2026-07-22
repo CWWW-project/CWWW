@@ -39,6 +39,7 @@
             NOW(),
             NOW()
         )
+        ON CONFLICT (user_id) DO NOTHING
     </insert>
 
     <update id="updateRoom" parameterType="com.cwww.room.domain.MiniRoom">
@@ -51,19 +52,23 @@
         WHERE id = #{id}
     </update>
 
+    <!--
+        구매 아이템은 현재 상품 정보를 우선 사용한다.
+        기본 장식처럼 보유함이 없는 경우에는 저장 당시 스냅샷으로 화면을 복원한다.
+    -->
     <select id="selectRoomItems" resultType="com.cwww.room.dto.RoomItemResponse">
         SELECT
             mri.id AS room_item_id,
             mri.user_inventory_id,
             i.item_id,
-            i.category,
-            i.name,
+            COALESCE(i.category, mri.snapshot_category) AS category,
+            COALESCE(i.name, mri.snapshot_name) AS name,
             i.description,
-            i.asset_key,
-            i.asset_url,
-            i.asset_width,
-            i.asset_height,
-            i.placement_type,
+            COALESCE(i.asset_key, mri.snapshot_asset_key) AS asset_key,
+            COALESCE(i.asset_url, mri.snapshot_asset_url) AS asset_url,
+            COALESCE(i.asset_width, mri.snapshot_asset_width) AS asset_width,
+            COALESCE(i.asset_height, mri.snapshot_asset_height) AS asset_height,
+            COALESCE(i.placement_type, mri.snapshot_placement_type) AS placement_type,
             mri.pos_x,
             mri.pos_y,
             mri.rotation,
@@ -72,8 +77,8 @@
             mri.sort_order,
             mri.locked
         FROM mini_room_item mri
-        JOIN user_inventory ui ON ui.id = mri.user_inventory_id
-        JOIN item i ON i.item_id = ui.item_id
+        LEFT JOIN user_inventory ui ON ui.id = mri.user_inventory_id
+        LEFT JOIN item i ON i.item_id = ui.item_id
         WHERE mri.mini_room_id = #{roomId}
         ORDER BY mri.sort_order ASC, mri.id ASC
     </select>
@@ -88,6 +93,13 @@
         INSERT INTO mini_room_item (
             mini_room_id,
             user_inventory_id,
+            snapshot_category,
+            snapshot_name,
+            snapshot_asset_key,
+            snapshot_asset_url,
+            snapshot_asset_width,
+            snapshot_asset_height,
+            snapshot_placement_type,
             pos_x,
             pos_y,
             rotation,
@@ -101,6 +113,13 @@
         VALUES (
             #{miniRoomId},
             #{userInventoryId},
+            #{snapshotCategory},
+            #{snapshotName},
+            #{snapshotAssetKey},
+            #{snapshotAssetUrl},
+            #{snapshotAssetWidth},
+            #{snapshotAssetHeight},
+            #{snapshotPlacementType},
             #{posX},
             #{posY},
             #{rotation},
@@ -130,11 +149,36 @@
         LIMIT 1
     </select>
 
+    <!-- 기본 아바타도 같은 응답 형식으로 내려주기 위해 보유 상품과 스냅샷을 함께 조회한다. -->
+    <select id="selectAvatarResponseByUserId" resultType="com.cwww.room.dto.AvatarResponse">
+        SELECT
+            a.id AS avatar_id,
+            a.avatar_inventory_id,
+            COALESCE(i.asset_key, a.snapshot_asset_key) AS asset_key,
+            COALESCE(i.asset_url, a.snapshot_asset_url) AS asset_url,
+            COALESCE(i.asset_width, a.snapshot_asset_width) AS asset_width,
+            COALESCE(i.asset_height, a.snapshot_asset_height) AS asset_height,
+            a.pos_x,
+            a.pos_y,
+            a.scale,
+            a.flipped
+        FROM avatar a
+        LEFT JOIN user_inventory ui ON ui.id = a.avatar_inventory_id
+        LEFT JOIN item i ON i.item_id = ui.item_id
+        WHERE a.user_id = #{userId}
+        ORDER BY a.id DESC
+        LIMIT 1
+    </select>
+
     <insert id="insertAvatar" parameterType="com.cwww.room.domain.Avatar"
             useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO avatar (
             user_id,
             avatar_inventory_id,
+            snapshot_asset_key,
+            snapshot_asset_url,
+            snapshot_asset_width,
+            snapshot_asset_height,
             pos_x,
             pos_y,
             scale,
@@ -145,6 +189,10 @@
         VALUES (
             #{userId},
             #{avatarInventoryId},
+            #{snapshotAssetKey},
+            #{snapshotAssetUrl},
+            #{snapshotAssetWidth},
+            #{snapshotAssetHeight},
             #{posX},
             #{posY},
             #{scale},
@@ -157,6 +205,10 @@
     <update id="updateAvatar" parameterType="com.cwww.room.domain.Avatar">
         UPDATE avatar
         SET avatar_inventory_id = #{avatarInventoryId},
+            snapshot_asset_key = #{snapshotAssetKey},
+            snapshot_asset_url = #{snapshotAssetUrl},
+            snapshot_asset_width = #{snapshotAssetWidth},
+            snapshot_asset_height = #{snapshotAssetHeight},
             pos_x = #{posX},
             pos_y = #{posY},
             scale = #{scale},

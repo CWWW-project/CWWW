@@ -3,6 +3,7 @@ package com.cwww.room.mapper;
 import com.cwww.room.domain.Avatar;
 import com.cwww.room.domain.MiniRoom;
 import com.cwww.room.domain.MiniRoomItem;
+import com.cwww.room.dto.AvatarResponse;
 import com.cwww.room.dto.RoomItemResponse;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -25,6 +26,8 @@ public interface RoomMapper {
     void insertRoomItem(MiniRoomItem roomItem);
 
     Avatar selectAvatarByUserId(@Param("userId") Long userId);
+
+    AvatarResponse selectAvatarResponseByUserId(@Param("userId") Long userId);
 
     void insertAvatar(Avatar avatar);
 
