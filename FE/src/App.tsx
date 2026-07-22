@@ -25,9 +25,9 @@ import AdminPaymentPage from './pages/pay/AdminPaymentPage'
 import { minihompyApi } from './api/minihompy'
 const MOBILE_TABS = [
   { icon: 'home', label: '내 홈피', path: '/' },
-  { icon: 'edit_note', label: '다이어리', pathFn: (userId?: number) => `/diary/${userId ?? 'me'}` },
-  { icon: 'forum', label: '방명록', pathFn: (userId?: number) => `/guestbook/${userId ?? 'me'}` },
-  { icon: 'footprint', label: '방문자', pathFn: (userId?: number) => `/visitor/${userId ?? 'me'}` },
+  { icon: 'edit_note', label: '다이어리', pathFn: (userId?: number) => userId ? `/diary/${userId}` : '/auth/login' },
+  { icon: 'forum', label: '방명록', pathFn: (userId?: number) => userId ? `/guestbook/${userId}` : '/auth/login' },
+  { icon: 'footprint', label: '방문자', pathFn: (userId?: number) => userId ? `/visitor/${userId}` : '/auth/login' },
   { icon: 'forum', label: '채팅', path: '/chat' },
   { icon: 'storefront', label: '상점', path: '/shop' },
 ]

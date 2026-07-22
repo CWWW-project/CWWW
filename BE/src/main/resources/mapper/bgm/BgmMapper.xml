@@ -19,7 +19,7 @@
     <insert id="insertBgmItem" parameterType="com.cwww.bgm.mapper.BgmItemMapper$BgmItemInsertParam"
             useGeneratedKeys="true" keyProperty="itemId" keyColumn="item_id">
         INSERT INTO item (category, name, description, price, status, sales_count, created_at, updated_at)
-        VALUES ('BGM', #{name}, #{description}, #{price}, 'APPROVED', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        VALUES ('BGM', #{name}, #{description}, #{price}, 'ACTIVE', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT (name) WHERE category = 'BGM'
         DO NOTHING
     </insert>
