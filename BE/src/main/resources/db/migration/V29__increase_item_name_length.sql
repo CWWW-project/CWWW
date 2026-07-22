@@ -1,0 +1,1 @@
+ALTER TABLE item ALTER COLUMN name TYPE varchar(255);

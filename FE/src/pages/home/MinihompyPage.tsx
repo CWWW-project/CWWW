@@ -362,22 +362,7 @@ export default function MinihompyPage() {
                 >
                   <span className="material-symbols-outlined text-base">home</span> 내 홈피 가기
                 </button>
-
-                <button
-                  className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed"
-                  disabled
-                >
-                  <span className="material-symbols-outlined text-base">person_add</span> 일촌 신청
-                </button>
-
-                {user?.role === 'ADMIN' && (
-                  <button
-                    className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 text-[#ff6b00]"
-                    onClick={() => navigate('/admin/payments')}
-                  >
-                    <span className="material-symbols-outlined text-base">admin_panel_settings</span> 관리자 페이지
-                  </button>
-                )}
+                
                 {!main.owner && user && (
                   friendStatusLoading ? (
                     <button className="retro-btn font-[Geist,monospace] text-[12px] font-semibold py-2 px-4 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed" disabled>

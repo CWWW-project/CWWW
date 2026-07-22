@@ -24,11 +24,12 @@ import PaymentFailPage from './pages/pay/PaymentFailPage'
 import AdminPaymentPage from './pages/pay/AdminPaymentPage'
 import { minihompyApi } from './api/minihompy'
 const MOBILE_TABS = [
-  { icon: 'home', label: '홈', path: '/' },
-  { icon: 'edit_note', label: '다이어리', pathFn: (userId?: number) => `/home/${userId ?? 'me'}` },
+  { icon: 'home', label: '내 홈피', path: '/' },
+  { icon: 'edit_note', label: '다이어리', pathFn: (userId?: number) => userId ? `/diary/${userId}` : '/auth/login' },
+  { icon: 'forum', label: '방명록', pathFn: (userId?: number) => userId ? `/guestbook/${userId}` : '/auth/login' },
+  { icon: 'footprint', label: '방문자', pathFn: (userId?: number) => userId ? `/visitor/${userId}` : '/auth/login' },
   { icon: 'forum', label: '채팅', path: '/chat' },
   { icon: 'storefront', label: '상점', path: '/shop' },
-  { icon: 'person', label: '내 홈피', pathFn: (userId?: number) => `/home/${userId ?? 'me'}` },
 ]
 
 function GlobalMobileNav() {
