@@ -14,6 +14,7 @@ export default function AdminPaymentPage() {
   const [bgmSyncing, setBgmSyncing] = useState(false)
   const [bgmResult, setBgmResult] = useState<number | null>(null)
   const [bgmError, setBgmError] = useState<string | null>(null)
+  const [bgmRequestedLimit, setBgmRequestedLimit] = useState<number | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -36,14 +37,15 @@ export default function AdminPaymentPage() {
   }, [])
 
   const handleSyncBgm = async () => {
-    const limit = parseInt(bgmLimit, 10)
-    if (bgmSyncing || !limit || limit < 1) return
+    const limit = Number(bgmLimit)
+    if (bgmSyncing || !Number.isInteger(limit) || limit < 1 || limit > 200) return
     setBgmSyncing(true)
     setBgmError(null)
     setBgmResult(null)
     try {
       const res = await adminBgmApi.syncBgm(limit)
       setBgmResult(res.data.data)
+      setBgmRequestedLimit(limit)
     } catch (e) {
       setBgmError(e instanceof Error ? e.message : 'BGM 불러오기 실패')
     } finally {
@@ -109,13 +111,13 @@ export default function AdminPaymentPage() {
               <button
                 className="retro-btn font-[Geist,monospace] text-[12px] font-semibold px-3 py-1 disabled:opacity-50"
                 onClick={handleSyncBgm}
-                disabled={bgmSyncing || !bgmLimit || parseInt(bgmLimit, 10) < 1}
+                disabled={bgmSyncing || !Number.isInteger(Number(bgmLimit)) || Number(bgmLimit) < 1 || Number(bgmLimit) > 200}
               >
                 {bgmSyncing ? '불러오는 중...' : '불러오기'}
               </button>
-              {bgmResult !== null && (
+              {bgmResult !== null && bgmRequestedLimit !== null && (
                 <span className="font-[Geist,monospace] text-[12px] font-bold" style={{ color: '#0c6780' }}>
-                  {bgmResult}곡 신규 등록됨 ({parseInt(bgmLimit, 10) - bgmResult}곡은 중복/제외)
+                  {bgmResult}곡 신규 등록됨 (요청 {bgmRequestedLimit}곡 중)
                 </span>
               )}
               {bgmError && (

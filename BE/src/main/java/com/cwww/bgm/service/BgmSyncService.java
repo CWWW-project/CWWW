@@ -113,6 +113,7 @@ public class BgmSyncService {
 
         // itemName에 넣을 이름 조합 (name = "제목 - 아티스트")
         String itemName = track.name() + " - " + track.artist_name();
+
         // 아이템 소개글 (재생시간 + 태그 조합)
         String description = buildDescription(track);
 
