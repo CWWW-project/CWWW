@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.cwww.bgm.mapper.BgmItemMapper">
+
+    <!--
+        BGM 아이템을 item 테이블에 등록
+
+        uq_item_bgm_name(name WHERE category='BGM') 기준으로
+        동일한 이름의 BGM이 이미 존재하면 ON CONFLICT DO NOTHING으로 중복 등록을 방지한다.
+
+        count 후 insert 하는 방식은 동시 실행 시 중복이 발생할 수 있으므로,
+        원자적인 INSERT ... ON CONFLICT DO NOTHING을 사용한다.
+    -->
+    <insert id="insertBgmItem" parameterType="com.cwww.bgm.mapper.BgmItemMapper$BgmItemInsertParam"
+            useGeneratedKeys="true" keyProperty="itemId" keyColumn="item_id">
+        INSERT INTO item (category, name, description, price, status, sales_count, created_at, updated_at)
+        VALUES ('BGM', #{name}, #{description}, #{price}, 'ACTIVE', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT (name) WHERE category = 'BGM'
+        DO NOTHING
+    </insert>
+
+</mapper>

@@ -1,0 +1,59 @@
+POST http://localhost:8080/api/auth/signup
+Content-Type: application/json; charset=UTF-8
+
+
+{
+  "email": "test2@cwww.com",
+  "password": "test1234",
+  "nickname": "테스트유저2"
+}
+
+###
+
+POST http://localhost:8080/api/auth/password/forgot
+Content-Type: application/json; charset=UTF-8
+
+{
+  "email": "test2@cwww.com"
+}
+
+###
+
+POST http://localhost:8080/api/auth/password/reset
+Content-Type: application/json; charset=UTF-8
+
+{
+  "resetToken": "여기에_메일로_온_토큰_붙여넣기",
+  "newPassword": "newpass1234"
+}
+
+###
+
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json; charset=UTF-8
+
+{
+  "email": "test2@cwww.com",
+  "password": "newpass1234"
+}
+
+###
+
+POST http://localhost:8080/api/auth/password/change
+Authorization: Bearer 여기에_로그인_응답의_accessToken_붙여넣기
+Content-Type: application/json; charset=UTF-8
+
+{
+  "currentPassword": "newpass1234",
+  "newPassword": "test1234"
+}
+
+###
+
+DELETE http://localhost:8080/api/users/me
+Authorization: Bearer 여기에_로그인_응답의_accessToken_붙여넣기
+Content-Type: application/json; charset=UTF-8
+
+{
+  "password": "test1234"
+}

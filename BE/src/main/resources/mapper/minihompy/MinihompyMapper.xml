@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.cwww.minihompy.mapper.MinihompyMapper">
+	
+	<resultMap id="minihompyMainMap" type="com.cwww.minihompy.dto.response.MinihompyMainResponse">
+		<result property="ownerId" column="user_id"/>
+		<result property="nickname" column="nickname"/>
+		<result property="profileImageUrl" column="profile_image_url"/>
+		<result property="title" column="title"/>
+		<result property="introduction" column="introduction"/>
+		<result property="mood" column="mood"/>
+		<result property="accessLevel" column="access_level"/>
+		<result property="createdAt" column="created_at"/>
+		<result property="bgmName" column="bgm_name"/>
+		<result property="bgmUrl" column="bgm_url"/>
+		<result property="backgroundColor" column="background_color"/>
+		<result property="backgroundImageUrl" column="background_image_url"/>
+	</resultMap>
+
+
+	<!-- BGM이나 프로필 사진, 배경화면을 아직 설정 안 한 유저의 경우 null로 채우기 -->
+	<select id="selectMinihompyMain" resultMap="minihompyMainMap">
+		SELECT
+			m.user_id,
+			u.nickname,
+			profile.media_url AS profile_image_url,
+			m.title,
+			m.introduction,
+			m.mood,
+			m.access_level,
+			m.created_at,
+			bgm.media_url AS bgm_url,
+			m.background_color,
+			background.media_url AS background_image_url
+		FROM minihompy m
+		JOIN users u
+			ON u.user_id = m.user_id
+		LEFT JOIN media bgm
+			ON bgm.media_id = m.media_id
+		LEFT JOIN media profile
+			ON profile.target_type = 'PROFILE'
+			AND profile.target_id = m.user_id
+			AND profile.deleted_at IS NULL
+		LEFT JOIN media background
+			ON background.target_type = 'BACKGROUND'
+			AND background.target_id = m.user_id
+			AND background.deleted_at IS NULL
+		WHERE m.user_id = #{ownerId}
+		AND m.deleted_at IS NULL
+	</select>
+
+
+	<!-- 접근 권한 확인 -->
+	<select id="selectAccessLevelByOwnerId" resultType="String">
+		SELECT access_level FROM minihompy WHERE user_id = #{ownerId} AND deleted_at IS NULL
+	</select>
+
+
+	<!--
+		회원가입/로그인 후 처음 미니홈피 조회한 사용자 자동 미니홈피 생성(기본값으로)
+		동시 요청으로 이미 다른 요청이 먼저 생성한 경우 -> 아무것도 안 함(멱등)
+		단, 과거에 소프트 삭제된 행이 남아있는 경우(예: 탈퇴 후 재방문) -> deleted_at을 NULL로 되돌리고
+		기본값으로 리셋 (재조회가 계속 null을 반환해 NPE 나는 것을 방지)
+	-->
+	<insert id="insertDefaultMinihompy" parameterType="com.cwww.minihompy.domain.Minihompy">
+		INSERT INTO minihompy (user_id, title, introduction, mood, access_level, created_at)
+		VALUES (#{userId}, #{title}, #{introduction}, #{mood}, #{accessLevel}, #{createdAt})
+		ON CONFLICT (user_id) DO NOTHING
+	</insert>
+
+
+	<!-- 미니홈피 설정 변경 (accessLevel, introduction, mood 한번에)
+     introduction/mood가 null로 오면(=해당 필드를 건드리지 않은 요청) 기존 값 유지 (COALESCE) -->
+	<update id="updateSettings">
+		UPDATE minihompy
+		SET access_level = #{accessLevel},
+			introduction = COALESCE(#{introduction}, introduction),
+			mood = COALESCE(#{mood}, mood)
+		WHERE user_id = #{userId}
+		AND deleted_at IS NULL
+	</update>
+
+
+	<!-- 도트 배경 색상 갱신 (null이면 색상 해제) -->
+	<update id="updateBackgroundColor">
+		UPDATE minihompy
+		SET background_color = #{backgroundColor}
+		WHERE user_id = #{userId}
+		AND deleted_at IS NULL
+	</update>
+
+
+	<!-- 미니홈피 존재 확인 + 행 잠금 (동시 배경 전환 요청이 서로 겹치지 않도록 직렬화) -->
+	<select id="lockMinihompyByUserId" resultType="Long">
+		SELECT minihompy_id FROM minihompy WHERE user_id = #{userId} AND deleted_at IS NULL FOR UPDATE
+	</select>
+
+
+	<!-- 회원 탈퇴 시 미니홈피 소프트 삭제, 대상이 없어도(아직 미니홈피 안 만든 유저) 에러 아님(0건 처리) -->
+	<update id="softDeleteByUserId">
+		UPDATE minihompy
+		SET deleted_at = CURRENT_TIMESTAMP
+		WHERE user_id = #{userId}
+		AND deleted_at IS NULL
+	</update>
+
+	<!-- 미니홈피에 현재 적용된 BGM의 곡 이름만 별도 조회 (media_id -> item 연결) -->
+	<select id="selectBgmNameByOwnerId" resultType="String">
+		SELECT i.name
+		FROM minihompy m
+		JOIN media bgm ON bgm.media_id = m.media_id
+		JOIN item i ON i.item_id = bgm.target_id
+		AND bgm.target_type = 'BGM'
+		WHERE m.user_id = #{ownerId}
+		AND m.deleted_at IS NULL
+	</select>
+
+</mapper>

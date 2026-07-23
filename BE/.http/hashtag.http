@@ -1,0 +1,5 @@
+### 해시태그 검색 (첫 페이지)
+GET http://localhost:8080/api/posts/search?tag=일상&size=10
+
+### 해시태그 검색 (커서 페이지)
+GET http://localhost:8080/api/posts/search?tag=일상&cursor=10&size=10

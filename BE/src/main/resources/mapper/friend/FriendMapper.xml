@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.cwww.friend.mapper.FriendMapper">
+
+    <select id="isFriend" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM friend
+            WHERE status = 'ACCEPTED'
+              AND ((requester_id = #{userId1} AND receiver_id = #{userId2})
+               OR  (requester_id = #{userId2} AND receiver_id = #{userId1}))
+        )
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="friendId">
+        INSERT INTO friend (requester_id, receiver_id, status, requester_alias, receiver_alias, created_at)
+        VALUES (#{requesterId}, #{receiverId}, #{status}, #{requesterAlias}, #{receiverAlias}, NOW())
+        ON CONFLICT DO NOTHING
+    </insert>
+
+    <select id="findById" resultType="com.cwww.friend.domain.Friend">
+        SELECT friend_id, requester_id, receiver_id, status,
+               requester_alias, receiver_alias, created_at, accepted_at, terminated_at
+        FROM friend
+        WHERE friend_id = #{friendId}
+    </select>
+
+    <select id="findActiveByUsers" resultType="com.cwww.friend.domain.Friend">
+        SELECT friend_id, requester_id, receiver_id, status,
+               requester_alias, receiver_alias, created_at, accepted_at, terminated_at
+        FROM friend
+        WHERE status IN ('PENDING', 'ACCEPTED')
+          AND ((requester_id = #{userId1} AND receiver_id = #{userId2})
+           OR  (requester_id = #{userId2} AND receiver_id = #{userId1}))
+        LIMIT 1
+    </select>
+
+    <update id="updateStatus">
+        UPDATE friend
+        SET status      = #{status},
+            accepted_at = CASE WHEN #{status} = 'ACCEPTED' THEN NOW() ELSE accepted_at END
+        WHERE friend_id = #{friendId}
+          AND status = 'PENDING'
+    </update>
+
+    <select id="findAcceptedByUserId" resultType="com.cwww.friend.domain.Friend">
+        SELECT friend_id, requester_id, receiver_id, status,
+               requester_alias, receiver_alias, created_at, accepted_at, terminated_at
+        FROM friend
+        WHERE status = 'ACCEPTED'
+          AND (requester_id = #{userId} OR receiver_id = #{userId})
+        ORDER BY accepted_at DESC
+    </select>
+
+    <select id="findAcceptedFriendUserIds" resultType="long">
+        SELECT CASE
+                   WHEN requester_id = #{userId} THEN receiver_id
+                   ELSE requester_id
+               END
+        FROM friend
+        WHERE status = 'ACCEPTED'
+          AND (requester_id = #{userId} OR receiver_id = #{userId})
+    </select>
+
+    <update id="terminate">
+        UPDATE friend
+        SET status = 'TERMINATED', terminated_at = NOW()
+        WHERE friend_id = #{friendId}
+          AND status = 'ACCEPTED'
+    </update>
+
+    <select id="findPendingByReceiverId" resultType="com.cwww.friend.domain.Friend">
+        SELECT friend_id, requester_id, receiver_id, status,
+               requester_alias, receiver_alias, created_at, accepted_at, terminated_at
+        FROM friend
+        WHERE status = 'PENDING'
+          AND receiver_id = #{receiverId}
+        ORDER BY created_at DESC
+    </select>
+
+    <update id="updateAlias">
+        UPDATE friend
+        SET requester_alias = CASE WHEN requester_id = #{requesterId} THEN #{alias} ELSE requester_alias END,
+            receiver_alias  = CASE WHEN receiver_id  = #{requesterId} THEN #{alias} ELSE receiver_alias  END
+        WHERE friend_id = #{friendId}
+          AND (requester_id = #{requesterId} OR receiver_id = #{requesterId})
+          AND status = 'ACCEPTED'
+    </update>
+
+</mapper>

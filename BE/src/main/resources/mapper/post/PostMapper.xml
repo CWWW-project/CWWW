@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.cwww.post.mapper.PostMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="postId">
+        INSERT INTO post (user_id, minihompy_id, title, content, visibility, created_at, updated_at)
+        VALUES (#{userId}, #{minihompyId}, #{title}, #{content}, #{visibility}, NOW(), NOW())
+    </insert>
+
+    <select id="findById" resultType="com.cwww.post.domain.Post">
+        SELECT post_id, user_id, minihompy_id, title, content, visibility,
+               view_count, like_count, comment_count, created_at, updated_at, deleted_at
+        FROM post
+        WHERE post_id = #{postId}
+          AND deleted_at IS NULL
+    </select>
+
+    <update id="incrementViewCount">
+        UPDATE post SET view_count = view_count + 1 WHERE post_id = #{postId} AND deleted_at IS NULL
+    </update>
+
+    <update id="update">
+        UPDATE post
+        SET title = #{title}, content = #{content}, visibility = #{visibility}, updated_at = NOW()
+        WHERE post_id = #{postId}
+          AND deleted_at IS NULL
+    </update>
+
+    <update id="softDelete">
+        UPDATE post SET deleted_at = NOW() WHERE post_id = #{postId}
+    </update>
+
+    <select id="findFeed" resultType="com.cwww.post.domain.Post">
+        SELECT p.post_id, p.user_id, p.minihompy_id, p.title, p.content, p.visibility,
+               p.view_count, p.like_count, p.comment_count, p.created_at, p.updated_at
+        FROM post p
+        WHERE p.deleted_at IS NULL
+          AND (
+              <choose>
+                  <when test="viewerId != null">
+                      p.user_id = #{viewerId}
+                      OR (
+                          (p.visibility = 'ALL' OR p.visibility = 'FRIEND')
+                          AND EXISTS (
+                              SELECT 1 FROM friend f
+                              WHERE f.status = 'ACCEPTED'
+                                AND (
+                                    (f.requester_id = p.user_id AND f.receiver_id = #{viewerId})
+                                    OR (f.requester_id = #{viewerId} AND f.receiver_id = p.user_id)
+                                )
+                          )
+                      )
+                  </when>
+                  <otherwise>
+                      p.visibility = 'ALL'
+                  </otherwise>
+              </choose>
+          )
+          <if test="cursor != null">
+            <![CDATA[AND p.post_id < #{cursor}]]>
+          </if>
+        ORDER BY p.post_id DESC
+        LIMIT #{size}
+    </select>
+
+    <update id="incrementLikeCount">
+        UPDATE post SET like_count = like_count + 1 WHERE post_id = #{postId}
+    </update>
+
+    <update id="decrementLikeCount">
+        UPDATE post SET like_count = GREATEST(like_count - 1, 0) WHERE post_id = #{postId}
+    </update>
+
+    <update id="incrementCommentCount">
+        UPDATE post SET comment_count = comment_count + 1 WHERE post_id = #{postId}
+    </update>
+
+    <update id="decrementCommentCount">
+        UPDATE post SET comment_count = GREATEST(comment_count - 1, 0) WHERE post_id = #{postId}
+    </update>
+
+    <select id="findByHashtag" resultType="com.cwww.post.domain.Post">
+        SELECT p.post_id, p.user_id, p.minihompy_id, p.title, p.content,
+               p.visibility, p.view_count, p.like_count, p.comment_count,
+               p.created_at, p.updated_at
+        FROM post p
+        INNER JOIN post_hashtag ph ON p.post_id = ph.post_id
+        INNER JOIN hashtag h ON ph.hashtag_id = h.hashtag_id
+        WHERE h.name = #{tag}
+          AND p.deleted_at IS NULL
+          AND p.visibility = 'ALL'
+          <if test="cursor != null">
+            <![CDATA[AND p.post_id < #{cursor}]]>
+          </if>
+        ORDER BY p.post_id DESC
+        LIMIT #{size}
+    </select>
+
+    <select id="findByUserId" resultType="com.cwww.post.domain.Post">
+        SELECT p.post_id, p.user_id, p.minihompy_id, p.title, p.content, p.visibility,
+        p.view_count, p.like_count, p.comment_count, p.created_at, p.updated_at
+        FROM post p
+        WHERE p.deleted_at IS NULL
+        AND p.user_id = #{targetUserId}
+        AND (
+            <choose>
+                <when test="viewerId != null">
+                    #{viewerId} = #{targetUserId}
+                    OR p.visibility = 'ALL'
+                    OR (
+                        p.visibility = 'FRIEND'
+                        AND EXISTS (
+                            SELECT 1 FROM friend f
+                            WHERE f.status = 'ACCEPTED'
+                            AND (
+                                (f.requester_id = p.user_id AND f.receiver_id = #{viewerId})
+                                OR (f.requester_id = #{viewerId} AND f.receiver_id = p.user_id)
+                            )
+                        )
+                    )
+                </when>
+                <otherwise>
+                    p.visibility = 'ALL'
+                </otherwise>
+            </choose>
+        )
+        <if test="cursor != null">
+            <![CDATA[AND p.post_id < #{cursor}]]>
+        </if>
+        ORDER BY p.post_id DESC
+        LIMIT #{size}
+    </select>
+
+</mapper>

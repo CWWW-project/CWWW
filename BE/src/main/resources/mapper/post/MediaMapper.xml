@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.cwww.post.mapper.MediaMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="mediaId">
+        INSERT INTO media (target_type, target_id, media_url, created_at)
+        VALUES (#{targetType}, #{targetId}, #{mediaUrl}, NOW())
+    </insert>
+
+    <select id="findUrlsByTarget" resultType="String">
+        SELECT media_url
+        FROM media
+        WHERE target_type = #{targetType}
+          AND target_id = #{targetId}
+          AND deleted_at IS NULL
+        ORDER BY media_id
+    </select>
+
+    <select id="findAllByTargets" resultType="com.cwww.post.domain.Media">
+        SELECT target_id, media_url
+        FROM media
+        WHERE target_type = #{targetType}
+          AND target_id IN
+        <foreach item="id" collection="targetIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND deleted_at IS NULL
+        ORDER BY media_id
+    </select>
+
+</mapper>

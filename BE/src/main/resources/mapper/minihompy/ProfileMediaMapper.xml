@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.cwww.minihompy.mapper.ProfileMediaMapper">
+
+
+    <!-- media 신규 등록 (domain 객체를 그대로 insert), 삽입된 row 수 반환 -->
+    <insert id="insertMedia" parameterType="com.cwww.minihompy.domain.Media">
+        INSERT INTO media (target_type, target_id, media_url, created_at)
+        VALUES (#{targetType}, #{targetId}, #{mediaUrl}, #{createdAt})
+    </insert>
+
+
+    <!--
+        원자적 upsert
+        targetType 값에 따라 ON CONFLICT의 WHERE절 리터럴을 다르게 생성해야
+        해당 partial index와 정확히 매칭됨 (파라미터 바인딩으로는 매칭 안 됨)
+        DO UPDATE 시 deleted_at도 NULL로 복구 - 예전에 삭제했다가 다시 올리는 경우 대비
+    -->
+    <insert id="upsertMedia" parameterType="com.cwww.minihompy.domain.Media">
+        INSERT INTO media (target_type, target_id, media_url, created_at)
+        VALUES (#{targetType}, #{targetId}, #{mediaUrl}, #{createdAt})
+        <choose>
+            <when test="targetType.name() == 'PROFILE'">
+                ON CONFLICT (target_id) WHERE target_type = 'PROFILE' AND deleted_at IS NULL
+                DO UPDATE SET media_url = EXCLUDED.media_url, deleted_at = NULL
+            </when>
+            <when test="targetType.name() == 'BACKGROUND'">
+                ON CONFLICT (target_id) WHERE target_type = 'BACKGROUND' AND deleted_at IS NULL
+                DO UPDATE SET media_url = EXCLUDED.media_url, deleted_at = NULL
+            </when>
+        </choose>
+    </insert>
+
+
+    <!-- media 소프트 삭제 (target_type + target_id 기준), 대상이 없어도 에러 아님(0건 처리) -->
+    <update id="deleteMedia">
+        UPDATE media
+        SET deleted_at = CURRENT_TIMESTAMP
+        WHERE target_type = #{targetType}
+        AND target_id = #{targetId}
+        AND deleted_at IS NULL
+    </update>
+
+</mapper>

@@ -1,9 +1,0 @@
-package com.cwww.post.service;
-
-public interface PostService {
-
-    // TODO: POST-001 다이어리 작성
-    // TODO: POST-003 다이어리 조회
-    // TODO: POST-004 다이어리 수정/삭제
-    // TODO: POST-005 피드 조회
-}

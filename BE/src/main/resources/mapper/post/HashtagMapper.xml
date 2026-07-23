@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.cwww.post.mapper.HashtagMapper">
+
+    <insert id="upsertHashtag">
+        INSERT INTO hashtag (name)
+        VALUES (#{name})
+        ON CONFLICT (name) DO NOTHING
+    </insert>
+
+    <select id="findByName" resultType="com.cwww.post.domain.Hashtag">
+        SELECT hashtag_id, name
+        FROM hashtag
+        WHERE name = #{name}
+    </select>
+
+    <insert id="linkToPost">
+        INSERT INTO post_hashtag (post_id, hashtag_id)
+        VALUES (#{postId}, #{hashtagId})
+        ON CONFLICT DO NOTHING
+    </insert>
+
+    <select id="findNamesByPostId" resultType="String">
+        SELECT h.name
+        FROM hashtag h
+        JOIN post_hashtag ph ON h.hashtag_id = ph.hashtag_id
+        WHERE ph.post_id = #{postId}
+    </select>
+
+    <select id="findAllByPostIds" resultType="com.cwww.post.dto.PostHashtagDto">
+        SELECT ph.post_id as postId, h.name
+        FROM hashtag h
+        JOIN post_hashtag ph ON h.hashtag_id = ph.hashtag_id
+        WHERE ph.post_id IN
+        <foreach item="id" collection="postIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <delete id="deleteByPostId">
+        DELETE FROM post_hashtag WHERE post_id = #{postId}
+    </delete>
+
+</mapper>
