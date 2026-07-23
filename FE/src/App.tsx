@@ -173,11 +173,13 @@ function App() {
         <Route path="/auth/login" element={<LoginPage />} />
         <Route path="/auth/signup" element={<SignupPage />} />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/auth/settings" element={<AccountSettingsPage />} />
         <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
 
         {/* 여기 안에 있는 라우트는 전부 자동으로 로그인 필요 */}
           <Route element={<ProtectedRoute />}>
+
+          <Route path="/auth/settings" element={<AccountSettingsPage />} />
+
           {/* POST - 송경용 */}
           <Route path="/" element={user ? <FeedPage /> : <Navigate to="/auth/login" replace />} />
           <Route path="/friends" element={<FriendsPage />} />

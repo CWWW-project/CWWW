@@ -7,7 +7,13 @@ export function ProtectedRoute() {
   const location = useLocation()
 
   if (!accessToken) {
-    return <Navigate to="/auth/login" replace state={{ from: location.pathname }} />
+    return (
+      <Navigate
+        to="/auth/login"
+        replace
+        state={{ from: `${location.pathname}${location.search}${location.hash}` }}
+      />
+    )
   }
 
   return <Outlet />
