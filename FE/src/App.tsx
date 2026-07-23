@@ -23,6 +23,7 @@ import PaymentSuccessPage from './pages/pay/PaymentSuccessPage'
 import PaymentFailPage from './pages/pay/PaymentFailPage'
 import AdminPaymentPage from './pages/pay/AdminPaymentPage'
 import { minihompyApi } from './api/minihompy'
+import { ProtectedRoute } from './components/ProtectedRoute'
 const MOBILE_TABS = [
   { icon: 'home', label: '내 홈피', path: '/' },
   { icon: 'edit_note', label: '다이어리', pathFn: (userId?: number) => userId ? `/diary/${userId}` : '/auth/login' },
@@ -175,29 +176,33 @@ function App() {
         <Route path="/auth/settings" element={<AccountSettingsPage />} />
         <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
 
-        {/* POST - 송경용 */}
-        <Route path="/" element={user ? <FeedPage /> : <Navigate to="/auth/login" replace />} />
-        <Route path="/friends" element={<FriendsPage />} />
-        <Route path="/diary/:userId" element={<DiaryPage />} />
+        {/* 여기 안에 있는 라우트는 전부 자동으로 로그인 필요 */}
+          <Route element={<ProtectedRoute />}>
+          {/* POST - 송경용 */}
+          <Route path="/" element={user ? <FeedPage /> : <Navigate to="/auth/login" replace />} />
+          <Route path="/friends" element={<FriendsPage />} />
+          <Route path="/diary/:userId" element={<DiaryPage />} />
 
-        {/* HOME - 김채린, 특정 유저(다른 사람) 미니홈피 가기 */}
-        <Route path="/home/:userId" element={<MinihompyPage />} />
-        {/* GUESTBOOk - 김채린 */}
-        <Route path="/guestbook/:userId" element={<GuestbookPage />} />
-        {/* 최근 방문자 확인 */}
-        <Route path="/visitor/:userId" element={<VisitorPage />} />
+          {/* HOME - 김채린, 특정 유저(다른 사람) 미니홈피 가기 */}
+          <Route path="/home/:userId" element={<MinihompyPage />} />
+          {/* GUESTBOOk - 김채린 */}
+          <Route path="/guestbook/:userId" element={<GuestbookPage />} />
+          {/* 최근 방문자 확인 */}
+          <Route path="/visitor/:userId" element={<VisitorPage />} />
 
-        {/* CHAT - 김찬호 */}
-        <Route path="/chat" element={<ChatPage />} />
+          {/* CHAT - 김찬호 */}
+          <Route path="/chat" element={<ChatPage />} />
 
-        {/* PAY - 장수호 */}
-        <Route path="/shop" element={<ShopPage />} />
-        <Route path="/payment/success" element={<PaymentSuccessPage />} />
-        <Route path="/payment/fail" element={<PaymentFailPage />} />
-        <Route path="/admin/payments" element={user?.role === 'ADMIN' ? <AdminPaymentPage /> : <Navigate to="/" replace />} />
+          {/* PAY - 장수호 */}
+          <Route path="/shop" element={<ShopPage />} />
+          <Route path="/payment/success" element={<PaymentSuccessPage />} />
+          <Route path="/payment/fail" element={<PaymentFailPage />} />
+          <Route path="/admin/payments" element={user?.role === 'ADMIN' ? <AdminPaymentPage /> : <Navigate to="/" replace />} />
 
-        {/* ROOM - 정용혁 */}
-        <Route path="/room" element={<MiniroomPage />} />
+          {/* ROOM - 정용혁 */}
+          <Route path="/room" element={<MiniroomPage />} />
+        </Route>
+        
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
