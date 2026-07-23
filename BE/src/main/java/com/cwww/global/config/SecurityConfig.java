@@ -46,8 +46,18 @@ public class SecurityConfig {
             // OAuth2 flow는 세션이 필요 → IF_REQUIRED (JWT API 호출엔 세션 안 씀)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(
+                        "/api/auth/login",
+                        "/api/auth/signup",
+                        "/api/auth/refresh",
+                        "/api/auth/oauth/token",
+                        "/api/auth/email/**",
+                        "/api/auth/nickname/check",
+                        "/api/auth/password/forgot",
+                        "/api/auth/password/reset"
+                ).permitAll()
                 .requestMatchers("/api/payments/**").authenticated()
-                    .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2
